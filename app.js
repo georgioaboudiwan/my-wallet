@@ -5,13 +5,15 @@
   const root = document.getElementById("app");
   const toastEl = document.getElementById("toast");
   const SVGNS = "http://www.w3.org/2000/svg";
-  const TABLES = ["accounts", "categories", "transactions", "rules", "settings"];
+  const TABLES = ["accounts", "categories", "transactions", "rules", "settings", "people", "loan_entries"];
   const COLS = {
     accounts: ["id", "user_id", "name", "currency", "kind", "opening_balance", "sort", "archived", "deleted_at"],
     categories: ["id", "user_id", "name", "kind", "bucket", "color", "budget", "sort", "deleted_at"],
     transactions: ["id", "user_id", "kind", "amount", "currency", "rate", "account_id", "to_account_id", "to_amount", "category_id", "note", "occurred_on", "rule_id", "deleted_at"],
     rules: ["id", "user_id", "kind", "amount", "currency", "account_id", "category_id", "note", "day", "next_on", "active", "deleted_at"],
-    settings: ["id", "user_id", "data", "deleted_at"]
+    settings: ["id", "user_id", "data", "deleted_at"],
+    people: ["id", "user_id", "name", "direction", "currency", "phone", "share_token", "sort", "deleted_at"],
+    loan_entries: ["id", "user_id", "person_id", "amount", "note", "occurred_on", "deleted_at"]
   };
   const DEFAULTS = { sort: 0, archived: false, active: true, opening_balance: 0, color: "#5b7083", data: {} };
   const ID_RE = /^[A-Za-z0-9_:@.\-]{1,160}$/;
@@ -58,6 +60,8 @@
     cloudOff: "M3 3l18 18M8 8a5 5 0 0 0-.5 9H17M20.6 15.7A4 4 0 0 0 17 10h-1.3A7 7 0 0 0 11 6.1",
     swap: "M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7",
     link: "M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1",
+    people: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8",
+    chat: "M21 11.5a8.4 8.4 0 0 1-12.3 7.4L3 21l2.1-5.6A8.4 8.4 0 1 1 21 11.5z",
     warn: "M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"
   };
 
@@ -202,8 +206,8 @@
       rate: Number(d.rate) > 0 ? Number(d.rate) : 89500,
       plan: d.plan && [d.plan.needs, d.plan.wants, d.plan.savings].every(Number.isFinite) ? d.plan : { needs: 50, wants: 30, savings: 20 },
       income: Number(d.income) > 0 ? Number(d.income) : 0,
-      ledgerUrl: typeof d.ledgerUrl === "string" ? d.ledgerUrl : "",
-      seeded: !!d.seeded
+      seeded: !!d.seeded,
+      name: typeof d.name === "string" ? d.name : ""
     };
   };
   const bySort = (a, b) => (a.sort || 0) - (b.sort || 0) || a.name.localeCompare(b.name);
@@ -445,6 +449,7 @@
     activity: { title: "Activity", draw: viewActivity },
     insights: { title: "Insights", draw: viewInsights },
     plan: { title: "Plan", draw: viewPlan },
+    people: { title: "People", draw: viewPeople },
     settings: { title: "Settings", draw: viewSettings }
   };
 
@@ -455,7 +460,7 @@
     const gear = h("button", { type: "button", class: "icon-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, icon("gear"));
     const main = h("main", { class: "view" });
     const tab = (view, label, ic) => h("button", { type: "button", class: "tab", "data-view": view, on: { click: () => go(view) } }, icon(ic), label);
-    const tabs = [tab("home", "Home", "home"), tab("activity", "Activity", "list"), tab("insights", "Insights", "chart"), tab("plan", "Plan", "plan")];
+    const tabs = [tab("home", "Home", "home"), tab("activity", "Activity", "list"), tab("insights", "Insights", "chart"), tab("people", "People", "people")];
     const add = h("button", { type: "button", class: "tab add", "aria-label": "Add an entry", on: { click: () => txnSheet(null) } }, h("span", { class: "bubble" }, icon("plus")));
     const nav = h("nav", { class: "tabs", "aria-label": "Sections" }, tabs[0], tabs[1], add, tabs[2], tabs[3]);
     root.replaceChildren(h("div", { class: "shell" }, h("header", { class: "top" }, title, status, eye, gear), main, nav));
@@ -661,10 +666,14 @@
       out.append(recent);
     }
 
-    if (st.ledgerUrl) {
-      out.append(h("section", { class: "card flush" }, h("a", { class: "row", href: st.ledgerUrl, target: "_blank", rel: "noopener noreferrer" },
-        h("span", { class: "dot neutral" }, icon("link", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Family Ledger"), h("span", { class: "row-sub" }, "Loans with your brothers")),
+    const lb = loanBalances();
+    const people = rows("people");
+    if (people.length) {
+      let owed = 0, owe = 0;
+      for (const p of people) { const v = toUsd(lb.get(p.id) || 0, p.currency, st.rate); if (owesMe(p)) owed += v; else owe += v; }
+      out.append(h("section", { class: "card flush" }, h("button", { type: "button", class: "row", on: { click: () => go("people") } },
+        h("span", { class: "dot neutral" }, icon("people", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "People"), h("span", { class: "row-sub" }, [owed ? `Owed to you ${usd(owed, { whole: true })}` : null, owe ? `You owe ${usd(owe, { whole: true })}` : null].filter(Boolean).join(" · ") || "All settled")),
         icon("fwd"))));
     }
     return out;
@@ -725,7 +734,11 @@
     const s = monthStats(m);
     const prevM = shiftMonth(m, -1);
     const prev = monthStats(prevM);
-    const out = h("div", { class: "stack" }, monthSwitcher());
+    const pl = settings().plan;
+    const out = h("div", { class: "stack" }, monthSwitcher(), h("section", { class: "card flush" }, h("button", { type: "button", class: "row", on: { click: () => go("plan") } },
+      h("span", { class: "dot neutral" }, icon("plan", "ico sm")),
+      h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Your plan and budgets"), h("span", { class: "row-sub" }, `Needs ${pl.needs}% · Wants ${pl.wants}% · Savings ${pl.savings}%`)),
+      icon("fwd"))));
     const left = s.income - s.spent;
     let changeText = null;
     if (prev.spent > 0 && s.spent > 0) {
@@ -937,9 +950,9 @@
           h("span", { class: "row-end" + (r.kind === "income" ? " pos" : "") }, (r.kind === "income" ? "+" : "−") + fmt(Number(r.amount), r.currency)));
       }) : h("p", { class: "empty" }, "Nothing repeats yet. Turn on “Repeat every month” when you add rent, salary or a subscription.")));
 
-    const ledger = h("input", { id: "s-ledger", class: "input", type: "url", inputmode: "url", placeholder: "https://claude.ai/artifact/…", value: st.ledgerUrl, autocomplete: "off", "aria-label": "Family Ledger link",
-      on: { change: e => { const v = e.target.value.trim(); if (v && (!/^https:\/\/\S+$/.test(v) || v.length > 300)) { toast("Paste a link that starts with https://"); e.target.value = st.ledgerUrl; return; } saveSettings({ ledgerUrl: v }); toast(v ? "Link saved. It shows on Home." : "Link removed."); } } });
-    out.append(group("Family Ledger", h("div", { class: "row" }, h("span", { class: "row-main" }, ledger))));
+    const nameIn = h("input", { id: "s-name", class: "input", maxlength: "40", autocomplete: "name", placeholder: "e.g. Georgio", value: st.name, "aria-label": "Your name",
+      on: { change: e => { const v = e.target.value.trim().replace(/\s+/g, " ").slice(0, 40); saveSettings({ name: v }); toast("Name saved."); } } });
+    out.append(group("Your name", h("div", { class: "row" }, h("span", { class: "row-main" }, nameIn, h("span", { class: "row-sub", style: { marginTop: "6px" } }, "Shown on the private pages you share")))));
 
     const fileInput = h("input", { id: "s-restore", type: "file", accept: "application/json,.json", class: "vh", on: { change: onRestoreFile } });
     const dataKids = [
@@ -961,6 +974,263 @@
       h("button", { type: "button", class: "row-btn danger", on: { click: () => { if (armed) signOut(); else { S.armed = "signout"; render(); } } } },
         armed ? (pending ? `Sign out and lose ${pending} unsynced changes?` : "Tap again to sign out") : "Sign out")));
     return out;
+  }
+
+  const loanBalances = () => {
+    const b = new Map();
+    for (const e of rows("loan_entries")) b.set(e.person_id, (b.get(e.person_id) || 0) + Number(e.amount));
+    return b;
+  };
+  const cleanPhone = raw => {
+    const s = String(raw || "").trim().replace(/[\s().-]/g, "").replace(/^00/, "+");
+    if (/^0\d{6,7}$/.test(s)) return "+961" + s.slice(1);
+    return /^\d{7,8}$/.test(s) ? "+961" + s : s;
+  };
+  const PHONE_RE = /^\+[1-9]\d{7,14}$/;
+  const TOKEN_RE = /^[A-Za-z0-9_-]{32,64}$/;
+  const newToken = () => {
+    const b = new Uint8Array(24);
+    crypto.getRandomValues(b);
+    return btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  };
+  const shareUrl = token => `${location.origin}${location.pathname}#share=${token}`;
+  const waUrl = (phone, text) => `https://wa.me/${phone.slice(1)}?text=${encodeURIComponent(text)}`;
+  const waButton = (phone, text, label, cls = "") => h("a", { class: "btn " + cls, href: waUrl(phone, text), target: "_blank", rel: "noopener noreferrer" }, icon("chat"), label);
+  const owesMe = p => p.direction === "owes_me";
+  const statusText = (p, v) => v === 0 ? "Settled" : owesMe(p) ? "Owes you" : "You owe";
+
+  const loanMessage = (p, delta, balance, note) => {
+    const m = v => fmt(v, p.currency, { show: true });
+    const why = note ? ` (${note})` : "";
+    const after = balance === 0 ? "We're all settled now." : owesMe(p) ? `You now owe me ${m(balance)}.` : `I now owe you ${m(balance)}.`;
+    if (owesMe(p)) return delta > 0 ? `Hi ${p.name}, I've added ${m(delta)} to what you owe me${why}. ${after}` : `Hi ${p.name}, I got your ${m(-delta)}${why}, thanks. ${after}`;
+    return delta > 0 ? `Hi ${p.name}, I've added ${m(delta)} to what I owe you${why}. ${after}` : `Hi ${p.name}, I've paid you back ${m(-delta)}${why}. ${after}`;
+  };
+  const balanceMessage = (p, balance) => {
+    const m = fmt(balance, p.currency, { show: true });
+    if (balance === 0) return `Hi ${p.name}, we're all settled. Nothing owed either way.`;
+    return owesMe(p) ? `Hi ${p.name}, just so you know, you owe me ${m} so far.` : `Hi ${p.name}, just so you know, I owe you ${m} so far.`;
+  };
+  const linkMessage = (p, token) => `Hi ${p.name}, here's a private page with your balance and history. It updates whenever something changes: ${shareUrl(token)}`;
+
+  async function copyText(text, fallbackId) {
+    try { await navigator.clipboard.writeText(text); toast("Link copied."); return; } catch { }
+    const el = document.getElementById(fallbackId);
+    if (el) { el.hidden = false; el.focus(); el.select(); toast("Copy the selected link."); }
+  }
+
+  function viewPeople() {
+    const st = settings();
+    const bal = loanBalances();
+    const people = rows("people").sort(bySort);
+    let owed = 0, owe = 0;
+    for (const p of people) {
+      const v = toUsd(bal.get(p.id) || 0, p.currency, st.rate);
+      if (owesMe(p)) owed += v; else owe += v;
+    }
+    const out = h("div", { class: "stack" });
+    out.append(h("div", { class: "tiles two" },
+      h("div", { class: "tile good" }, h("small", null, "Owed to you"), h("strong", null, usd(owed))),
+      h("div", { class: "tile" + (owe > 0 ? " bad" : "") }, h("small", null, "You owe"), h("strong", null, usd(owe)))));
+    const list = h("section", { class: "card flush" });
+    for (const p of people) {
+      const v = bal.get(p.id) || 0;
+      list.append(h("button", { type: "button", class: "row", on: { click: () => personSheet(p) } },
+        h("span", { class: "dot", style: { background: COLORS[(p.sort || 0) % COLORS.length] } }, p.name.charAt(0).toUpperCase()),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" }, [statusText(p, v), p.share_token ? "Has their page" : null].filter(Boolean).join(" · "))),
+        h("span", { class: "row-end" + (v > 0 && owesMe(p) ? " pos" : v > 0 ? " neg" : "") }, fmt(v, p.currency))));
+    }
+    if (!people.length) list.append(h("p", { class: "empty" }, "No one yet. Add the people you lend money to or borrow from."));
+    list.append(h("button", { type: "button", class: "row-btn", on: { click: () => personSheet(null) } }, "Add person"));
+    out.append(list, h("p", { class: "hint" }, "Each person can get a private link that shows only their own balance and history. They don't need an account."));
+    return out;
+  }
+
+  function personSheet(p) {
+    if (!p) return newPersonSheet();
+    const body = h("div", { class: "form" });
+    const f = { mode: "more", amount: "", note: "", phone: p.phone || "", name: p.name, editing: false };
+    let notice = null;
+    let armed = null;
+    const draw = () => {
+      p = S.data.people.get(p.id) || p;
+      const balance = loanBalances().get(p.id) || 0;
+      const cur = p.currency;
+      const history = rows("loan_entries").filter(e => e.person_id === p.id).sort(byRecent);
+      const kids = [];
+      kids.push(h("div", { class: "person-head" },
+        h("p", { class: "hint" }, balance === 0 ? "All settled" : owesMe(p) ? `${p.name} owes you` : `You owe ${p.name}`),
+        h("p", { class: "big num" }, fmt(balance, cur))));
+
+      if (notice) {
+        kids.push(h("div", { class: "notice" }, h("p", null, notice.title),
+          h("div", { class: "btn-row" },
+            p.phone ? waButton(p.phone, notice.message, `Tell ${p.name}`) : null,
+            h("button", { type: "button", class: "btn alt", on: { click: () => { notice = null; draw(); } } }, p.phone ? "Skip" : "OK")),
+          p.phone ? null : h("p", { class: "hint" }, "Add their WhatsApp number below to send updates.")));
+      }
+
+      const amt = h("input", { id: "f-pamt", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.amount, "aria-label": `Amount in ${cur === "LBP" ? "lira" : "dollars"}`, on: { input: e => { f.amount = e.target.value; refresh(); } } });
+      const preview = h("p", { class: "preview num" });
+      const submit = h("button", { type: "button", class: "btn" });
+      const refresh = () => {
+        const v = parseAmt(f.amount);
+        const back = f.mode === "back";
+        const tooMuch = back && v && v > balance;
+        submit.disabled = !v || tooMuch;
+        submit.textContent = !v ? "Enter an amount" : back ? `Record ${fmt(v, cur, { show: true })} paid back` : `Add ${fmt(v, cur, { show: true })}`;
+        preview.textContent = !v ? "" : tooMuch ? `That's more than the ${fmt(balance, cur, { show: true })} balance.` : `New balance: ${fmt(balance + (back ? -v : v), cur, { show: true })}`;
+      };
+      submit.addEventListener("click", () => {
+        const v = parseAmt(f.amount);
+        if (!v) return;
+        const back = f.mode === "back";
+        if (back && v > balance) return;
+        const amount = (cur === "LBP" ? Math.round(v) : v) * (back ? -1 : 1);
+        const note = f.note.trim().slice(0, 200) || null;
+        put("loan_entries", { id: newId(), person_id: p.id, amount, note, occurred_on: today(), created_at: new Date().toISOString() });
+        const next = balance + amount;
+        notice = { title: `Saved. ${next === 0 ? "All settled." : `Balance is now ${fmt(next, cur, { show: true })}.`}`, message: loanMessage(p, amount, next, note) };
+        f.amount = ""; f.note = "";
+        draw();
+      });
+      kids.push(h("div", { class: "form" },
+        seg([["more", owesMe(p) ? "Lent more" : "Borrowed more"], ["back", owesMe(p) ? "Paid me back" : "I paid back"]], f.mode, k => { f.mode = k; draw(); }, "Change type"),
+        h("label", { class: "amount", for: "f-pamt" }, h("span", { class: "cur" }, cur === "LBP" ? "LBP" : "$"), amt),
+        h("div", { class: "chips" },
+          (cur === "LBP" ? [1e6, 5e6, 10e6] : [100, 500, 1000]).map(n => h("button", { type: "button", class: "chip", on: { click: () => { f.amount = String(n); amt.value = f.amount; refresh(); } } }, fmt(n, cur, { show: true, compact: true }))),
+          f.mode === "back" && balance > 0 ? h("button", { type: "button", class: "chip", on: { click: () => { f.amount = String(balance); amt.value = f.amount; refresh(); } } }, "Full balance") : null),
+        h("input", { id: "f-pnote", class: "input", maxlength: "200", autocomplete: "off", placeholder: "What's it for? (optional)", value: f.note, "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }),
+        preview, submit));
+      refresh();
+
+      if (p.phone) kids.push(waButton(p.phone, balanceMessage(p, balance), "Send balance on WhatsApp", "alt"));
+
+      const share = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Their private page")));
+      if (p.share_token) {
+        const url = shareUrl(p.share_token);
+        share.append(
+          h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `${p.name} sees only their balance and history. No account needed.`),
+          h("input", { id: "f-plink", class: "input", readOnly: true, value: url, hidden: true, style: { margin: "0 16px", width: "calc(100% - 32px)" } }),
+          h("button", { type: "button", class: "row-btn", on: { click: () => copyText(url, "f-plink") } }, "Copy link"),
+          p.phone ? h("a", { class: "row-btn", style: { display: "block", textDecoration: "none" }, href: waUrl(p.phone, linkMessage(p, p.share_token)), target: "_blank", rel: "noopener noreferrer" }, "Send link on WhatsApp") : null,
+          h("button", { type: "button", class: "row-btn danger", on: { click: () => { if (armed !== "unshare") { armed = "unshare"; draw(); return; } armed = null; put("people", { ...p, share_token: null }); toast("Link turned off."); draw(); } } }, armed === "unshare" ? "Tap again: the old link stops working" : "Turn off link"));
+      } else {
+        share.append(h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `Make a link that shows ${p.name} only their own balance and history.`),
+          h("button", { type: "button", class: "row-btn", on: { click: () => { put("people", { ...p, share_token: newToken() }); draw(); } } }, "Create private link"));
+      }
+      kids.push(share);
+
+      const hist = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, `History (${history.length})`)));
+      for (const e of history) {
+        const v = Number(e.amount);
+        const label = owesMe(p) ? (v > 0 ? "Lent" : "Paid back") : (v > 0 ? "Borrowed" : "Paid back");
+        hist.append(h("div", { class: "row" },
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, e.note || label), h("span", { class: "row-sub" }, `${label} · ${dayLabel(e.occurred_on)}`)),
+          h("span", { class: "row-end" + (v < 0 ? " pos" : "") }, (v > 0 ? "+" : "−") + fmt(Math.abs(v), cur)),
+          h("button", { type: "button", class: "icon-btn", "aria-label": armed === e.id ? "Confirm delete" : "Delete entry", style: armed === e.id ? { color: "var(--neg)" } : null,
+            on: { click: () => { if (armed !== e.id) { armed = e.id; draw(); return; } armed = null; removeRow("loan_entries", e); toast("Entry deleted."); draw(); } } }, icon(armed === e.id ? "warn" : "close"))));
+      }
+      if (!history.length) hist.append(h("p", { class: "empty" }, "No entries yet."));
+      kids.push(hist);
+
+      const phoneIn = h("input", { id: "f-pphone", class: "input", type: "tel", autocomplete: "off", placeholder: "70 123 456", value: f.phone, on: { input: e => { f.phone = e.target.value; } } });
+      const nameIn = h("input", { id: "f-pname", class: "input", maxlength: "40", autocomplete: "off", value: f.name, on: { input: e => { f.name = e.target.value; } } });
+      kids.push(h("section", { class: "card" },
+        h("div", { class: "card-head" }, h("h2", null, "Details")),
+        h("label", { class: "field" }, h("span", null, "Name"), nameIn),
+        h("label", { class: "field" }, h("span", null, "WhatsApp number"), phoneIn),
+        h("button", { type: "button", class: "btn alt", on: { click: () => {
+          const name = f.name.trim().replace(/\s+/g, " ");
+          if (!name || name.length > 40) return toast("Enter a name.");
+          const phone = f.phone.trim() ? cleanPhone(f.phone) : null;
+          if (phone && !PHONE_RE.test(phone)) return toast("Enter a number like 70 123 456, or +33 6 12 34 56 78 outside Lebanon.");
+          put("people", { ...p, name, phone });
+          f.phone = phone || "";
+          toast("Saved.");
+          draw();
+        } } }, "Save details"),
+        h("button", { type: "button", class: "btn danger" + (armed === "delete" ? " sure" : ""), on: { click: () => {
+          if (armed !== "delete") { armed = "delete"; draw(); return; }
+          const items = [{ t: "people", r: { ...p, share_token: null, deleted_at: new Date().toISOString() } }, ...history.map(e => ({ t: "loan_entries", r: { ...e, deleted_at: new Date().toISOString() } }))];
+          putMany(items); closeSheet(); toast(`${p.name} removed.`);
+        } } }, armed === "delete" ? `Tap again to remove ${p.name} and their history` : "Remove person")));
+
+      keepFocus(() => body.replaceChildren(...kids));
+    };
+    draw();
+    openSheet(p.name, body);
+  }
+
+  function newPersonSheet() {
+    const f = { name: "", direction: "owes_me", currency: "USD", amount: "", phone: "" };
+    const body = h("form", { class: "form", novalidate: true });
+    const err = h("p", { class: "form-err", role: "alert" });
+    const draw = () => {
+      keepFocus(() => body.replaceChildren(
+        h("label", { class: "field" }, h("span", null, "Name"), h("input", { id: "f-nname", class: "input", maxlength: "40", autocomplete: "off", value: f.name, on: { input: e => { f.name = e.target.value; } } })),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Who owes who"), seg([["owes_me", "They owe me"], ["i_owe", "I owe them"]], f.direction, k => { f.direction = k; draw(); }, "Direction")),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Currency"), seg([["USD", "Dollars"], ["LBP", "Lira"]], f.currency, k => { f.currency = k; draw(); }, "Currency")),
+        h("label", { class: "field" }, h("span", null, `Amount owed now (${f.currency === "LBP" ? "LBP" : "$"})`), h("input", { id: "f-namt", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.amount, on: { input: e => { f.amount = e.target.value; } } })),
+        h("label", { class: "field" }, h("span", null, "WhatsApp number (optional)"), h("input", { id: "f-nphone", class: "input", type: "tel", autocomplete: "off", placeholder: "70 123 456", value: f.phone, on: { input: e => { f.phone = e.target.value; } } })),
+        err,
+        h("button", { type: "submit", class: "btn" }, "Add person")));
+    };
+    body.addEventListener("submit", ev => {
+      ev.preventDefault();
+      const name = f.name.trim().replace(/\s+/g, " ");
+      if (!name || name.length > 40) { err.textContent = "Enter a name."; return; }
+      if (rows("people").some(p => p.name.toLowerCase() === name.toLowerCase())) { err.textContent = `${name} is already on your list.`; return; }
+      const start = f.amount.trim() ? parseAmt(f.amount) : 0;
+      if (start === null) { err.textContent = "Enter the amount as a number, like 2000."; return; }
+      const phone = f.phone.trim() ? cleanPhone(f.phone) : null;
+      if (phone && !PHONE_RE.test(phone)) { err.textContent = "Enter a number like 70 123 456, or +33 6 12 34 56 78 outside Lebanon."; return; }
+      const person = { id: newId(), name, direction: f.direction, currency: f.currency, phone, share_token: null, sort: Math.max(-1, ...rows("people").map(r => r.sort || 0)) + 1 };
+      const items = [{ t: "people", r: person }];
+      if (start) items.push({ t: "loan_entries", r: { id: newId(), person_id: person.id, amount: f.currency === "LBP" ? Math.round(start) : start, note: "Starting balance", occurred_on: today(), created_at: new Date().toISOString() } });
+      putMany(items);
+      personSheet(S.data.people.get(person.id));
+    });
+    draw();
+    openSheet("Add person", body);
+  }
+
+  async function renderShared(token) {
+    shell = null;
+    const box = h("div", { class: "auth-box" }, h("p", { class: "hint" }, "Loading your balance…"));
+    root.replaceChildren(h("div", { class: "auth" }, box));
+    const fail = text => box.replaceChildren(h("img", { class: "auth-mark", src: "icons/icon-192.png", alt: "" }), h("h1", null, "Can't open this page"), h("p", null, text));
+    if (!TOKEN_RE.test(token)) return fail("This link isn't complete. Ask for it to be sent again.");
+    let data = null;
+    try {
+      const res = await sb.rpc("shared_ledger", { p_token: token });
+      if (res.error) return fail("Couldn't load your balance. Check your connection and reload.");
+      data = res.data;
+    } catch { return fail("Couldn't load your balance. Check your connection and reload."); }
+    if (!data || typeof data !== "object") return fail("This link doesn't work anymore. Ask for a new one.");
+    const cur = data.currency === "LBP" ? "LBP" : "USD";
+    const balance = Number(data.balance) || 0;
+    const from = typeof data.from === "string" && data.from.trim() ? data.from.trim().slice(0, 40) : "";
+    const label = balance === 0 ? "You're all settled" : data.direction === "owes_me" ? (from ? `You owe ${from}` : "You owe") : (from ? `${from} owes you` : "You're owed");
+    const history = Array.isArray(data.history) ? data.history : [];
+    const list = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "History")));
+    for (const e of history) {
+      const v = Number(e.amount) || 0;
+      const kind = data.direction === "owes_me" ? (v > 0 ? "Borrowed" : "Paid back") : (v > 0 ? "Lent" : "Paid back");
+      list.append(h("div", { class: "row" },
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, typeof e.note === "string" && e.note ? e.note : kind), h("span", { class: "row-sub" }, `${kind} · ${DATE_RE.test(String(e.date)) ? dayLabel(e.date) : ""}`)),
+        h("span", { class: "row-end" + (v < 0 ? " pos" : "") }, (v > 0 ? "+" : "−") + fmt(Math.abs(v), cur, { show: true }))));
+    }
+    if (!history.length) list.append(h("p", { class: "empty" }, "Nothing here yet."));
+    box.className = "auth-box";
+    box.replaceChildren(
+      h("section", { class: "hero" },
+        h("p", { class: "hero-label" }, `Hi ${String(data.name || "").slice(0, 40)}`),
+        h("p", { class: "hero-total num" }, fmt(balance, cur, { show: true })),
+        h("p", { class: "hero-sub" }, label)),
+      list,
+      h("p", { class: "hint", style: { textAlign: "center" } }, "Only people with this link can see this page."));
+    document.title = "Your balance";
   }
 
   function closeSheet() {
@@ -1271,7 +1541,9 @@
     categories: r => typeof r.name === "string" && r.name.length > 0 && r.name.length <= 40 && ["expense", "income"].includes(r.kind),
     transactions: r => ["expense", "income", "transfer"].includes(r.kind) && Number(r.amount) > 0 && ["USD", "LBP"].includes(r.currency) && Number(r.rate) > 0 && DATE_RE.test(String(r.occurred_on)) && typeof r.account_id === "string",
     rules: r => ["expense", "income"].includes(r.kind) && Number(r.amount) > 0 && ["USD", "LBP"].includes(r.currency) && Number.isInteger(r.day) && r.day >= 1 && r.day <= 28 && DATE_RE.test(String(r.next_on)),
-    settings: r => !!r.data && typeof r.data === "object" && !Array.isArray(r.data)
+    settings: r => !!r.data && typeof r.data === "object" && !Array.isArray(r.data),
+    people: r => typeof r.name === "string" && r.name.length > 0 && r.name.length <= 40 && ["owes_me", "i_owe"].includes(r.direction) && ["USD", "LBP"].includes(r.currency) && (r.phone == null || PHONE_RE.test(r.phone)) && (r.share_token == null || TOKEN_RE.test(r.share_token)),
+    loan_entries: r => typeof r.person_id === "string" && Number(r.amount) !== 0 && Number.isFinite(Number(r.amount)) && DATE_RE.test(String(r.occurred_on))
   };
 
   async function onRestoreFile(e) {
@@ -1340,6 +1612,8 @@
     sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: "wallet-auth" }
     });
+    const shared = location.hash.match(/^#share=(.+)$/);
+    if (shared) return renderShared(shared[1]);
     sb.auth.onAuthStateChange((event, session) => {
       if (session && (event === "TOKEN_REFRESHED" || event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
         if (S.uid === session.user.id) S.session = session;
@@ -1363,5 +1637,6 @@
   setInterval(() => { if (document.visibilityState === "visible" && S.session) sync(); }, 120000);
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => { });
 
+  window.addEventListener("hashchange", () => location.reload());
   start();
 })();
