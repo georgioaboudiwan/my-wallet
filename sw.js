@@ -1,4 +1,4 @@
-const CACHE = "wallet-shell-v2";
+const CACHE = "wallet-shell-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -28,7 +28,7 @@ self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: "no-cache" })
       .then(response => {
         if (response.ok) {
           const copy = response.clone();
