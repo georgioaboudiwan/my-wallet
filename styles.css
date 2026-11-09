@@ -277,7 +277,7 @@ input[type="date"].input { -webkit-appearance: none; appearance: none; }
 .auth h1 { font-size: 32px; letter-spacing: -0.02em; }
 .auth p { color: var(--muted); }
 .auth code { font-size: 13px; background: var(--sunk); padding: 2px 6px; border-radius: 6px; }
-.code-input { text-align: center; letter-spacing: .4em; font: 700 28px var(--nums) !important; }
+
 
 #toast {
   position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 40;

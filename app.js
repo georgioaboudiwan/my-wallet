@@ -514,54 +514,57 @@
 
   function renderAuth() {
     shell = null;
-    let step = "email";
-    let email = "";
+    let mode = "signin";
     let busy = false;
     const box = h("form", { class: "auth-box", novalidate: true });
     const err = h("p", { class: "form-err", role: "alert" });
     const draw = () => {
-      const kids = [h("img", { class: "auth-mark", src: "icons/icon-192.png", alt: "" }), h("h1", null, "My Wallet")];
-      if (step === "email") {
-        kids.push(
-          h("p", null, "Sign in with your email. We'll send you a 6-digit code."),
-          h("label", { class: "field" }, h("span", null, "Email"), h("input", { id: "a-email", class: "input", type: "email", autocomplete: "email", inputmode: "email", required: true, value: email })),
-          err,
-          h("button", { class: "btn", type: "submit", disabled: busy }, busy ? "Sending…" : "Send code"));
-      } else {
-        kids.push(
-          h("p", null, `Enter the code we sent to ${email}.`),
-          h("label", { class: "field" }, h("span", null, "6-digit code"), h("input", { id: "a-code", class: "input code-input", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "10", required: true })),
-          err,
-          h("button", { class: "btn", type: "submit", disabled: busy }, busy ? "Checking…" : "Sign in"),
-          h("button", { class: "btn alt", type: "button", on: { click: () => { step = "email"; err.textContent = ""; draw(); } } }, "Use a different email"));
-      }
-      box.replaceChildren(...kids);
+      const create = mode === "create";
+      const email = (document.getElementById("a-email") || {}).value || "";
+      box.replaceChildren(
+        h("img", { class: "auth-mark", src: "icons/icon-192.png", alt: "" }),
+        h("h1", null, "My Wallet"),
+        h("p", null, create ? "Create your account. Use a password you don't use anywhere else." : "Sign in to see your money."),
+        h("label", { class: "field" }, h("span", null, "Email"), h("input", { id: "a-email", class: "input", type: "email", autocomplete: "username", inputmode: "email", required: true, value: email })),
+        h("label", { class: "field" }, h("span", null, create ? "New password (at least 10 characters)" : "Password"), h("input", { id: "a-pass", class: "input", type: "password", autocomplete: create ? "new-password" : "current-password", required: true, minlength: "10", maxlength: "72" })),
+        err,
+        h("button", { class: "btn", type: "submit", disabled: busy }, busy ? "One moment…" : create ? "Create account" : "Sign in"),
+        h("button", { class: "btn alt", type: "button", on: { click: () => { mode = create ? "signin" : "create"; err.textContent = ""; draw(); } } }, create ? "I already have an account" : "Create an account"));
     };
     box.addEventListener("submit", async ev => {
       ev.preventDefault();
       if (busy) return;
       err.textContent = "";
       if (!navigator.onLine) { err.textContent = "You're offline. Connect to the internet to sign in."; return; }
-      if (step === "email") {
-        email = document.getElementById("a-email").value.trim().toLowerCase();
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) { err.textContent = "Enter a valid email address."; return; }
-        busy = true; draw();
-        const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
-        busy = false;
-        if (error) { draw(); err.textContent = error.status === 429 ? "Too many tries. Wait a minute and try again." : "We couldn't send the code. Check the email and try again."; return; }
-        step = "code"; draw();
-        document.getElementById("a-code").focus();
-      } else {
-        const token = document.getElementById("a-code").value.replace(/\D/g, "");
-        if (token.length < 6) { err.textContent = "Enter the full code from the email."; return; }
-        busy = true; draw();
-        const { data, error } = await sb.auth.verifyOtp({ email, token, type: "email" });
-        busy = false;
-        if (error || !data.session) { draw(); err.textContent = "That code didn't work. Check it or ask for a new one."; return; }
-        setSession(data.session);
-        render();
-        sync();
+      const email = document.getElementById("a-email").value.trim().toLowerCase();
+      const password = document.getElementById("a-pass").value;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) { err.textContent = "Enter a valid email address."; return; }
+      if (mode === "create" && (password.length < 10 || password.length > 72)) { err.textContent = "Use a password of at least 10 characters."; return; }
+      if (!password) { err.textContent = "Enter your password."; return; }
+      busy = true; draw();
+      const res = mode === "create"
+        ? await sb.auth.signUp({ email, password })
+        : await sb.auth.signInWithPassword({ email, password });
+      busy = false;
+      if (res.error) {
+        draw();
+        const m = String(res.error.message || "");
+        err.textContent = res.error.status === 429 ? "Too many tries. Wait a minute and try again."
+          : /not allowed|disabled/i.test(m) ? "New accounts are turned off for this wallet."
+          : /registered|exists/i.test(m) ? "That email already has an account. Sign in instead."
+          : /confirm/i.test(m) ? "Confirm your email first, using the link Supabase sent you."
+          : /weak|pwned|password/i.test(m) && mode === "create" ? "That password is too weak. Try a longer one."
+          : mode === "create" ? "We couldn't create the account. Try again." : "Wrong email or password.";
+        return;
       }
+      if (!res.data.session) {
+        mode = "signin"; draw();
+        err.textContent = "Account created. Check your email to confirm it, then sign in.";
+        return;
+      }
+      setSession(res.data.session);
+      render();
+      sync();
     });
     draw();
     root.replaceChildren(h("div", { class: "auth" }, box));

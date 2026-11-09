@@ -6,12 +6,10 @@ A phone-first money app: balances in dollars and lira, spending, monthly plan, b
 
 1. Create a project at supabase.com.
 2. Open **SQL Editor**, paste `supabase/schema.sql` and run it.
-3. **Authentication → Email Templates → Magic Link**: replace the body with:
-   `Your code is {{ .Token }}`
-   The app signs in with a 6-digit code, because a link would open Safari instead of the installed app.
+3. **Authentication → Sign In / Providers → Email**: turn off **Confirm email** so you can sign in right after creating your account.
 4. **Authentication → URL Configuration**: set Site URL to your GitHub Pages address.
 5. Copy **Project URL** and the **anon public** key from Project Settings → API into `config.js`.
-6. After you sign in once, turn off **Authentication → Sign In / Providers → Allow new users to sign up** so nobody else can create an account.
+6. Create your account in the app, then turn off **Allow new users to sign up** in Sign In / Providers so nobody else can create one.
 
 Never put the `service_role` key in this app.
 
