@@ -1748,8 +1748,8 @@
       let { data: key, error } = await sb.rpc("push_public_key");
       if (error) return toast("The reminders database isn't set up. Run step 1 (the first SQL) in Supabase.", "error");
       if (!key) {
-        const init = await sb.functions.invoke("send-reminders", { body: { init: true } });
-        if (init.error) return toast("Can't reach the send-reminders function. Check step 2: it's deployed with that exact name and Verify JWT is off.", "error");
+        const init = await sb.functions.invoke("send-reminder", { body: { init: true } });
+        if (init.error) return toast("Can't reach the send-reminder function. Check step 2: it's deployed with that exact name and Verify JWT is off.", "error");
         ({ data: key } = await sb.rpc("push_public_key"));
         if (!key) return toast("The function ran but couldn't create its keys. Send me a screenshot of its Logs in Supabase.", "error");
       }
@@ -1805,7 +1805,7 @@
     if (PUSH.busy) return;
     PUSH.busy = true; render();
     try {
-      const { data, error } = await sb.functions.invoke("send-reminders", { body: { test: true } });
+      const { data, error } = await sb.functions.invoke("send-reminder", { body: { test: true } });
       if (error || !data || !data.sent) toast("The test didn't go through. Check the Supabase function is deployed.", "error");
       else toast("Test sent. It should arrive in a few seconds.");
     } catch {
