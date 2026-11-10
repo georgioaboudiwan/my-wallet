@@ -537,3 +537,21 @@ Object.assign(window.WALLET_I18N.words, {
   "Off: only your recovery key can restore your data": ["Désactivé : seule votre clé de récupération peut restaurer vos données", "متوقف: مفتاح الاسترداد وحده يستعيد بياناتك"],
   "Your data is now encrypted, so nobody else can read it in the database. If you forget your password you can reset it by email. This key is a second way to get your data back, and the only way if you turn off reset by email in Settings. Keep it somewhere safe.": ["Vos données sont désormais chiffrées : personne d'autre ne peut les lire dans la base. Si vous oubliez votre mot de passe, vous pouvez le réinitialiser par e-mail. Cette clé est un second moyen de récupérer vos données, et le seul si vous désactivez la réinitialisation par e-mail dans Réglages. Gardez-la en lieu sûr.", "بياناتك الآن مشفّرة فلا يستطيع أحد قراءتها في قاعدة البيانات. إذا نسيت كلمة المرور يمكنك إعادة تعيينها بالبريد. هذا المفتاح طريقة ثانية لاستعادة بياناتك، وهو الطريقة الوحيدة إذا أوقفت إعادة التعيين بالبريد من الإعدادات. احفظه في مكان آمن."]
 });
+Object.assign(window.WALLET_I18N.words, {
+  "or": ["ou", "أو"],
+  "Continue with Google": ["Continuer avec Google", "المتابعة عبر Google"],
+  "Continue with Microsoft": ["Continuer avec Microsoft", "المتابعة عبر Microsoft"],
+  "Quick add": ["Ajout rapide", "إضافة سريعة"],
+  "Add from the Lock Screen": ["Ajouter depuis l'écran verrouillé", "الإضافة من شاشة القفل"],
+  "Log an expense with an iPhone Shortcut, without opening the app": ["Notez une dépense avec un Raccourci iPhone, sans ouvrir l'app", "سجّل مصروفاً عبر اختصار iPhone دون فتح التطبيق"],
+  "Reminders and quick add": ["Rappels et ajout rapide", "التذكيرات والإضافة السريعة"],
+  "Daily notification and adding from the Lock Screen": ["Notification quotidienne et ajout depuis l'écran verrouillé", "إشعار يومي والإضافة من شاشة القفل"],
+  "Turn on quick add": ["Activer l'ajout rapide", "تفعيل الإضافة السريعة"],
+  "Turn off quick add": ["Désactiver l'ajout rapide", "إيقاف الإضافة السريعة"],
+  "Copy the address": ["Copier l'adresse", "نسخ العنوان"],
+  "Address": ["Adresse", "العنوان"]
+});
+Object.assign(window.WALLET_I18N.words, {
+  "Reminders and quick add": ["Rappels et ajout rapide", "التذكيرات والإضافة السريعة"],
+  "Daily notification and adding from the Lock Screen": ["Notification quotidienne et ajout depuis l'écran verrouillé", "إشعار يومي وإضافة من شاشة القفل"]
+});

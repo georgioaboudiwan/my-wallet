@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.1.0";
+  const VERSION = "3.2.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -511,6 +511,7 @@
       runRules();
       refreshRates();
       ensureEscrow();
+      importQuick();
       if (changed) { save(); scheduleRender(); }
     } catch {
       S.syncError = true;
@@ -782,6 +783,26 @@
     )));
   }
 
+  const PROVIDERS = { list: [], loaded: false };
+  async function loadProviders() {
+    if (PROVIDERS.loaded) return false;
+    try {
+      const res = await fetch(`${CFG.supabaseUrl}/auth/v1/settings`, { headers: { apikey: CFG.supabaseAnonKey }, credentials: "omit" });
+      const j = res.ok ? await res.json() : null;
+      const ext = (j && j.external) || {};
+      PROVIDERS.list = [["google", "Google"], ["azure", "Microsoft"]].filter(([id]) => ext[id] === true);
+      PROVIDERS.loaded = true;
+      return PROVIDERS.list.length > 0;
+    } catch { return false; }
+  }
+  async function oauthSignIn(provider) {
+    if (!navigator.onLine) return toast("Connect to the internet to sign in.", "error");
+    const { error } = await sb.auth.signInWithOAuth({ provider, options: { redirectTo: location.origin + location.pathname, scopes: provider === "azure" ? "email" : undefined } });
+    if (error) toast("Couldn't start sign-in. Try again.", "error");
+  }
+  const isOAuth = () => { try { return localStorage.getItem("wallet:oauth") === "1"; } catch { return false; } };
+  const setOAuth = on => { try { if (on) localStorage.setItem("wallet:oauth", "1"); else localStorage.removeItem("wallet:oauth"); } catch { } };
+
   function renderAuth() {
     shell = null;
     let mode = "signin";
@@ -824,6 +845,8 @@
         err,
         h("button", { class: "btn login-go", type: "submit", disabled: busy }, busy ? h("span", { class: "spinner", "aria-hidden": "true" }) : null, busy ? "One moment…" : forgot ? "Send reset link" : create ? "Create account" : "Sign in"),
         forgot ? h("button", { type: "button", class: "link-btn login-link center", on: { click: () => { mode = "signin"; err.textContent = ""; draw(); } } }, "Back to sign in") : null,
+        !forgot && PROVIDERS.list.length ? h("div", { class: "login-or" }, h("span", null, "or")) : null,
+        ...(!forgot ? PROVIDERS.list.map(([id, name]) => h("button", { type: "button", class: "btn alt login-provider", disabled: busy, on: { click: () => oauthSignIn(id) } }, `Continue with ${name}`)) : []),
         h("p", { class: "login-note" }, icon("shield", "ico sm"), h("span", null, "Your data is private and encrypted in transit.")),
         h("div", { class: "login-langs" }, Object.entries(LANGS).map(([k, name]) => h("button", { type: "button", class: "link-btn", "aria-pressed": String(k === LANG), on: { click: () => setLang(k) } }, name)))].filter(Boolean));
       meter();
@@ -863,6 +886,7 @@
           : mode === "create" ? "We couldn't create the account. Try again." : "Incorrect email or password.");
       }
       if (!res.data.session) { mode = "signin"; draw(); return fail(err, "Account created. Check your email to confirm it, then sign in."); }
+      setOAuth(false);
       setSession(res.data.session);
       const unlocked = await unlockVault(password);
       password = "";
@@ -872,6 +896,7 @@
     });
 
     draw();
+    loadProviders().then(changed => { if (changed && !busy && root.contains(panel)) draw(); });
     if (notice) err.textContent = notice;
     root.replaceChildren(h("div", { class: "login" },
       h("header", { class: "login-hero" },
@@ -1315,6 +1340,67 @@
       saveSettings({ rates, ratesAt: today() });
       return true;
     } catch { return false; }
+  }
+
+  async function importQuick() {
+    if (!sb || !S.session || !VAULT.key || !navigator.onLine || S.quickBusy) return;
+    S.quickBusy = true;
+    try {
+      const { data, error } = await sb.from("quick_inbox").select("id, amount, note, created_at").order("created_at", { ascending: true }).limit(100);
+      if (error || !Array.isArray(data) || !data.length) return;
+      const accounts = rows("accounts").filter(a => !a.archived).sort(bySort);
+      if (!accounts.length) return;
+      const last = rows("transactions").filter(t => t.kind === "expense" && acc(t.account_id) && !acc(t.account_id).archived).sort(byRecent)[0];
+      const a = last ? acc(last.account_id) : accounts[0];
+      const items = data.filter(q => Number(q.amount) > 0).map(q => ({ t: "transactions", r: { id: `q-${q.id}`, kind: "expense", amount: roundCur(Number(q.amount), a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: null, note: typeof q.note === "string" && q.note ? q.note.slice(0, 200) : null, occurred_on: ymd(new Date(q.created_at)), rule_id: null, receipt: null, created_at: q.created_at } }));
+      if (items.length) putMany(items);
+      await sb.from("quick_inbox").delete().in("id", data.map(q => q.id));
+      if (items.length) toast(`${items.length} quick ${items.length === 1 ? "entry" : "entries"} added to ${a.name}. Open Activity to set the category.`);
+    } catch { } finally { S.quickBusy = false; }
+  }
+
+  async function quickSheet() {
+    const url = `${CFG.supabaseUrl}/functions/v1/quick-add`;
+    const body = h("div", { class: "form" });
+    const draw = () => {
+      const token = store.get("quickToken", null);
+      if (!token) {
+        body.replaceChildren(
+          h("p", { class: "hint" }, "iPhone doesn't allow web apps to have widgets, but a Shortcut can do the same job: tap it on the Lock Screen, the Action Button or the Home Screen, type the amount, and it is saved. The entry appears in your wallet the next time the app opens."),
+          h("p", { class: "hint" }, "Quick entries wait on the server unencrypted until the app opens and files them, then they are deleted from there."),
+          h("button", { type: "button", class: "btn", on: { click: async () => {
+            if (!navigator.onLine) return toast("Connect to the internet to set this up.", "error");
+            const fresh = toUrl(b64u8(rand(32)));
+            const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", te.encode(fresh)))].map(b => b.toString(16).padStart(2, "0")).join("");
+            const { error } = await sb.from("quick_tokens").upsert({ user_id: S.uid, token_hash: hash }, { onConflict: "user_id" });
+            if (error) return toast("Couldn't set this up. Try again.", "error");
+            store.set("quickToken", fresh);
+            draw(); render();
+          } } }, "Turn on quick add"));
+        return;
+      }
+      const step = (n, t, d) => h("div", { class: "prose-part" }, h("h3", null, `${n}. ${t}`), h("p", null, d));
+      body.replaceChildren(
+        h("div", { class: "prose" },
+          step(1, "Create a Shortcut", "Open the Shortcuts app, tap +, and name it “Add expense”."),
+          step(2, "Ask for the amount", "Add the action “Ask for Input”. Set the type to Number and the question to “How much?”."),
+          step(3, "Send it", "Add the action “Get Contents of URL”. Paste the address below. Set Method to POST and Request Body to JSON, then add three text fields: token (paste your key below), amount (pick the “Ask for Input” result) and, if you want, note."),
+          step(4, "Put it where you want", "Add the Shortcut to your Lock Screen (Customize → widgets → Shortcuts), to the Action Button (Settings → Action Button → Shortcut), or to the Home Screen.")),
+        h("label", { class: "field" }, h("span", null, "Address"), h("input", { class: "input", readOnly: true, value: url, id: "q-url" })),
+        h("button", { type: "button", class: "btn alt", on: { click: () => copyText(url, "q-url") } }, "Copy the address"),
+        h("label", { class: "field" }, h("span", null, "Your key (keep it private)"), h("input", { class: "input", readOnly: true, value: token, id: "q-token" })),
+        h("button", { type: "button", class: "btn alt", on: { click: () => copyText(token, "q-token") } }, "Copy the key"),
+        h("button", { type: "button", class: "btn danger", on: { click: async () => {
+          if (!navigator.onLine) return toast("Connect to the internet to turn this off.", "error");
+          const { error } = await sb.from("quick_tokens").delete().eq("user_id", S.uid);
+          if (error) return toast("Couldn't turn it off. Try again.", "error");
+          try { localStorage.removeItem(lsKey("quickToken")); } catch { }
+          draw(); render();
+          toast("Quick add turned off. The old key no longer works.");
+        } } }, "Turn off quick add"));
+    };
+    draw();
+    openSheet("Add from the Lock Screen", body);
   }
 
   function maybeOnboard() {
@@ -1906,6 +1992,10 @@
       h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Admin dashboard"), h("span", { class: "row-sub" }, "Users, activity and server health")),
       icon("fwd"))));
     out.append(reminderGroup(group));
+    const quickOn = !!store.get("quickToken", null);
+    out.append(group("Quick add",
+      h("button", { type: "button", class: "row", on: { click: quickSheet } }, h("span", { class: "dot neutral" }, icon("plus", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Add from the Lock Screen"), h("span", { class: "row-sub wrap" }, quickOn ? "On. Tap to see the setup or turn it off" : "Log an expense with an iPhone Shortcut, without opening the app")), icon("fwd"))));
 
     out.append(group("Your name", h("div", { class: "row" }, h("span", { class: "row-main" }, nameIn, h("span", { class: "row-sub", style: { marginTop: "6px" } }, "Shown on the private pages you share")))));
 
@@ -1934,7 +2024,7 @@
       h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("shield", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "App lock"), h("span", { class: "row-sub" }, lockSupported() ? "Ask for Face ID or your passcode when the app opens" : "Not available in this browser")),
         h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(locked), "aria-label": "App lock", disabled: !lockSupported(), on: { click: () => (locked ? disableLock() : enableLock()) } }, h("span", { class: "knob" }))),
-      nav("Change password", null, passwordSheet, "lock"),
+      isOAuth() ? null : nav("Change password", null, passwordSheet, "lock"),
       h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("mail", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Reset password by email"), h("span", { class: "row-sub wrap" }, st.strictVault ? "Off: only your recovery key can restore your data" : "On: a forgotten password can be reset without losing data")),
         h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(!st.strictVault), "aria-label": "Reset password by email", on: { click: async () => {
@@ -1956,7 +2046,7 @@
     const PAGES = [
       ["general", "General", "Language, your name and currency", "gear", ["Language", "Your name", "Currency"]],
       ["money", "Accounts and categories", "Accounts, categories and repeating entries", "bank", ["Accounts", "Spending categories", "Income categories", "Every month"]],
-      ["reminders", "Reminders", "Daily notification to log your spending", "bell", ["Reminders", "Daily reminder"]],
+      ["reminders", "Reminders and quick add", "Daily notification and adding from the Lock Screen", "bell", ["Reminders", "Daily reminder", "Quick add"]],
       ["data", "Sync and backup", "Sync, export, import and restore", "sync", ["Sync", "Your data"]],
       ["security", "Security and account", "App lock, password, privacy and sign out", "shield", ["Security", "Account"]],
       ["admin", "Admin", "Users, activity and server health", "users", ["Admin"]]
@@ -3249,13 +3339,13 @@
     word.addEventListener("input", () => { btn.disabled = word.value.trim().toUpperCase() !== "DELETE"; });
     const body = h("form", { class: "form", id: "da-form", novalidate: true },
       h("p", { class: "hint" }, "This permanently removes your account and every entry, account, person, private page and reminder in it. It can't be undone. Download a backup first if you want to keep a copy."),
-      h("label", { class: "field" }, h("span", null, "Password"), pass),
+      isOAuth() ? null : h("label", { class: "field" }, h("span", null, "Password"), pass),
       h("label", { class: "field" }, h("span", null, "Type DELETE to confirm"), word),
       err);
     body.addEventListener("submit", async ev => {
       ev.preventDefault();
       if (!navigator.onLine) return fail(err, "Connect to the internet to delete your account.");
-      if (!pass.value) return fail(err, "Enter your password.", pass);
+      if (!isOAuth() && !pass.value) return fail(err, "Enter your password.", pass);
       btn.disabled = true;
       const res = await sb.functions.invoke("account", { body: { action: "delete", confirm: "DELETE", password: pass.value } });
       if (res.error) {
@@ -3376,10 +3466,12 @@
       const salt = b64u8(rand(16));
       const code = newRecovery();
       const k = b64u8(raw);
-      const ins = await sb.from("vault").insert({ user_id: S.uid, salt, wrapped_pw: await sealWith(await kdf(password, salt), { k }), wrapped_rc: await sealWith(await kdf(normRecovery(code), salt), { k }) });
+      const wrapped_rc = await sealWith(await kdf(normRecovery(code), salt), { k });
+      const ins = await sb.from("vault").insert({ user_id: S.uid, salt, wrapped_pw: password ? await sealWith(await kdf(password, salt), { k }) : wrapped_rc, wrapped_rc });
       if (ins.error) return ins.error.code === "23505" ? unlockVault(password, recovery) : { error: "network" };
       await setVaultKey(raw);
       S.recoveryCode = code;
+      if (!password) await ensureEscrow();
       S.fullPull = true; S.last = {};
       try { await pull(); } catch { }
       const items = [];
@@ -3388,18 +3480,20 @@
       return { ok: true };
     }
     let raw = null;
-    try { raw = unb64((await openWith(await kdf(password, row.salt), row.wrapped_pw)).k); } catch { raw = null; }
+    if (password) { try { raw = unb64((await openWith(await kdf(password, row.salt), row.wrapped_pw)).k); } catch { raw = null; } }
     if (!raw && !recovery) {
       const kept = await escrow("escrow-get");
       if (kept && typeof kept.k === "string") {
-        try { const got = unb64(kept.k); if (got.length === 32) { raw = got; VAULT.raw = raw; await sb.from("vault").update({ wrapped_pw: await wrapKey(password, row.salt), updated_at: new Date().toISOString() }).eq("user_id", S.uid); } } catch { raw = null; }
+        try { const got = unb64(kept.k); if (got.length === 32) { raw = got; VAULT.raw = raw; if (password) await sb.from("vault").update({ wrapped_pw: await wrapKey(password, row.salt), updated_at: new Date().toISOString() }).eq("user_id", S.uid); } } catch { raw = null; }
       }
     }
     if (!raw && recovery) {
       try { raw = unb64((await openWith(await kdf(normRecovery(recovery), row.salt), row.wrapped_rc)).k); } catch { return { error: "recovery" }; }
       VAULT.raw = raw;
-      const up = await sb.from("vault").update({ wrapped_pw: await wrapKey(password, row.salt), updated_at: new Date().toISOString() }).eq("user_id", S.uid);
-      if (up.error) return { error: "network" };
+      if (password) {
+        const up = await sb.from("vault").update({ wrapped_pw: await wrapKey(password, row.salt), updated_at: new Date().toISOString() }).eq("user_id", S.uid);
+        if (up.error) return { error: "network" };
+      }
     }
     if (!raw || raw.length !== 32) return { need: "recovery" };
     await setVaultKey(raw);
@@ -3436,27 +3530,30 @@
 
   function renderUnlock() {
     shell = null;
-    const needRecovery = S.unlockNeed === "recovery";
+    const oauth = isOAuth();
+    const needRecovery = S.unlockNeed === "recovery" || oauth;
     const err = h("p", { class: "form-err", role: "alert" });
     const pass = passField("ul-pass", "Password", "current-password");
     const rec = needRecovery ? h("input", { id: "ul-rec", class: "input", autocomplete: "off", autocapitalize: "characters", spellcheck: "false", placeholder: "XXXX-XXXX-XXXX-XXXX-XXXX-XXXX", "aria-label": "Recovery key" }) : null;
     const btn = h("button", { class: "btn login-go", type: "submit" }, "Unlock");
     const panel = h("form", { class: "login-panel solo", novalidate: true },
       h("div", { class: "login-title" }, h("img", { class: "login-logo", src: "icons/icon-192.png", alt: "" }), h("h2", null, "Unlock your data"),
-        h("p", null, needRecovery ? "Your password was changed by email, so your recovery key is needed once to open your encrypted data." : "Your data is encrypted with your password. Enter it once on this device.")),
-      h("div", { class: "login-fields" }, h("label", { class: "login-field", for: "ul-pass" }, icon("lock", "ico"), pass), rec ? h("label", { class: "login-field", for: "ul-rec" }, icon("shield", "ico"), rec) : null),
+        h("p", null, oauth ? "Reset by email is turned off for this account, so your recovery key is needed to open your encrypted data on this device." : needRecovery ? "Your password was changed by email, so your recovery key is needed once to open your encrypted data." : "Your data is encrypted with your password. Enter it once on this device.")),
+      h("div", { class: "login-fields" }, oauth ? null : h("label", { class: "login-field", for: "ul-pass" }, icon("lock", "ico"), pass), rec ? h("label", { class: "login-field", for: "ul-rec" }, icon("shield", "ico"), rec) : null),
       err, btn,
       h("button", { type: "button", class: "link-btn login-link center", on: { click: signOut } }, "Sign out"));
     panel.addEventListener("submit", async ev => {
       ev.preventDefault();
-      if (!pass.value) return fail(err, "Enter your password.", panel.querySelector(".login-field"));
+      if (!oauth && !pass.value) return fail(err, "Enter your password.", panel.querySelector(".login-field"));
       if (rec && normRecovery(rec.value).length !== 24) return fail(err, "Enter the 24-character recovery key.", rec);
       if (!navigator.onLine) return fail(err, "Connect to the internet to unlock your data.");
       btn.disabled = true;
-      const check = await sb.auth.signInWithPassword({ email: S.email, password: pass.value });
-      if (check.error || !check.data.session) { btn.disabled = false; return fail(err, check.error && check.error.status === 429 ? "Too many attempts. Wait a minute and try again." : "Incorrect password."); }
-      setSession(check.data.session);
-      const res = await unlockVault(pass.value, rec ? rec.value : null);
+      if (!oauth) {
+        const check = await sb.auth.signInWithPassword({ email: S.email, password: pass.value });
+        if (check.error || !check.data.session) { btn.disabled = false; return fail(err, check.error && check.error.status === 429 ? "Too many attempts. Wait a minute and try again." : "Incorrect password."); }
+        setSession(check.data.session);
+      }
+      const res = await unlockVault(oauth ? null : pass.value, rec ? rec.value : null);
       btn.disabled = false;
       if (res.need) { S.unlockNeed = "recovery"; return renderUnlock(); }
       if (res.error) return fail(err, res.error === "recovery" ? "That recovery key isn't correct." : "Couldn't unlock. Check your connection and try again.");
@@ -3466,7 +3563,7 @@
       sync();
     });
     root.replaceChildren(h("div", { class: "login" }, panel));
-    pass.focus();
+    (oauth ? rec : pass).focus();
   }
 
   async function signOut() {
@@ -3476,6 +3573,7 @@
       const prefix = `wallet:v1:${S.uid}:`;
       Object.keys(localStorage).filter(k => k.startsWith(prefix)).forEach(k => localStorage.removeItem(k));
       localStorage.removeItem("wallet:lastUser");
+      localStorage.removeItem("wallet:oauth");
     } catch { }
     S.session = null; S.uid = null; S.offline = false; S.outbox = []; S.last = {};
     VAULT.key = null; VAULT.raw = null; S.unlockNeed = null; S.recoveryCode = null;
@@ -3523,9 +3621,19 @@
       try { res = await sb.auth.setSession({ access_token: hp.get("access_token"), refresh_token: hp.get("refresh_token") }); } catch { res = null; }
       if (res && !res.error && res.data.session) { setSession(res.data.session); await loadVaultKey(); return renderNewPassword(); }
       S.notice = "That reset link has expired. Request a new one.";
+    } else if (hp.get("access_token") && hp.get("refresh_token")) {
+      history.replaceState(null, "", location.pathname);
+      let res = null;
+      try { res = await sb.auth.setSession({ access_token: hp.get("access_token"), refresh_token: hp.get("refresh_token") }); } catch { res = null; }
+      if (res && !res.error && res.data.session) {
+        setOAuth(true);
+        setSession(res.data.session);
+        await loadVaultKey();
+        if (!VAULT.key) { const unlocked = await unlockVault(null); if (unlocked.need) S.unlockNeed = "recovery"; }
+      } else S.notice = "Sign-in didn't complete. Try again.";
     } else if (hp.get("error_code") || hp.get("error")) {
       history.replaceState(null, "", location.pathname);
-      S.notice = "That reset link has expired or was already used. Request a new one.";
+      S.notice = /recovery|otp/i.test(hp.get("error_code") || "") ? "That reset link has expired or was already used. Request a new one." : "Sign-in didn't complete. Try again.";
     }
     sb.auth.onAuthStateChange((event, session) => {
       if (session && (event === "TOKEN_REFRESHED" || event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
@@ -3548,6 +3656,7 @@
     else if (last) { S.uid = null; shell = null; }
     render();
     if (S.session && lockCfg()) showLock();
+    if (S.session && VAULT.key) recoverySheet();
     if (S.session) sync();
     if (S.session && location.hash === "#add") { history.replaceState(null, "", location.pathname); txnSheet(null); }
   }

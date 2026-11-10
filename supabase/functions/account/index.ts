@@ -72,15 +72,19 @@ Deno.serve(async req => {
   }
   if (action !== "delete") return json({ error: "Unknown action." }, 400);
   if (String(body.confirm || "") !== "DELETE") return json({ error: "Confirmation missing." }, 400);
+  const providers = ((who.user.app_metadata as { providers?: string[] } | undefined)?.providers ?? []) as string[];
+  const hasPassword = providers.includes("email");
   const password = String(body.password || "");
-  if (!password || password.length > 72) return json({ error: "Enter your password." }, 400);
+  if (hasPassword && (!password || password.length > 72)) return json({ error: "Enter your password." }, 400);
 
   const { data: admin } = await sb.from("admins").select("user_id").eq("user_id", who.user.id).maybeSingle();
   if (admin) return json({ error: "The admin account can't be deleted from the app." }, 400);
 
-  const check = createClient(Deno.env.get("SUPABASE_URL")!, String(serviceKey), { auth: { persistSession: false, autoRefreshToken: false } });
-  const { data: signed, error: signErr } = await check.auth.signInWithPassword({ email: who.user.email, password });
-  if (signErr || signed?.user?.id !== who.user.id) return json({ error: "That password isn't correct." }, 403);
+  if (hasPassword) {
+    const check = createClient(Deno.env.get("SUPABASE_URL")!, String(serviceKey), { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data: signed, error: signErr } = await check.auth.signInWithPassword({ email: who.user.email, password });
+    if (signErr || signed?.user?.id !== who.user.id) return json({ error: "That password isn't correct." }, 403);
+  }
 
   await removeReceipts(who.user.id).catch(() => {});
   const { error } = await sb.auth.admin.deleteUser(who.user.id);
