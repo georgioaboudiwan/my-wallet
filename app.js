@@ -45,12 +45,13 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "2.4.0";
+  const VERSION = "2.5.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
     chart: "M3 3v18h18M7 15l4-4 3 3 6-6",
     cam: "M4 8h3l2-3h6l2 3h3v11H4zM12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z",
+    chev: "M6 9l6 6 6-6",
     up: "M12 19V5M5 12l7-7 7 7",
     down: "M12 5v14M5 12l7 7 7-7",
     plan: "M12 3a9 9 0 1 0 9 9h-9zM15 2.6A9 9 0 0 1 21.4 9H15z",
@@ -2512,7 +2513,8 @@
     const err = h("p", { class: "form-err", role: "alert" });
     const saveBtn = h("button", { type: "submit", class: "btn", form: "txn-form" });
     let armedDelete = false;
-    let showNote = !!f.note;
+    let panel = "pad";
+    const bal = balances();
 
     const pick = () => {
       if (!f.account || !acc(f.account)) f.account = lastAcc(f.kind) || accounts[0].id;
@@ -2540,52 +2542,79 @@
         if (v && cross && !f.toTouched) { f.toAmount = String(convertFor(v, cur, to.currency)); toInput.value = f.toAmount; }
         const needCat = f.kind !== "transfer" && !f.category;
         const conv = !v || cur === mainCur() ? "" : `≈ ${money(toMain(v, cur), { show: true })}`;
-        const chosen = f.kind !== "transfer" && f.category ? cat(f.category) : null;
-        preview.replaceChildren(...(chosen
-          ? [h("span", { class: "picked" }, h("span", { class: "picked-ico", style: { background: chosen.color } }, catGlyph(chosen, "ico")), chosen.name), conv ? h("span", { class: "conv" }, conv) : null]
-          : v && needCat ? [h("span", { class: "nudge" }, "Now pick a category"), conv ? ` · ${conv}` : ""] : [conv || "\u00a0"]).filter(Boolean));
+        preview.textContent = conv || "\u00a0";
+        const catTile = body.querySelector(".ftile");
+        if (catTile && f.kind !== "transfer") catTile.classList.toggle("attn", !!v && needCat);
         const verb = { expense: "Save expense", income: "Save income", transfer: "Move money" }[f.kind];
-        saveBtn.textContent = !v ? tr("Type an amount") : needCat ? tr("Pick a category") : `${tr(verb)} · ${fmt(v, cur, { show: true })}`;
-        saveBtn.className = "btn " + f.kind + (!v || needCat ? " waiting" : "");
+        saveBtn.textContent = !v ? tr("Type an amount") : needCat ? tr("Next: choose a category") : `${tr(verb)} · ${fmt(v, cur, { show: true })}`;
+        saveBtn.className = "btn " + f.kind + (!v ? " waiting" : "");
       };
       const pad = amountPad(cur, () => f.amount, v => { f.amount = v; }, refresh);
-      const accChips = (value, onPick, exclude) => h("div", { class: "chips" }, accounts.filter(o => o.id !== exclude).map(o =>
-        h("button", { type: "button", class: "chip", "aria-pressed": String(o.id === value), on: { click: () => onPick(o.id) } }, h("span", { class: "cur-tag" }, curTag(o.currency)), o.name)));
-
-      const kids = [
-        seg([["expense", "Expense"], ["income", "Income"], ["transfer", "Transfer", accounts.length < 2]], f.kind, k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; draw(); }, "Entry type"),
-        display, preview
-      ];
-      if (f.kind === "transfer") {
-        kids.push(h("div", { class: "field" }, h("span", { class: "label" }, "From"), accChips(f.account, id => { f.account = id; f.toTouched = false; draw(); })));
-        kids.push(h("div", { class: "field" }, h("span", { class: "label" }, "To"), accChips(f.to, id => { f.to = id; f.toTouched = false; draw(); }, f.account)));
-        if (cross) kids.push(h("label", { class: "field" }, h("span", null, `${to.name} receives (${curSymbol(to.currency)})`), toInput, h("span", { class: "hint" }, `At ${fmt(1, cur, { show: true })} = ${fmt(convert(1, cur, to.currency), to.currency, { show: true })}. Change it if you got a different rate.`)));
-      } else {
-        const cats = rows("categories").filter(c => c.kind === f.kind).sort((p, q) => (usage.get(q.id) || 0) - (usage.get(p.id) || 0) || bySort(p, q));
-        kids.push(cats.length
-          ? h("div", { class: "cat-grid", role: "group", "aria-label": "Category" }, cats.map(c => h("button", { type: "button", class: "cat-btn", "aria-pressed": String(c.id === f.category), on: { click: () => { f.category = c.id; draw(); } } },
-            h("span", { class: "cat-ico", style: { background: c.color } }, catGlyph(c)), h("span", { class: "cat-name" }, c.name))))
-          : h("p", { class: "hint" }, "No categories yet. Add some in Settings."));
-        kids.push(accChips(f.account, id => { f.account = id; draw(); }));
-      }
       const yest = ymd(new Date(Date.now() - 864e5));
       const dateText = f.date === today() ? "Today" : f.date === yest ? "Yesterday" : dayLabel(f.date);
-      kids.push(h("div", { class: "chips meta" },
-        h("button", { type: "button", class: "chip", "aria-pressed": String(f.date === today()), on: { click: () => { f.date = today(); draw(); } } }, "Today"),
-        h("button", { type: "button", class: "chip", "aria-pressed": String(f.date === yest), on: { click: () => { f.date = yest; draw(); } } }, "Yesterday"),
-        h("label", { class: "chip date-chip", "aria-pressed": String(f.date !== today() && f.date !== yest) }, icon("cal", "ico sm"), f.date !== today() && f.date !== yest ? dateText : "Other day",
-          h("input", { id: "f-date", type: "date", value: f.date, max: ymd(new Date(Date.now() + 366 * 864e5)), "aria-label": "Pick another date", on: { change: e => { if (DATE_RE.test(e.target.value)) { f.date = e.target.value; draw(); } } } })),
-        h("button", { type: "button", class: "chip", "aria-pressed": String(showNote), on: { click: () => { showNote = !showNote; draw(); if (showNote) document.getElementById("f-note").focus(); } } }, icon("note", "ico sm"), f.note ? f.note.slice(0, 18) + (f.note.length > 18 ? "…" : "") : "Note"),
-        !x && f.kind !== "transfer" ? h("button", { type: "button", class: "chip", "aria-pressed": String(f.repeat), on: { click: () => { f.repeat = !f.repeat; draw(); } } }, icon("repeat", "ico sm"), "Monthly") : null,
-        f.kind !== "transfer" ? h("button", { type: "button", class: "chip", "aria-pressed": String(!!(f.blob || f.receipt)), on: { click: () => {
-          if (f.blob) { f.blob = null; return draw(); }
-          if (f.receipt) return receiptViewer(f.receipt, () => { f.receipt = null; draw(); });
-          receiptInput.click();
-        } } }, icon("cam", "ico sm"), f.blob ? "Photo added" : f.receipt ? "View receipt" : "Receipt") : null,
-        receiptInput));
-      if (showNote) kids.push(h("input", { id: "f-note", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: f.kind === "expense" ? "What was it?" : "Note", value: f.note, "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }));
-      if (f.repeat) kids.push(h("p", { class: "hint" }, `Adds this automatically on day ${Math.min(28, Number(f.date.slice(8)) || 1)} of every month.`));
-      kids.push(pad);
+      const open = k => { panel = panel === k ? "pad" : k; draw(); if (panel === "more") { const n = document.getElementById("f-note"); if (n) n.focus(); } };
+      const tile = (k, caption, value, lead, empty) => h("button", { type: "button", class: "ftile" + (empty ? " empty" : "") + (k === "cat" && empty && parseAmt(f.amount) ? " attn" : ""), "aria-expanded": String(panel === k), on: { click: () => open(k) } },
+        lead || null,
+        h("span", { class: "ftile-text" }, h("small", null, caption), h("strong", null, value)),
+        icon("chev", "ico sm"));
+      const chosen = f.kind !== "transfer" && f.category ? cat(f.category) : null;
+      const extras = [f.note ? f.note : null, f.repeat ? "Monthly" : null, f.blob || f.receipt ? "Receipt" : null].filter(Boolean);
+      const tiles = f.kind === "transfer"
+        ? [tile("acc", "From", a.name, h("span", { class: "cur-tag" }, curTag(a.currency))),
+          tile("to", "To", to ? to.name : "Choose", to ? h("span", { class: "cur-tag" }, curTag(to.currency)) : null, !to),
+          tile("date", "Date", dateText, h("span", { class: "ftile-ico" }, icon("cal", "ico sm"))),
+          tile("more", "Note", f.note || "Add a note", h("span", { class: "ftile-ico" }, icon("note", "ico sm")), !f.note)]
+        : [tile("cat", "Category", chosen ? chosen.name : "Choose", chosen ? h("span", { class: "ftile-ico", style: { background: chosen.color, color: "#fff" } }, catGlyph(chosen, "ico sm")) : h("span", { class: "ftile-ico" }, icon("plus", "ico sm")), !chosen),
+          tile("acc", f.kind === "income" ? "Into" : "Paid from", a.name, h("span", { class: "cur-tag" }, curTag(a.currency))),
+          tile("date", "Date", dateText, h("span", { class: "ftile-ico" }, icon("cal", "ico sm"))),
+          tile("more", "More", extras.length ? extras.join(" · ") : "Note and more", h("span", { class: "ftile-ico" }, icon("note", "ico sm")), !extras.length)];
+
+      const accList = (value, onPick, exclude) => h("div", { class: "pick-list" }, accounts.filter(o => o.id !== exclude).map(o =>
+        h("button", { type: "button", class: "pick-row", "aria-pressed": String(o.id === value), on: { click: () => onPick(o.id) } },
+          h("span", { class: "cur-tag" }, curTag(o.currency)),
+          h("span", { class: "pick-name" }, o.name),
+          h("span", { class: "pick-end num" }, fmt(bal.get(o.id) || 0, o.currency, { whole: true })))));
+      let panelEl;
+      if (panel === "cat" && f.kind !== "transfer") {
+        const cats = rows("categories").filter(c => c.kind === f.kind).sort((p, q) => (usage.get(q.id) || 0) - (usage.get(p.id) || 0) || bySort(p, q));
+        panelEl = cats.length
+          ? h("div", { class: "cat-grid", role: "group", "aria-label": "Category" }, cats.map(c => h("button", { type: "button", class: "cat-btn", "aria-pressed": String(c.id === f.category), on: { click: () => { f.category = c.id; panel = "pad"; draw(); } } },
+            h("span", { class: "cat-ico", style: { background: c.color } }, catGlyph(c)), h("span", { class: "cat-name" }, c.name))))
+          : h("p", { class: "hint" }, "No categories yet. Add some in Settings.");
+      } else if (panel === "acc") {
+        panelEl = accList(f.account, id => { f.account = id; f.toTouched = false; panel = "pad"; draw(); });
+      } else if (panel === "to" && f.kind === "transfer") {
+        panelEl = accList(f.to, id => { f.to = id; f.toTouched = false; panel = "pad"; draw(); }, f.account);
+      } else if (panel === "date") {
+        const day = (label, d) => h("button", { type: "button", class: "pick-row", "aria-pressed": String(f.date === d), on: { click: () => { f.date = d; panel = "pad"; draw(); } } }, h("span", { class: "pick-name" }, label), h("span", { class: "pick-end" }, dayLabel(d) === label ? "" : new Date(d + "T12:00:00").toLocaleDateString(dateLocale(), { weekday: "short", day: "numeric", month: "short" })));
+        panelEl = h("div", { class: "pick-list" },
+          day("Today", today()), day("Yesterday", yest),
+          h("label", { class: "pick-row date-row", "aria-pressed": String(f.date !== today() && f.date !== yest) }, h("span", { class: "pick-name" }, "Another day"),
+            h("input", { id: "f-date", class: "input", type: "date", value: f.date, max: ymd(new Date(Date.now() + 366 * 864e5)), "aria-label": "Pick another date", on: { change: e => { if (DATE_RE.test(e.target.value)) { f.date = e.target.value; panel = "pad"; draw(); } } } })));
+      } else if (panel === "more") {
+        panelEl = h("div", { class: "pick-list" },
+          h("input", { id: "f-note", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: f.kind === "expense" ? "What was it?" : "Note", value: f.note, "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }),
+          !x && f.kind !== "transfer" ? h("button", { type: "button", class: "pick-row", "aria-pressed": String(f.repeat), on: { click: () => { f.repeat = !f.repeat; draw(); } } }, h("span", { class: "ftile-ico" }, icon("repeat", "ico sm")), h("span", { class: "pick-name" }, "Repeat every month"), h("span", { class: "pick-end" }, f.repeat ? `Day ${Math.min(28, Number(f.date.slice(8)) || 1)}` : "Off")) : null,
+          f.kind !== "transfer" ? h("button", { type: "button", class: "pick-row", "aria-pressed": String(!!(f.blob || f.receipt)), on: { click: () => {
+            if (f.blob) { f.blob = null; return draw(); }
+            if (f.receipt) return receiptViewer(f.receipt, () => { f.receipt = null; draw(); });
+            receiptInput.click();
+          } } }, h("span", { class: "ftile-ico" }, icon("cam", "ico sm")), h("span", { class: "pick-name" }, "Receipt photo"), h("span", { class: "pick-end" }, f.blob ? "Added · tap to remove" : f.receipt ? "View" : "Add")) : null,
+          h("button", { type: "button", class: "btn alt", on: { click: () => { panel = "pad"; draw(); } } }, "Done"),
+          receiptInput);
+      } else {
+        panel = "pad";
+        panelEl = pad;
+      }
+
+      const kids = [
+        seg([["expense", "Expense"], ["income", "Income"], ["transfer", "Transfer", accounts.length < 2]], f.kind, k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; panel = "pad"; draw(); }, "Entry type"),
+        h("button", { type: "button", class: "amount-tap", "aria-label": "Amount", on: { click: () => { if (panel !== "pad") { panel = "pad"; draw(); } } } }, display),
+        preview,
+        h("div", { class: "ftiles" }, tiles),
+        cross ? h("label", { class: "field" }, h("span", null, `${to.name} receives (${curSymbol(to.currency)})`), toInput, h("span", { class: "hint" }, `At ${fmt(1, cur, { show: true })} = ${fmt(convert(1, cur, to.currency), to.currency, { show: true })}. Change it if you got a different rate.`)) : null,
+        h("div", { class: "panel" + (panel === "pad" ? "" : " list") }, panelEl)
+      ];
       keepFocus(() => body.replaceChildren(...kids.filter(Boolean)));
       refresh();
     };
@@ -2605,7 +2634,7 @@
         if (!to || to.id === a.id) { fail(err, "Pick a different account to move money to."); return; }
         toAmount = to.currency === a.currency ? amount : parseAmt(f.toAmount);
         if (!toAmount) { fail(err, `Enter how much ${to.name} receives.`); return; }
-      } else if (!f.category) { fail(null, f.kind === "income" ? "Pick where the money came from." : "Pick a category for this expense.", body.querySelector(".cat-grid")); return; }
+      } else if (!f.category) { panel = "cat"; draw(); return; }
       let receiptNote = null;
       if (f.blob && f.kind !== "transfer") {
         if (!navigator.onLine) receiptNote = "Saved without the photo. Connect to the internet to attach it.";

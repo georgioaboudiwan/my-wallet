@@ -494,3 +494,25 @@ window.WALLET_I18N.patterns.push(
   ["^Reminder set for (.+) every day\\.$", "Rappel réglé à $1 chaque jour.", "تم ضبط التذكير عند $1 كل يوم."],
   ["^Reminder moved to (.+)\\.$", "Rappel déplacé à $1.", "تم نقل التذكير إلى $1."]
 );
+Object.assign(window.WALLET_I18N.words, {
+  "Choose": ["Choisir", "اختر"],
+  "Paid from": ["Payé depuis", "مدفوع من"],
+  "Into": ["Vers", "إلى حساب"],
+  "Date": ["Date", "التاريخ"],
+  "More": ["Plus", "المزيد"],
+  "Amount": ["Montant", "المبلغ"],
+  "Note, repeat, receipt": ["Note, répétition, reçu", "ملاحظة، تكرار، إيصال"],
+  "Add a note": ["Ajouter une note", "أضف ملاحظة"],
+  "Another day": ["Un autre jour", "يوم آخر"],
+  "Repeat every month": ["Répéter chaque mois", "تكرار كل شهر"],
+  "Receipt photo": ["Photo du reçu", "صورة الإيصال"],
+  "Added": ["Ajoutée", "أُضيفت"],
+  "tap to remove": ["touchez pour retirer", "اضغط للإزالة"],
+  "View": ["Voir", "عرض"],
+  "Off": ["Non", "متوقف"],
+  "Done": ["Terminé", "تم"],
+  "Next: choose a category": ["Suivant : choisir une catégorie", "التالي: اختر الفئة"],
+  "What was it?": ["C'était quoi ?", "ما هو المصروف؟"]
+});
+window.WALLET_I18N.patterns.push(["^Day (\\d+)$", "Le $1", "يوم $1"]);
+Object.assign(window.WALLET_I18N.words, { "Note and more": ["Note et plus", "ملاحظة والمزيد"] });
