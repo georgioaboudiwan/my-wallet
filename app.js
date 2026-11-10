@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "1.4.0";
+  const VERSION = "1.5.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -284,6 +284,7 @@
         : DEFAULT_BUCKETS.map(b => ({ ...b, pct: d.plan && Number.isFinite(d.plan[b.id]) ? d.plan[b.id] : b.pct })),
       income: Number(d.income) > 0 ? Number(d.income) : 0,
       incomeMode: d.incomeMode === "fixed" || d.incomeMode === "auto" ? d.incomeMode : (Number(d.income) > 0 ? "fixed" : "auto"),
+      incomeSteps: d.incomeSteps && typeof d.incomeSteps === "object" ? Object.fromEntries(Object.entries(d.incomeSteps).filter(([k, v]) => /^\d{4}-\d{2}$/.test(k) && Number(v) > 0).map(([k, v]) => [k, Number(v)])) : {},
       incomeByMonth: d.incomeByMonth && typeof d.incomeByMonth === "object" ? Object.fromEntries(Object.entries(d.incomeByMonth).filter(([k, v]) => /^\d{4}-\d{2}$/.test(k) && Number(v) > 0).map(([k, v]) => [k, Number(v)])) : {},
       seeded: !!d.seeded,
       name: typeof d.name === "string" ? d.name : ""
@@ -499,12 +500,19 @@
     return s;
   }
 
+  function fixedIncome(m) {
+    const st = settings();
+    const k = Object.keys(st.incomeSteps).filter(x => x <= m).sort().pop();
+    return k ? st.incomeSteps[k] : st.income;
+  }
+
   function incomeBase(m) {
     const st = settings();
     const s = monthStats(m);
     const own = st.incomeByMonth[m];
     if (own > 0) return { base: own, source: "month" };
-    if (st.incomeMode === "fixed" && st.income > 0) return { base: st.income, source: "fixed" };
+    const fixed = fixedIncome(m);
+    if (st.incomeMode === "fixed" && fixed > 0) return { base: fixed, source: "fixed" };
     if (s.income > 0) return { base: s.income, source: "actual" };
     const prev = [1, 2, 3].map(k => monthStats(shiftMonth(m, -k)).income).filter(v => v > 0);
     if (prev.length) return { base: prev.reduce((a, b) => a + b, 0) / prev.length, source: "estimate" };
@@ -945,12 +953,13 @@
     return out;
   }
 
-  function monthSwitcher() {
+  function monthSwitcher(ahead = 0) {
     const m = S.month || thisMonth();
+    const last = shiftMonth(thisMonth(), ahead);
     return h("div", { class: "month" },
       h("button", { type: "button", class: "icon-btn", "aria-label": "Previous month", on: { click: () => { S.month = shiftMonth(m, -1); render(); } } }, icon("back")),
       h("strong", null, monthLabel(m)),
-      h("button", { type: "button", class: "icon-btn", "aria-label": "Next month", disabled: m >= thisMonth(), on: { click: () => { S.month = shiftMonth(m, 1); render(); } } }, icon("fwd")));
+      h("button", { type: "button", class: "icon-btn", "aria-label": "Next month", disabled: m >= last, on: { click: () => { S.month = shiftMonth(m, 1); render(); } } }, icon("fwd")));
   }
 
   function viewInsights() {
@@ -1035,7 +1044,7 @@
     const st = settings();
     const p = planFor(m);
     const s = p.s;
-    const out = h("div", { class: "stack" }, monthSwitcher());
+    const out = h("div", { class: "stack" }, monthSwitcher(12));
 
     out.append(incomeCard(m, p));
 
@@ -1088,12 +1097,12 @@
     const s = p.s;
     const name = monthName(m);
     const without = () => Object.fromEntries(Object.entries(st.incomeByMonth).filter(([k]) => k !== m));
-    const derived = st.incomeByMonth[m] > 0 ? "month" : st.incomeMode === "fixed" && st.income > 0 ? "fixed" : "auto";
+    const derived = st.incomeByMonth[m] > 0 ? "month" : st.incomeMode === "fixed" && fixedIncome(m) > 0 ? "fixed" : "auto";
     const tab = S.incomePick && S.incomePick.m === m ? S.incomePick.k : derived;
     const pick = k => {
       S.incomePick = { m, k };
       if (k === "auto") return saveSettings({ incomeMode: "auto", incomeByMonth: without() });
-      if (k === "fixed" && st.income > 0) return saveSettings({ incomeMode: "fixed", incomeByMonth: without() });
+      if (k === "fixed" && fixedIncome(m) > 0) return saveSettings({ incomeMode: "fixed", incomeByMonth: without() });
       render();
       const el = document.getElementById("p-income");
       if (el) el.focus();
@@ -1104,8 +1113,8 @@
       seg([["auto", "As received"], ["fixed", "Every month"], ["month", `Only ${monthShort(m)}`]], tab, pick, "Where the amount comes from")
     ];
     if (tab !== "auto") {
-      const current = tab === "month" ? st.incomeByMonth[m] : st.income;
-      kids.push(h("label", { class: "field" }, h("span", null, tab === "month" ? `Income for ${name} (${curSymbol(mainCur())})` : `Usual monthly income (${curSymbol(mainCur())})`),
+      const current = tab === "month" ? st.incomeByMonth[m] : fixedIncome(m);
+      kids.push(h("label", { class: "field" }, h("span", null, tab === "month" ? `Income for ${name} (${curSymbol(mainCur())})` : `Monthly income from ${monthLabel(m)} (${curSymbol(mainCur())})`),
         h("input", { id: "p-income", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: p.base > 0 ? String(Math.round(p.base)) : "e.g. 1500", value: current ? String(current) : "",
           on: { change: e => {
             const raw = e.target.value.trim();
@@ -1118,9 +1127,13 @@
               if (!v) S.incomePick = null;
               toast(v ? `${name} now uses ${money(v, { show: true })}.` : `${name} is back to its usual setting.`);
             } else {
-              if (!v) S.incomePick = null;
-              saveSettings({ income: v, incomeMode: v ? "fixed" : "auto", incomeByMonth: without() });
-              toast(v ? `Every month now uses ${money(v, { show: true })}.` : "The plan now follows the income you log.");
+              const steps = Object.fromEntries(Object.entries(st.incomeSteps).filter(([k]) => k !== m));
+              if (v) steps[m] = v;
+              const keys = Object.keys(steps).filter(k => k <= m).sort();
+              const still = v || (keys.length ? steps[keys.pop()] : st.income);
+              if (!still) S.incomePick = null;
+              saveSettings({ incomeSteps: steps, incomeMode: still ? "fixed" : "auto", incomeByMonth: without() });
+              toast(v ? `${money(v, { show: true })} a month from ${monthLabel(m)}. Earlier months are unchanged.` : still ? `${name} is back to ${money(still, { show: true })}.` : "The plan now follows the income you log.");
             }
           } } })));
     }
@@ -1131,8 +1144,19 @@
           : p.source === "estimate" ? `No income logged in ${name} yet, so this is the average of your last 3 months. It switches to the real amount once you log income.`
           : p.source === "month" ? `${name} has its own amount. Clear it under “Only ${monthShort(m)}” to follow your logged income.`
           : "Log your income with + and the plan follows it, month by month.")
-        : tab === "fixed" ? `The same amount is used every month. ${logged}`
+        : tab === "fixed" ? `Applies from ${monthLabel(m)} onward. Earlier months keep the amount they had. For a raise, go to the month it starts and enter the new amount. ${logged}`
         : `Only ${name} uses this amount. Other months keep their usual setting. ${logged}`));
+    const changes = Object.entries(st.incomeSteps).sort();
+    if (tab === "fixed" && changes.length) {
+      kids.push(h("div", { class: "steps" }, changes.map(([k, v]) => h("div", { class: "step-row" },
+        h("span", null, `From ${monthLabel(k)}`),
+        h("strong", { class: "num" }, money(v, { whole: true })),
+        h("button", { type: "button", class: "link-btn", "aria-label": `Remove the change from ${monthLabel(k)}`, on: { click: () => {
+          const steps = Object.fromEntries(changes.filter(([x]) => x !== k));
+          saveSettings({ incomeSteps: steps });
+          toast(`Change from ${monthLabel(k)} removed.`);
+        } } }, "Remove")))));
+    }
     return h("section", { class: "card" }, ...kids);
   }
 
@@ -2210,7 +2234,7 @@
     const factor = rateOf(next) / rateOf(old);
     const items = rows("categories").filter(c => Number(c.budget) > 0).map(c => ({ t: "categories", r: { ...c, budget: roundCur(Number(c.budget) * factor, next) } }));
     const st = settings();
-    items.push({ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), main: next, rates: st.rates, income: st.income ? roundCur(st.income * factor, next) : 0, incomeByMonth: Object.fromEntries(Object.entries(st.incomeByMonth).map(([k, v]) => [k, roundCur(v * factor, next)])) } } });
+    items.push({ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), main: next, rates: st.rates, income: st.income ? roundCur(st.income * factor, next) : 0, incomeByMonth: Object.fromEntries(Object.entries(st.incomeByMonth).map(([k, v]) => [k, roundCur(v * factor, next)])), incomeSteps: Object.fromEntries(Object.entries(st.incomeSteps).map(([k, v]) => [k, roundCur(v * factor, next)])) } } });
     putMany(items);
     toast(`Totals are now shown in ${next}. Budgets and income were converted.`);
   }
