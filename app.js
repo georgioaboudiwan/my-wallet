@@ -19,11 +19,13 @@
   const ID_RE = /^[A-Za-z0-9_:@.\-]{1,160}$/;
   const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
   const COLORS = ["#2e9e6b", "#3b7dd8", "#7a5cd6", "#d9a521", "#d9622b", "#d6455d", "#c2508f", "#1f9bb0", "#8a9a2b", "#5f6ad1", "#b5793a", "#5b7083"];
-  const BUCKETS = {
-    needs: { name: "Needs", color: "var(--needs)", about: "Rent, groceries, bills, generator, transport, health" },
-    wants: { name: "Wants", color: "var(--wants)", about: "Eating out, shopping, going out, subscriptions, gifts" },
-    savings: { name: "Savings", color: "var(--savings)", about: "Money moved to savings and loan repayments" }
-  };
+  const BUCKET_COLORS = ["#2f74c9", "#c14a87", "#b8892a", "#2e9e6b", "#7a5cd6", "#d9622b", "#1f9bb0", "#5b7083"];
+  const BUCKET_ID = /^[a-z0-9_-]{1,40}$/;
+  const DEFAULT_BUCKETS = [
+    { id: "needs", name: "Needs", pct: 50, color: "#2f74c9", save: false },
+    { id: "wants", name: "Wants", pct: 30, color: "#c14a87", save: false },
+    { id: "savings", name: "Savings", pct: 20, color: "#b8892a", save: true }
+  ];
   const KIND_LABEL = { cash: "Cash", bank: "Bank", card: "Card", savings: "Savings" };
   const DEFAULT_CATS = [
     ["groceries", "Groceries", "expense", "needs", "#2e9e6b"],
@@ -274,7 +276,9 @@
     return {
       main: CUR_RE.test(d.main || "") ? d.main : "USD",
       rates: { LBP: Number(d.rate) > 0 ? Number(d.rate) : 89500, ...(d.rates && typeof d.rates === "object" ? Object.fromEntries(Object.entries(d.rates).filter(([k, v]) => CUR_RE.test(k) && Number(v) > 0).map(([k, v]) => [k, Number(v)])) : {}) },
-      plan: d.plan && [d.plan.needs, d.plan.wants, d.plan.savings].every(Number.isFinite) ? d.plan : { needs: 50, wants: 30, savings: 20 },
+      buckets: Array.isArray(d.buckets) && d.buckets.length
+        ? d.buckets.filter(b => b && BUCKET_ID.test(b.id)).slice(0, 8).map((b, i) => ({ id: b.id, name: String(b.name || "Group").slice(0, 24), pct: Math.max(0, Math.min(100, Math.round(Number(b.pct) || 0))), color: /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : BUCKET_COLORS[i % BUCKET_COLORS.length], save: !!b.save }))
+        : DEFAULT_BUCKETS.map(b => ({ ...b, pct: d.plan && Number.isFinite(d.plan[b.id]) ? d.plan[b.id] : b.pct })),
       income: Number(d.income) > 0 ? Number(d.income) : 0,
       seeded: !!d.seeded,
       name: typeof d.name === "string" ? d.name : ""
@@ -283,6 +287,13 @@
   const bySort = (a, b) => (a.sort || 0) - (b.sort || 0) || a.name.localeCompare(b.name);
   const byRecent = (a, b) => b.occurred_on.localeCompare(a.occurred_on) || String(b.created_at || "").localeCompare(String(a.created_at || ""));
   const mainCur = () => settings().main;
+  const planGroups = () => settings().buckets;
+  const groupOf = c => {
+    const groups = planGroups();
+    if (c && groups.some(g => g.id === c.bucket)) return c.bucket;
+    return (groups.find(g => !g.save) || groups[0] || { id: "wants" }).id;
+  };
+  const groupInfo = id => planGroups().find(g => g.id === id) || { id, name: "Other", color: "#5b7083", pct: 0, save: false };
   const rateOf = c => c === "USD" ? 1 : (settings().rates[c] || curInfo(c).rate || 1);
   const convert = (amount, from, to) => from === to ? Number(amount) : Number(amount) / rateOf(from) * rateOf(to);
   const toMain = (amount, currency) => convert(amount, currency, mainCur());
@@ -456,7 +467,7 @@
   function monthStats(m) {
     const k = ver + ":" + m;
     if (memo.has(k)) return memo.get(k);
-    const s = { spent: 0, income: 0, byCat: new Map(), buckets: { needs: 0, wants: 0, savings: 0 }, days: new Map(), biggest: null, count: 0 };
+    const s = { spent: 0, income: 0, byCat: new Map(), buckets: Object.fromEntries(planGroups().map(g => [g.id, 0])), days: new Map(), biggest: null, count: 0 };
     for (const x of rows("transactions")) {
       if (monthOf(x.occurred_on) !== m) continue;
       const u = txMain(x);
@@ -465,7 +476,8 @@
         s.count++;
         s.byCat.set(x.category_id, (s.byCat.get(x.category_id) || 0) + u);
         const c = cat(x.category_id);
-        s.buckets[c && BUCKETS[c.bucket] ? c.bucket : "wants"] += u;
+        const g = groupOf(c);
+        s.buckets[g] = (s.buckets[g] || 0) + u;
         s.days.set(x.occurred_on, (s.days.get(x.occurred_on) || 0) + u);
         if (!s.biggest || u > txMain(s.biggest)) s.biggest = x;
       } else if (x.kind === "income") {
@@ -473,7 +485,8 @@
       } else {
         const from = acc(x.account_id);
         const to = acc(x.to_account_id);
-        if (to && to.kind === "savings" && !(from && from.kind === "savings")) s.buckets.savings += u;
+        const saveGroup = planGroups().find(g => g.save);
+        if (saveGroup && to && to.kind === "savings" && !(from && from.kind === "savings")) s.buckets[saveGroup.id] = (s.buckets[saveGroup.id] || 0) + u;
       }
     }
     if (memo.size > 60) memo.clear();
@@ -487,7 +500,7 @@
     const base = st.income > 0 ? st.income : s.income;
     return {
       base, fromActual: !(st.income > 0), s,
-      buckets: ["needs", "wants", "savings"].map(k => ({ k, planned: base * st.plan[k] / 100, actual: s.buckets[k] }))
+      buckets: st.buckets.map(g => ({ k: g.id, g, planned: base * g.pct / 100, actual: s.buckets[g.id] || 0 }))
     };
   }
 
@@ -495,7 +508,7 @@
     const m = thisMonth();
     const p = planFor(m);
     if (!(p.base > 0)) return null;
-    const left = p.buckets.filter(b => b.k !== "savings").reduce((a, b) => a + b.planned - b.actual, 0);
+    const left = p.buckets.filter(b => !b.g.save).reduce((a, b) => a + b.planned - b.actual, 0);
     const daysLeft = daysInMonth(m) - Number(today().slice(8)) + 1;
     return { perDay: Math.max(0, left) / daysLeft, left, daysLeft };
   }
@@ -888,10 +901,10 @@
     const s = monthStats(m);
     const prevM = shiftMonth(m, -1);
     const prev = monthStats(prevM);
-    const pl = settings().plan;
+    const pl = planGroups();
     const out = h("div", { class: "stack" }, monthSwitcher(), h("section", { class: "card flush" }, h("button", { type: "button", class: "row", on: { click: () => go("plan") } },
       h("span", { class: "dot neutral" }, icon("plan", "ico sm")),
-      h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Your plan and budgets"), h("span", { class: "row-sub" }, `Needs ${pl.needs}% · Wants ${pl.wants}% · Savings ${pl.savings}%`)),
+      h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Your plan and budgets"), h("span", { class: "row-sub" }, pl.map(g => `${g.name} ${g.pct}%`).join(" · "))),
       icon("fwd"))));
     const left = s.income - s.spent;
     let changeText = null;
@@ -944,18 +957,18 @@
         h("div", { class: "fact" }, h("small", null, "Biggest expense"), h("strong", null, big ? money(txMain(big), { whole: true }) : "—"), big ? h("span", null, [bigCat ? bigCat.name : "Uncategorized", big.note].filter(Boolean).join(" · ")) : null),
         h("div", { class: "fact" }, h("small", null, "Expenses logged"), h("strong", { class: "num" }, String(s.count)), h("span", null, s.count ? `avg ${money(s.spent / s.count, { whole: true })}` : "")))));
 
-    const total = s.buckets.needs + s.buckets.wants + s.buckets.savings;
+    const groups = planGroups();
+    const total = groups.reduce((t, g) => t + (s.buckets[g.id] || 0), 0);
     if (total > 0) {
-      const plan = settings().plan;
       out.append(h("section", { class: "card" },
         h("div", { class: "card-head" }, h("h2", null, "How you divided it")),
-        h("div", { class: "split", "aria-hidden": "true" }, ["needs", "wants", "savings"].filter(k => s.buckets[k] > 0).map(k => h("span", { style: { flex: `${s.buckets[k]} 1 0`, background: BUCKETS[k].color } }))),
-        ["needs", "wants", "savings"].map(k => h("div", { class: "cat-line" },
-          h("span", { class: "swatch", style: { background: BUCKETS[k].color } }),
-          h("span", { class: "name" }, BUCKETS[k].name),
-          h("span", { class: "val" }, money(s.buckets[k], { whole: true })),
-          h("span", { class: "pct" }, `${Math.round(s.buckets[k] / total * 100)}%`),
-          h("span", { class: "pct" }, `plan ${plan[k]}%`)))));
+        h("div", { class: "split", "aria-hidden": "true" }, groups.filter(g => s.buckets[g.id] > 0).map(g => h("span", { style: { flex: `${s.buckets[g.id]} 1 0`, background: g.color } }))),
+        groups.map(g => h("div", { class: "cat-line" },
+          h("span", { class: "swatch", style: { background: g.color } }),
+          h("span", { class: "name" }, g.name),
+          h("span", { class: "val" }, money(s.buckets[g.id] || 0, { whole: true })),
+          h("span", { class: "pct" }, `${Math.round((s.buckets[g.id] || 0) / total * 100)}%`),
+          h("span", { class: "pct" }, `plan ${g.pct}%`)))));
     }
     return out;
   }
@@ -976,48 +989,26 @@
         ? `You received ${money(s.income, { whole: true })} in ${monthName(m)}.`
         : s.income ? `Empty, so the plan uses the ${money(s.income, { whole: true })} you received in ${monthName(m)}.` : "Enter what you usually earn, or log your income and the plan will use it.")));
 
-    const pctIds = { needs: "p-needs", wants: "p-wants", savings: "p-savings" };
-    const sumEl = h("p", { class: "hint" });
-    const pctInputs = {};
-    const updateSum = () => {
-      const vals = Object.fromEntries(Object.entries(pctInputs).map(([k, el]) => [k, Number(el.value)]));
-      const sum = vals.needs + vals.wants + vals.savings;
-      const ok = Object.values(vals).every(v => Number.isInteger(v) && v >= 0 && v <= 100) && sum === 100;
-      sumEl.textContent = ok ? "Adds up to 100%." : `Adds up to ${Number.isFinite(sum) ? sum : "?"}%. Make it 100%.`;
-      sumEl.className = ok ? "hint" : "form-err";
-      return ok ? vals : null;
-    };
-    for (const k of ["needs", "wants", "savings"]) {
-      pctInputs[k] = h("input", { id: pctIds[k], class: "input", inputmode: "numeric", value: String(st.plan[k]), autocomplete: "off", "aria-label": `${BUCKETS[k].name} percent`,
-        on: { input: updateSum, change: () => { const v = updateSum(); if (v) saveSettings({ plan: v }); } } });
-    }
-    const presets = [[50, 30, 20], [60, 20, 20], [70, 20, 10], [40, 30, 30]];
-    out.append(h("section", { class: "card" },
-      h("div", { class: "card-head" }, h("h2", null, "How to divide it")),
-      h("div", { class: "pct-grid" }, ["needs", "wants", "savings"].map(k => h("label", { class: "field" }, h("span", null, BUCKETS[k].name + " %"), pctInputs[k]))),
-      sumEl,
-      h("div", { class: "chips wrap" }, presets.map(([a, b, c]) => h("button", { type: "button", class: "chip", "aria-pressed": String(st.plan.needs === a && st.plan.wants === b && st.plan.savings === c),
-        on: { click: () => saveSettings({ plan: { needs: a, wants: b, savings: c } }) } }, `${a} / ${b} / ${c}`))),
-      h("p", { class: "hint" }, "50 / 30 / 20 is a common starting point. If rent and bills take most of your income, try 60 / 20 / 20 or 70 / 20 / 10.")));
-    updateSum();
+    out.append(planEditor());
 
     if (m === thisMonth()) {
       const safe = safeToSpend();
       if (safe) out.append(h("section", { class: "safe" },
-        h("small", null, "Safe to spend on needs and wants"),
+        h("small", null, `Safe to spend on ${planGroups().filter(g => !g.save).map(g => g.name.toLowerCase()).join(", ") || "spending"}`),
         h("strong", null, money(safe.perDay, { whole: true }) + " a day"),
         h("small", null, safe.left >= 0 ? `${money(safe.left, { whole: true })} left for the next ${safe.daysLeft} days` : `You're ${money(-safe.left, { whole: true })} over plan this month`)));
     }
 
     for (const b of p.buckets) {
-      const info = BUCKETS[b.k];
+      const info = b.g;
       const leftover = b.planned - b.actual;
       const pct = b.planned > 0 ? b.actual / b.planned * 100 : 0;
-      const isSave = b.k === "savings";
+      const isSave = b.g.save;
+      const catNames = rows("categories").filter(c => c.kind === "expense" && groupOf(c) === b.k).map(c => c.name);
       out.append(h("section", { class: "card bucket" },
         h("div", { class: "bucket-head" }, h("h3", null, h("span", { class: "swatch", style: { background: info.color } }), info.name), h("span", { class: "val" }, `${money(b.actual, { whole: true })} of ${money(b.planned, { whole: true })}`)),
         h("div", { class: "bar" }, h("span", { class: !isSave && pct > 100 ? "over" : "", style: { width: Math.min(100, pct) + "%", background: info.color } })),
-        h("p", null, info.about),
+        h("p", null, [b.g.pct + "% of your money", catNames.length ? catNames.join(", ") : "No categories yet", isSave ? "plus money moved to savings accounts" : null].filter(Boolean).join(" · ")),
         p.base > 0 ? h("p", { class: "left" + (!isSave && leftover < 0 ? " bad" : "") }, isSave
           ? (leftover > 0 ? `Put aside ${money(leftover, { whole: true })} more to hit your goal` : "Goal reached")
           : (leftover >= 0 ? `${money(leftover, { whole: true })} left` : `${money(-leftover, { whole: true })} over`)) : null));
@@ -1025,8 +1016,8 @@
 
     const budgets = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Category budgets")));
     const expenseCats = rows("categories").filter(c => c.kind === "expense").sort(bySort);
-    for (const k of ["needs", "wants", "savings"]) {
-      for (const c of expenseCats.filter(c => (c.bucket || "wants") === k)) {
+    for (const g of planGroups()) {
+      for (const c of expenseCats.filter(c => groupOf(c) === g.id)) {
         const spent = s.byCat.get(c.id) || 0;
         const budget = Number(c.budget) || 0;
         budgets.append(h("button", { type: "button", class: "cat-row", on: { click: () => categorySheet(c) } },
@@ -1042,18 +1033,80 @@
     return out;
   }
 
+  function planEditor() {
+    const groups = planGroups();
+    const sum = groups.reduce((t, g) => t + g.pct, 0);
+    const saveGroups = next => saveSettings({ buckets: next, plan: null });
+    const update = (id, patch) => saveGroups(groups.map(g => g.id === id ? { ...g, ...patch } : g));
+    const step = (g, d) => update(g.id, { pct: Math.max(0, Math.min(100, g.pct + d)) });
+    const card = h("section", { class: "card plan-edit" }, h("div", { class: "card-head" }, h("h2", null, "How to divide it"), h("span", { class: "hint" }, `${groups.length} group${groups.length === 1 ? "" : "s"}`)));
+    const bar = h("div", { class: "alloc", "aria-hidden": "true" },
+      groups.filter(g => g.pct > 0).map(g => h("span", { style: { flex: `${g.pct} 1 0`, background: g.color } }, g.pct >= 8 ? `${g.pct}%` : "")),
+      sum < 100 ? h("span", { class: "free", style: { flex: `${100 - sum} 1 0` } }, 100 - sum >= 8 ? `${100 - sum}%` : "") : null);
+    const status = h("p", { class: sum === 100 ? "alloc-ok" : "alloc-bad" }, sum === 100 ? "All 100% assigned." : sum < 100 ? `${100 - sum}% not assigned yet.` : `${sum - 100}% too much. Lower a group.`);
+    card.append(bar, status);
+    for (const g of groups) {
+      const armed = S.armed === "grp:" + g.id;
+      const nameIn = h("input", { id: `g-name-${g.id}`, class: "grp-name", maxlength: "24", value: g.name, autocomplete: "off", "aria-label": "Group name",
+        on: { change: e => { const v = e.target.value.trim().replace(/\s+/g, " ").slice(0, 24); if (!v) { e.target.value = g.name; return; } update(g.id, { name: v }); } } });
+      const pctIn = h("input", { id: `g-pct-${g.id}`, class: "grp-pct num", inputmode: "numeric", value: String(g.pct), autocomplete: "off", "aria-label": `${g.name} percent`,
+        on: { change: e => { const v = Number(e.target.value); if (!Number.isInteger(v) || v < 0 || v > 100) { toast("Use a whole number from 0 to 100.", "error"); e.target.value = String(g.pct); return; } update(g.id, { pct: v }); } } });
+      const colorBtn = h("button", { type: "button", class: "grp-color", style: { background: g.color }, "aria-label": `Change ${g.name} color`, on: { click: () => update(g.id, { color: BUCKET_COLORS[(BUCKET_COLORS.indexOf(g.color) + 1) % BUCKET_COLORS.length] }) } });
+      card.append(h("div", { class: "grp" },
+        h("div", { class: "grp-top" }, colorBtn, nameIn,
+          h("div", { class: "stepper" },
+            h("button", { type: "button", "aria-label": `Lower ${g.name}`, on: { click: () => step(g, -5) } }, icon("minus", "ico sm")),
+            pctIn, h("span", { class: "pct-sign" }, "%"),
+            h("button", { type: "button", "aria-label": `Raise ${g.name}`, on: { click: () => step(g, 5) } }, icon("plus", "ico sm")))),
+        h("div", { class: "grp-bottom" },
+          h("button", { type: "button", class: "chip mini", "aria-pressed": String(g.save), on: { click: () => update(g.id, { save: !g.save }) } }, icon("bank", "ico sm"), "Counts as saving"),
+          groups.length > 1 ? h("button", { type: "button", class: "chip mini danger" + (armed ? " sure" : ""), on: { click: () => {
+            if (!armed) { S.armed = "grp:" + g.id; render(); return; }
+            S.armed = null;
+            const rest = groups.filter(x => x.id !== g.id);
+            const fallback = (rest.find(x => !x.save) || rest[0]).id;
+            putMany([
+              ...rows("categories").filter(c => c.bucket === g.id).map(c => ({ t: "categories", r: { ...c, bucket: fallback } })),
+              { t: "settings", r: { id: settingsId(), data: { ...storedSettings(), buckets: rest, plan: null } } }
+            ]);
+            toast(`${g.name} removed. Its categories moved to ${groupInfo(fallback).name}.`);
+          } } }, icon("trash", "ico sm"), armed ? "Tap again" : "Remove") : null)));
+    }
+    if (groups.length < 8) card.append(h("button", { type: "button", class: "row-btn add-grp", on: { click: () => {
+      const id = "g" + newId().replace(/[^a-z0-9]/gi, "").slice(0, 10).toLowerCase();
+      saveGroups([...groups, { id, name: "New group", pct: Math.max(0, 100 - sum), color: BUCKET_COLORS[groups.length % BUCKET_COLORS.length], save: false }]);
+      setTimeout(() => { const el = document.getElementById(`g-name-${id}`); if (el) { el.focus(); el.select(); } }, 60);
+    } } }, icon("plus", "ico sm"), "Add a group"));
+    const presets = [["50 / 30 / 20", [50, 30, 20]], ["60 / 20 / 20", [60, 20, 20]], ["70 / 20 / 10", [70, 20, 10]]];
+    card.append(h("div", { class: "chips wrap" },
+      groups.length > 1 ? h("button", { type: "button", class: "chip", on: { click: () => {
+        const base = Math.floor(100 / groups.length);
+        saveGroups(groups.map((g, i) => ({ ...g, pct: base + (i < 100 - base * groups.length ? 1 : 0) })));
+      } } }, "Split evenly") : null,
+      sum !== 100 && groups.length ? h("button", { type: "button", class: "chip", on: { click: () => {
+        const last = groups[groups.length - 1];
+        update(last.id, { pct: Math.max(0, Math.min(100, last.pct + 100 - sum)) });
+      } } }, `Fix to 100%`) : null,
+      presets.map(([label, v]) => h("button", { type: "button", class: "chip", on: { click: () => {
+        const ids = DEFAULT_BUCKETS.map(b => b.id);
+        const keep = groups.filter(g => !ids.includes(g.id));
+        saveGroups([...DEFAULT_BUCKETS.map((b, i) => ({ ...(groups.find(g => g.id === b.id) || b), pct: v[i] })), ...keep.map(g => ({ ...g, pct: 0 }))]);
+      } } }, label))));
+    card.append(h("p", { class: "hint" }, "Name your groups, give each a percentage, and mark the ones that are saving. Pick each category's group in Settings or by tapping a category budget below."));
+    return card;
+  }
+
   function suggestBudgets() {
     const m = thisMonth();
     const base = planFor(m).base;
     if (!(base > 0)) return toast("Enter your monthly income first.");
     const avg = new Map();
     for (const mm of [1, 2, 3].map(k => shiftMonth(m, -k))) for (const [id, v] of monthStats(mm).byCat) avg.set(id, (avg.get(id) || 0) + v / 3);
-    const plan = settings().plan;
     const items = [];
-    for (const k of ["needs", "wants", "savings"]) {
-      const cs = rows("categories").filter(c => c.kind === "expense" && (c.bucket || "wants") === k);
+    for (const g of planGroups()) {
+      const cs = rows("categories").filter(c => c.kind === "expense" && groupOf(c) === g.id);
       if (!cs.length) continue;
-      const planned = base * plan[k] / 100;
+      const planned = base * g.pct / 100;
       const total = cs.reduce((a, c) => a + (avg.get(c.id) || 0), 0);
       for (const c of cs) {
         const share = total > 0 ? (avg.get(c.id) || 0) / total : 1 / cs.length;
@@ -1087,7 +1140,7 @@
 
     const catRows = kind => rows("categories").filter(c => c.kind === kind).sort(bySort).map(c => h("button", { type: "button", class: "row", on: { click: () => categorySheet(c) } },
       h("span", { class: "dot", style: { background: c.color } }, catGlyph(c, "ico sm")),
-      h("span", { class: "row-main" }, h("span", { class: "row-title" }, c.name), h("span", { class: "row-sub" }, kind === "expense" ? [BUCKETS[c.bucket || "wants"].name, Number(c.budget) ? `${money(Number(c.budget), { whole: true })} a month` : null].filter(Boolean).join(" · ") : "Income"))));
+      h("span", { class: "row-main" }, h("span", { class: "row-title" }, c.name), h("span", { class: "row-sub" }, kind === "expense" ? [groupInfo(groupOf(c)).name, Number(c.budget) ? `${money(Number(c.budget), { whole: true })} a month` : null].filter(Boolean).join(" · ") : "Income"))));
     out.append(group("Spending categories", ...catRows("expense"), h("button", { type: "button", class: "row-btn", on: { click: () => categorySheet(null, "expense") } }, "Add category")));
     out.append(group("Income categories", ...catRows("income"), h("button", { type: "button", class: "row-btn", on: { click: () => categorySheet(null, "income") } }, "Add category")));
 
@@ -1837,7 +1890,7 @@
   }
 
   function categorySheet(c, kind) {
-    const f = { name: c ? c.name : "", kind: c ? c.kind : kind || "expense", bucket: c ? c.bucket || "wants" : "needs", color: c ? c.color : COLORS[rows("categories").length % COLORS.length], budget: c && Number(c.budget) ? String(Number(c.budget)) : "" };
+    const f = { name: c ? c.name : "", kind: c ? c.kind : kind || "expense", bucket: c ? groupOf(c) : groupOf(null), color: c ? c.color : COLORS[rows("categories").length % COLORS.length], budget: c && Number(c.budget) ? String(Number(c.budget)) : "" };
     const body = h("form", { class: "form", novalidate: true });
     const err = h("p", { class: "form-err", role: "alert" });
     let armedDelete = false;
@@ -1846,7 +1899,7 @@
       if (!c) kids.push(seg([["expense", "Spending"], ["income", "Income"]], f.kind, k => { f.kind = k; draw(); }, "Category type"));
       if (f.kind === "expense") {
         kids.push(
-          h("div", { class: "field" }, h("span", { class: "label" }, "Part of your plan"), seg(Object.entries(BUCKETS).map(([k, b]) => [k, b.name]), f.bucket, k => { f.bucket = k; draw(); }, "Plan group"), h("span", { class: "hint" }, BUCKETS[f.bucket].about)),
+          h("div", { class: "field" }, h("span", { class: "label" }, "Part of your plan"), h("div", { class: "chips wrap" }, planGroups().map(g => h("button", { type: "button", class: "chip", "aria-pressed": String(f.bucket === g.id), on: { click: () => { f.bucket = g.id; draw(); } } }, h("span", { class: "swatch", style: { background: g.color } }), `${g.name} · ${g.pct}%`)))),
           h("label", { class: "field" }, h("span", null, `Monthly budget in ${curSymbol(mainCur())} (optional)`), h("input", { id: "f-cbudget", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "No budget", value: f.budget, on: { input: e => { f.budget = e.target.value; } } })));
       }
       kids.push(h("div", { class: "field" }, h("span", { class: "label" }, "Color"), h("div", { class: "swatches" }, COLORS.map(col => h("button", { type: "button", "aria-label": `Color ${col}`, "aria-pressed": String(f.color === col), style: { background: col }, on: { click: () => { f.color = col; draw(); } } })))), err, h("button", { type: "submit", class: "btn" }, c ? "Save category" : "Add category"));
