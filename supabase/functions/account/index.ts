@@ -13,6 +13,15 @@ const cors = {
 };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
+const te = new TextEncoder();
+const b64 = (u8: Uint8Array) => { let s = ""; for (const b of u8) s += String.fromCharCode(b); return btoa(s); };
+const unb64 = (s: string) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+async function escrowKey(userId: string) {
+  const base = await crypto.subtle.importKey("raw", te.encode(String(serviceKey)), "HKDF", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "HKDF", hash: "SHA-256", salt: te.encode("wallet-escrow-v1"), info: te.encode(userId) }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+
 async function removeReceipts(userId: string) {
   for (let i = 0; i < 20; i++) {
     const { data } = await sb.storage.from("receipts").list(userId, { limit: 1000 });
@@ -33,7 +42,35 @@ Deno.serve(async req => {
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { body = {}; }
-  if (String(body.action || "") !== "delete") return json({ error: "Unknown action." }, 400);
+  const action = String(body.action || "");
+  const uid = who.user.id;
+
+  if (action === "escrow-put") {
+    const k = String(body.k || "");
+    let raw: Uint8Array;
+    try { raw = unb64(k); } catch { return json({ error: "Bad key." }, 400); }
+    if (raw.length !== 32) return json({ error: "Bad key." }, 400);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await escrowKey(uid), raw));
+    const out = new Uint8Array(12 + ct.length);
+    out.set(iv); out.set(ct, 12);
+    const { error } = await sb.from("vault").update({ escrow: "e1." + b64(out) }).eq("user_id", uid);
+    return error ? json({ error: "Couldn't save." }, 500) : json({ ok: true });
+  }
+  if (action === "escrow-clear") {
+    const { error } = await sb.from("vault").update({ escrow: null }).eq("user_id", uid);
+    return error ? json({ error: "Couldn't save." }, 500) : json({ ok: true });
+  }
+  if (action === "escrow-get") {
+    const { data: row } = await sb.from("vault").select("escrow").eq("user_id", uid).maybeSingle();
+    if (!row || typeof row.escrow !== "string" || !row.escrow.startsWith("e1.")) return json({ k: null });
+    try {
+      const raw = unb64(row.escrow.slice(3));
+      const pt = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: raw.subarray(0, 12) }, await escrowKey(uid), raw.subarray(12)));
+      return json({ k: b64(pt) });
+    } catch { return json({ k: null }); }
+  }
+  if (action !== "delete") return json({ error: "Unknown action." }, 400);
   if (String(body.confirm || "") !== "DELETE") return json({ error: "Confirmation missing." }, 400);
   const password = String(body.password || "");
   if (!password || password.length > 72) return json({ error: "Enter your password." }, 400);

@@ -531,3 +531,9 @@ Object.assign(window.WALLET_I18N.words, {
   "That recovery key isn't correct.": ["Cette clé de récupération est incorrecte.", "مفتاح الاسترداد غير صحيح."],
   "Enter the 24-character recovery key.": ["Saisissez la clé de récupération de 24 caractères.", "أدخل مفتاح الاسترداد المكوّن من 24 حرفاً."]
 });
+Object.assign(window.WALLET_I18N.words, {
+  "Reset password by email": ["Réinitialiser le mot de passe par e-mail", "إعادة تعيين كلمة المرور بالبريد"],
+  "On: a forgotten password can be reset without losing data": ["Activé : un mot de passe oublié se réinitialise sans perte de données", "مفعّل: يمكن إعادة تعيين كلمة المرور المنسية دون فقدان البيانات"],
+  "Off: only your recovery key can restore your data": ["Désactivé : seule votre clé de récupération peut restaurer vos données", "متوقف: مفتاح الاسترداد وحده يستعيد بياناتك"],
+  "Your data is now encrypted, so nobody else can read it in the database. If you forget your password you can reset it by email. This key is a second way to get your data back, and the only way if you turn off reset by email in Settings. Keep it somewhere safe.": ["Vos données sont désormais chiffrées : personne d'autre ne peut les lire dans la base. Si vous oubliez votre mot de passe, vous pouvez le réinitialiser par e-mail. Cette clé est un second moyen de récupérer vos données, et le seul si vous désactivez la réinitialisation par e-mail dans Réglages. Gardez-la en lieu sûr.", "بياناتك الآن مشفّرة فلا يستطيع أحد قراءتها في قاعدة البيانات. إذا نسيت كلمة المرور يمكنك إعادة تعيينها بالبريد. هذا المفتاح طريقة ثانية لاستعادة بياناتك، وهو الطريقة الوحيدة إذا أوقفت إعادة التعيين بالبريد من الإعدادات. احفظه في مكان آمن."]
+});

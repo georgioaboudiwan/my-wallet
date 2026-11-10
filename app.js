@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.0.0";
+  const VERSION = "3.1.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -369,6 +369,7 @@
       rates: { LBP: Number(d.rate) > 0 ? Number(d.rate) : 89500, ...(d.rates && typeof d.rates === "object" ? Object.fromEntries(Object.entries(d.rates).filter(([k, v]) => CUR_RE.test(k) && Number(v) > 0).map(([k, v]) => [k, Number(v)])) : {}) },
       loanDue: d.loanDue && typeof d.loanDue === "object" ? Object.fromEntries(Object.entries(d.loanDue).filter(([k, v]) => typeof k === "string" && DATE_RE.test(String(v)))) : {},
       autoRates: d.autoRates !== false,
+      strictVault: d.strictVault === true,
       manualRates: Array.isArray(d.manualRates) ? d.manualRates.filter(c => CUR_RE.test(c)) : [],
       ratesAt: DATE_RE.test(d.ratesAt || "") ? d.ratesAt : "",
       goals: Array.isArray(d.goals) ? d.goals.filter(g => g && typeof g.id === "string" && Number(g.target) > 0).slice(0, 12).map((g, i) => ({ id: g.id.slice(0, 40), name: String(g.name || "Goal").slice(0, 40), target: Number(g.target), saved: Math.max(0, Number(g.saved) || 0), by: /^\d{4}-\d{2}$/.test(g.by || "") ? g.by : "", color: /^#[0-9a-f]{6}$/i.test(g.color) ? g.color : COLORS[i % COLORS.length] })) : [],
@@ -509,6 +510,7 @@
       ensureDefaults();
       runRules();
       refreshRates();
+      ensureEscrow();
       if (changed) { save(); scheduleRender(); }
     } catch {
       S.syncError = true;
@@ -1933,6 +1935,17 @@
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "App lock"), h("span", { class: "row-sub" }, lockSupported() ? "Ask for Face ID or your passcode when the app opens" : "Not available in this browser")),
         h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(locked), "aria-label": "App lock", disabled: !lockSupported(), on: { click: () => (locked ? disableLock() : enableLock()) } }, h("span", { class: "knob" }))),
       nav("Change password", null, passwordSheet, "lock"),
+      h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("mail", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Reset password by email"), h("span", { class: "row-sub wrap" }, st.strictVault ? "Off: only your recovery key can restore your data" : "On: a forgotten password can be reset without losing data")),
+        h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(!st.strictVault), "aria-label": "Reset password by email", on: { click: async () => {
+          if (!navigator.onLine) return toast("Connect to the internet to change this.", "error");
+          if (st.strictVault) { saveSettings({ strictVault: false }); store.set("escrow", 0); await ensureEscrow(); return toast("A forgotten password can now be reset by email."); }
+          const res = await escrow("escrow-clear");
+          if (!res || !res.ok) return toast("Couldn't change this. Try again.", "error");
+          store.set("escrow", 0);
+          saveSettings({ strictVault: true });
+          toast("Done. Keep your recovery key safe: it is now the only way back in.");
+        } } }, h("span", { class: "knob" }))),
       nav("Recovery key", "Create a new key if you lost the old one", newRecoveryKey, "shield"),
       nav("Privacy and your data", "What is stored and who can see it", privacySheet, "eye")));
     out.append(group("Account",
@@ -3221,7 +3234,7 @@
       part("Where it lives", "Your data is kept in the app's database and a copy stays on this device so the app works offline. It travels encrypted between your device and the server."),
       part("Who can see it", "Only you. Names, amounts, notes, balances, your plan and your settings are encrypted on your device with a key made from your password before they are saved, so the database holds only unreadable text. The app's administrator cannot read them and sees only a masked email and record counts."),
       part("What is not encrypted", "Dates, currencies, which entry belongs to which account or category (as codes, not names) and receipt photos. Receipt photos are private to your account but stored as normal images."),
-      part("If you forget your password", "Your recovery key is the only way to open your data again. Without the password or the key, nobody can recover it."),
+      part("If you forget your password", "You can reset it by email and keep your data, because the server holds a locked copy of your key that it releases only to your signed-in account. For maximum privacy, turn off “Reset password by email” in Security: the server then keeps no copy, and only your recovery key can restore your data."),
       part("Private pages", "A private page you create for a person shows only that person's balance and history, to anyone who has the link. Turn the link off at any time and it stops working."),
       part("Receipts and exchange rates", "Receipt photos are stored privately under your account and only you can open them. Exchange rates come from a public rate service; nothing about you is sent to it."),
       part("Notifications", "If you turn on the daily reminder, this device's notification address is stored so the reminder can be delivered. Turning it off removes it."),
@@ -3339,6 +3352,18 @@
   const normRecovery = s => String(s || "").toUpperCase().replace(/[^A-Z2-9]/g, "");
   const wrapKey = async (secret, salt) => sealWith(await kdf(secret, salt), { k: b64u8(VAULT.raw) });
 
+  async function escrow(action, extra) {
+    try {
+      const res = await sb.functions.invoke("account", { body: { action, ...(extra || {}) } });
+      return res.error ? null : res.data || null;
+    } catch { return null; }
+  }
+  async function ensureEscrow() {
+    if (!VAULT.raw || !navigator.onLine || settings().strictVault || store.get("escrow", 0) === 1) return;
+    const res = await escrow("escrow-put", { k: b64u8(VAULT.raw) });
+    if (res && res.ok) store.set("escrow", 1);
+  }
+
   async function unlockVault(password, recovery) {
     let row = null;
     try {
@@ -3364,6 +3389,12 @@
     }
     let raw = null;
     try { raw = unb64((await openWith(await kdf(password, row.salt), row.wrapped_pw)).k); } catch { raw = null; }
+    if (!raw && !recovery) {
+      const kept = await escrow("escrow-get");
+      if (kept && typeof kept.k === "string") {
+        try { const got = unb64(kept.k); if (got.length === 32) { raw = got; VAULT.raw = raw; await sb.from("vault").update({ wrapped_pw: await wrapKey(password, row.salt), updated_at: new Date().toISOString() }).eq("user_id", S.uid); } } catch { raw = null; }
+      }
+    }
     if (!raw && recovery) {
       try { raw = unb64((await openWith(await kdf(normRecovery(recovery), row.salt), row.wrapped_rc)).k); } catch { return { error: "recovery" }; }
       VAULT.raw = raw;
@@ -3390,7 +3421,7 @@
     if (!code) return;
     S.recoveryCode = null;
     openSheet("Save your recovery key", h("div", { class: "form" },
-      h("p", { class: "hint" }, "Your data is now encrypted with your password, so nobody else can read it, not even the app's administrator. If you ever forget your password, this key is the only way to get your data back. Keep it somewhere safe."),
+      h("p", { class: "hint" }, "Your data is now encrypted, so nobody else can read it in the database. If you forget your password you can reset it by email. This key is a second way to get your data back, and the only way if you turn off reset by email in Settings. Keep it somewhere safe."),
       h("p", { class: "recovery-code num" }, code),
       h("button", { type: "button", class: "btn alt", on: { click: () => copyText(code) } }, "Copy the key")),
       h("button", { type: "button", class: "btn", on: { click: () => { closeSheet(); setTimeout(render, 400); } } }, "I've saved it"));

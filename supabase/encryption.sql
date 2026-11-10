@@ -49,3 +49,5 @@ as $$
 $$;
 revoke all on function public.shared_ledger(text) from public;
 grant execute on function public.shared_ledger(text) to anon, authenticated;
+alter table public.vault add column if not exists escrow text check (escrow is null or char_length(escrow) < 400);
+grant select, update on public.vault to service_role;
