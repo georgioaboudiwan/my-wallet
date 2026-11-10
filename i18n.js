@@ -516,3 +516,18 @@ Object.assign(window.WALLET_I18N.words, {
 });
 window.WALLET_I18N.patterns.push(["^Day (\\d+)$", "Le $1", "يوم $1"]);
 Object.assign(window.WALLET_I18N.words, { "Note and more": ["Note et plus", "ملاحظة والمزيد"] });
+Object.assign(window.WALLET_I18N.words, {
+  "Unlock your data": ["Déverrouillez vos données", "افتح بياناتك"],
+  "Your data is encrypted with your password. Enter it once on this device.": ["Vos données sont chiffrées avec votre mot de passe. Saisissez-le une fois sur cet appareil.", "بياناتك مشفّرة بكلمة مرورك. أدخلها مرة واحدة على هذا الجهاز."],
+  "Your password was changed by email, so your recovery key is needed once to open your encrypted data.": ["Votre mot de passe a été changé par e-mail : votre clé de récupération est nécessaire une fois pour ouvrir vos données chiffrées.", "تم تغيير كلمة مرورك عبر البريد، لذا نحتاج مفتاح الاسترداد مرة واحدة لفتح بياناتك المشفّرة."],
+  "Recovery key": ["Clé de récupération", "مفتاح الاسترداد"],
+  "Create a new key if you lost the old one": ["Créez une nouvelle clé si vous avez perdu l'ancienne", "أنشئ مفتاحاً جديداً إذا فقدت القديم"],
+  "Save your recovery key": ["Enregistrez votre clé de récupération", "احفظ مفتاح الاسترداد"],
+  "Your data is now encrypted with your password, so nobody else can read it, not even the app's administrator. If you ever forget your password, this key is the only way to get your data back. Keep it somewhere safe.": ["Vos données sont désormais chiffrées avec votre mot de passe : personne d'autre ne peut les lire, pas même l'administrateur. Si vous oubliez votre mot de passe, cette clé est le seul moyen de récupérer vos données. Gardez-la en lieu sûr.", "بياناتك الآن مشفّرة بكلمة مرورك، فلا يستطيع أحد قراءتها ولا حتى مسؤول التطبيق. إذا نسيت كلمة المرور فهذا المفتاح هو الطريقة الوحيدة لاستعادة بياناتك. احفظه في مكان آمن."],
+  "Copy the key": ["Copier la clé", "نسخ المفتاح"],
+  "I've saved it": ["Je l'ai enregistrée", "لقد حفظته"],
+  "Copied.": ["Copié.", "تم النسخ."],
+  "Incorrect password.": ["Mot de passe incorrect.", "كلمة المرور غير صحيحة."],
+  "That recovery key isn't correct.": ["Cette clé de récupération est incorrecte.", "مفتاح الاسترداد غير صحيح."],
+  "Enter the 24-character recovery key.": ["Saisissez la clé de récupération de 24 caractères.", "أدخل مفتاح الاسترداد المكوّن من 24 حرفاً."]
+});

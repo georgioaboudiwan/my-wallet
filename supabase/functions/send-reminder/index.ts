@@ -113,13 +113,8 @@ function nextDay(date: string) {
 }
 
 async function dueTomorrow(userId: string, date: string) {
-  const { data: rules } = await sb.from("rules").select("amount, currency, note, category_id").eq("user_id", userId).eq("active", true).eq("next_on", nextDay(date)).is("deleted_at", null).limit(4);
-  if (!rules || !rules.length) return "";
-  const ids = [...new Set(rules.map(r => r.category_id).filter(Boolean))];
-  const { data: cats } = ids.length ? await sb.from("categories").select("id, name").in("id", ids) : { data: [] };
-  const names = new Map((cats ?? []).map(c => [c.id, c.name]));
-  const parts = rules.map(r => `${String(r.note || names.get(r.category_id) || "Repeating entry").slice(0, 40)} ${r.currency} ${Number(r.amount).toLocaleString("en-US", { maximumFractionDigits: 2 })}`);
-  return ` Due tomorrow: ${parts.join(", ")}.`;
+  const { count } = await sb.from("rules").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("active", true).eq("next_on", nextDay(date)).is("deleted_at", null);
+  return count ? ` ${count === 1 ? "A repeating entry is" : `${count} repeating entries are`} due tomorrow.` : "";
 }
 
 async function reminderFor(sub: Sub, date: string) {

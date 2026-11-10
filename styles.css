@@ -1042,3 +1042,25 @@ main.view:not(.enter) > * { animation: none; }
   .pick-row { min-height: 46px; }
   .panel .cat-btn { min-height: 64px; }
 }
+.recovery-code { font: 700 20px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .04em; text-align: center; padding: 16px 12px; border-radius: 16px; background: var(--sunk); overflow-wrap: anywhere; user-select: all; -webkit-user-select: all; direction: ltr; }
+.txn[data-kind="expense"] .seg-thumb { background: var(--neg); box-shadow: 0 4px 12px color-mix(in srgb, var(--neg) 30%, transparent); }
+.txn[data-kind="income"] .seg-thumb { background: var(--pos); box-shadow: 0 4px 12px color-mix(in srgb, var(--pos) 30%, transparent); }
+.txn[data-kind="transfer"] .seg-thumb { background: var(--gold); box-shadow: 0 4px 12px color-mix(in srgb, var(--gold) 30%, transparent); }
+.txn .seg button[aria-pressed="true"] { color: #fff; }
+.txn[data-kind="expense"] .amount-display:not(.empty) .val, .txn[data-kind="expense"] .amount-display:not(.empty) .cur { color: var(--neg); }
+.txn[data-kind="income"] .amount-display:not(.empty) .val, .txn[data-kind="income"] .amount-display:not(.empty) .cur { color: var(--pos); }
+.txn[data-kind="transfer"] .amount-display:not(.empty) .val, .txn[data-kind="transfer"] .amount-display:not(.empty) .cur { color: var(--gold); }
+.ftiles .ftile:nth-child(1) .ftile-ico:not([style]) { background: color-mix(in srgb, #d9622b 16%, var(--card)); color: #d9622b; }
+.ftiles .ftile:nth-child(2) .cur-tag { background: color-mix(in srgb, #2e9e6b 18%, var(--card)); color: #1c7a50; }
+.ftiles .ftile:nth-child(3) .ftile-ico { background: color-mix(in srgb, #3b7dd8 16%, var(--card)); color: #3b7dd8; }
+.ftiles .ftile:nth-child(4) .ftile-ico { background: color-mix(in srgb, #7a5cd6 16%, var(--card)); color: #7a5cd6; }
+.ftiles .ftile:nth-child(1) { border-inline-start: 3px solid #d9622b; }
+.ftiles .ftile:nth-child(2) { border-inline-start: 3px solid #2e9e6b; }
+.ftiles .ftile:nth-child(3) { border-inline-start: 3px solid #3b7dd8; }
+.ftiles .ftile:nth-child(4) { border-inline-start: 3px solid #7a5cd6; }
+.ftile.empty strong { color: var(--ink); opacity: .55; }
+.ftiles .ftile:nth-child(1).empty strong { color: #d9622b; opacity: 1; }
+.txn .key:not(.fn) { color: var(--ink); }
+.txn[data-kind="expense"] ~ * .btn, .sheet-foot .btn.expense:not(.waiting) { background: var(--neg); box-shadow: 0 8px 20px color-mix(in srgb, var(--neg) 30%, transparent); }
+.sheet-foot .btn.income:not(.waiting) { background: var(--pos); }
+.sheet-foot .btn.transfer:not(.waiting) { background: var(--gold); box-shadow: 0 8px 20px color-mix(in srgb, var(--gold) 30%, transparent); }

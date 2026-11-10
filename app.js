@@ -7,13 +7,13 @@
   const SVGNS = "http://www.w3.org/2000/svg";
   const TABLES = ["accounts", "categories", "transactions", "rules", "settings", "people", "loan_entries"];
   const COLS = {
-    accounts: ["id", "user_id", "name", "currency", "kind", "opening_balance", "sort", "archived", "deleted_at"],
-    categories: ["id", "user_id", "name", "kind", "bucket", "color", "budget", "sort", "deleted_at"],
-    transactions: ["id", "user_id", "kind", "amount", "currency", "rate", "account_id", "to_account_id", "to_amount", "category_id", "note", "occurred_on", "rule_id", "receipt", "deleted_at"],
-    rules: ["id", "user_id", "kind", "amount", "currency", "account_id", "category_id", "note", "day", "next_on", "active", "deleted_at"],
-    settings: ["id", "user_id", "data", "deleted_at"],
-    people: ["id", "user_id", "name", "direction", "currency", "phone", "share_token", "sort", "deleted_at"],
-    loan_entries: ["id", "user_id", "person_id", "amount", "note", "occurred_on", "deleted_at"]
+    accounts: ["id", "user_id", "name", "currency", "kind", "opening_balance", "sort", "archived", "enc", "deleted_at"],
+    categories: ["id", "user_id", "name", "kind", "bucket", "color", "budget", "sort", "enc", "deleted_at"],
+    transactions: ["id", "user_id", "kind", "amount", "currency", "rate", "account_id", "to_account_id", "to_amount", "category_id", "note", "occurred_on", "rule_id", "receipt", "enc", "deleted_at"],
+    rules: ["id", "user_id", "kind", "amount", "currency", "account_id", "category_id", "note", "day", "next_on", "active", "enc", "deleted_at"],
+    settings: ["id", "user_id", "data", "enc", "deleted_at"],
+    people: ["id", "user_id", "name", "direction", "currency", "phone", "share_token", "sort", "enc", "senc", "deleted_at"],
+    loan_entries: ["id", "user_id", "person_id", "amount", "note", "occurred_on", "enc", "senc", "deleted_at"]
   };
   const DEFAULTS = { sort: 0, archived: false, active: true, opening_balance: 0, color: "#5b7083", data: {} };
   const ID_RE = /^[A-Za-z0-9_:@.\-]{1,160}$/;
@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "2.5.0";
+  const VERSION = "3.0.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -428,12 +428,13 @@
   const flushSoon = () => { clearTimeout(flushTimer); flushTimer = setTimeout(() => flush().then(renderStatus), 400); };
 
   async function upsert(t, list) {
-    const { error } = await sb.from(t).upsert(list.map(o => clean(t, o.r)), { onConflict: "id" });
+    if (!VAULT.key) throw new Error("locked");
+    const { error } = await sb.from(t).upsert(await Promise.all(list.map(o => sealRow(t, clean(t, o.r), o.r))), { onConflict: "id" });
     if (error) throw error;
   }
 
   async function flush() {
-    if (flushing || !sb || !S.session || !S.outbox.length || !navigator.onLine) return;
+    if (flushing || !sb || !S.session || !VAULT.key || !S.outbox.length || !navigator.onLine) return;
     flushing = true;
     try {
       while (S.outbox.length) {
@@ -468,6 +469,7 @@
 
   async function pull() {
     let changed = 0;
+    const full = !!S.fullPull;
     await Promise.all(TABLES.map(async t => {
       const since = S.last[t] ? new Date(new Date(S.last[t]).getTime() - 120000).toISOString() : "1970-01-01T00:00:00Z";
       let from = 0;
@@ -478,7 +480,7 @@
         for (const r of data) {
           const prev = S.data[t].get(r.id);
           if (r.deleted_at) { if (prev) { S.data[t].delete(r.id); changed++; } }
-          else if (!prev || prev.updated_at !== r.updated_at) { S.data[t].set(r.id, r); changed++; }
+          else if (full || !prev || prev.updated_at !== r.updated_at) { if (await openRow(t, r)) { S.data[t].set(r.id, r); changed++; } }
           if (!max || r.updated_at > max) max = r.updated_at;
         }
         if (data.length < 1000) break;
@@ -489,12 +491,13 @@
     for (const o of S.outbox) {
       if (o.r.deleted_at) S.data[o.t].delete(o.r.id); else S.data[o.t].set(o.r.id, o.r);
     }
+    if (full) S.fullPull = false;
     if (changed) ver++;
     return changed;
   }
 
   async function sync() {
-    if (S.syncing || !sb || !S.session || !navigator.onLine) return renderStatus();
+    if (S.syncing || !sb || !S.session || !VAULT.key || !navigator.onLine) return renderStatus();
     S.syncing = true;
     renderStatus();
     try {
@@ -740,6 +743,7 @@
     if (!CFG.supabaseUrl || !CFG.supabaseAnonKey) return renderSetup();
     if (!langChosen()) return renderLangPick();
     if (!S.session && !S.offline && !S.booting) return renderAuth();
+    if (S.session && !VAULT.key && !S.booting) return renderUnlock();
     if (!shell) buildShell();
     maybeOnboard();
     const v = VIEWS[S.view] || VIEWS.home;
@@ -857,10 +861,12 @@
           : mode === "create" ? "We couldn't create the account. Try again." : "Incorrect email or password.");
       }
       if (!res.data.session) { mode = "signin"; draw(); return fail(err, "Account created. Check your email to confirm it, then sign in."); }
-      password = "";
       setSession(res.data.session);
+      const unlocked = await unlockVault(password);
+      password = "";
+      if (unlocked.need) S.unlockNeed = "recovery";
       render();
-      sync();
+      if (unlocked.ok) { recoverySheet(); sync(); }
     });
 
     draw();
@@ -1311,10 +1317,10 @@
 
   function maybeOnboard() {
     const st = settings();
-    if (S.onboarding || !S.session || !st.seeded || storedSettings().onboarded) return;
+    if (S.onboarding || !S.session || !st.seeded || storedSettings().onboarded || S.recoveryCode || document.querySelector(".overlay")) return;
     if (rows("transactions").length || rows("accounts").some(a => Number(a.opening_balance)) || st.income > 0 || Object.keys(st.incomeSteps).length) { saveSettings({ onboarded: true }); return; }
     S.onboarding = true;
-    setTimeout(onboardSheet, 350);
+    setTimeout(() => { if (document.querySelector(".overlay")) { S.onboarding = false; return; } onboardSheet(); }, 350);
   }
 
   function onboardSheet() {
@@ -1927,6 +1933,7 @@
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "App lock"), h("span", { class: "row-sub" }, lockSupported() ? "Ask for Face ID or your passcode when the app opens" : "Not available in this browser")),
         h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(locked), "aria-label": "App lock", disabled: !lockSupported(), on: { click: () => (locked ? disableLock() : enableLock()) } }, h("span", { class: "knob" }))),
       nav("Change password", null, passwordSheet, "lock"),
+      nav("Recovery key", "Create a new key if you lost the old one", newRecoveryKey, "shield"),
       nav("Privacy and your data", "What is stored and who can see it", privacySheet, "eye")));
     out.append(group("Account",
       h("div", { class: "row" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, S.email || "Signed in"), h("span", { class: "row-sub" }, "Your data syncs to every device you sign in on"))),
@@ -1980,7 +1987,7 @@
     crypto.getRandomValues(b);
     return btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   };
-  const shareUrl = token => `${location.origin}${location.pathname}#share=${token}`;
+  const shareUrl = p => `${location.origin}${location.pathname}#share=${p.share_token}.${p.skey}`;
   const waUrl = (phone, text) => `https://wa.me/${phone.slice(1)}?text=${encodeURIComponent(text)}`;
   const waButton = (phone, text, label, cls = "") => h("a", { class: "btn " + cls, href: waUrl(phone, text), target: "_blank", rel: "noopener noreferrer" }, icon("chat"), label);
   const owesMe = p => p.direction === "owes_me";
@@ -1998,10 +2005,10 @@
     if (balance === 0) return `Hi ${p.name}, we're all settled. Nothing owed either way.`;
     return owesMe(p) ? `Hi ${p.name}, just so you know, you owe me ${m} so far.` : `Hi ${p.name}, just so you know, I owe you ${m} so far.`;
   };
-  const linkMessage = (p, token) => `Hi ${p.name}, here's a private page with your balance and history. It updates whenever something changes: ${shareUrl(token)}`;
+  const linkMessage = (p, token) => `Hi ${p.name}, here's a private page with your balance and history. It updates whenever something changes: ${shareUrl(p)}`;
 
   async function copyText(text, fallbackId) {
-    try { await navigator.clipboard.writeText(text); toast("Link copied."); return; } catch { }
+    try { await navigator.clipboard.writeText(text); toast("Copied."); return; } catch { }
     const el = document.getElementById(fallbackId);
     if (el) { el.hidden = false; el.focus(); el.select(); toast("Copy the selected link."); }
   }
@@ -2084,17 +2091,17 @@
       if (p.phone && balance > 0 && owesMe(p) && dueInfo(p)) kids.push(waButton(p.phone, `Hi ${p.name}, a friendly reminder that ${fmt(balance, cur, { show: true })} ${dueInfo(p).late ? "was due on" : "is due on"} ${dayLabel(dueOf(p)).toLowerCase()}. Thank you.`, "Send a payment reminder", "alt wa-alt"));
 
       const share = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Their private page")));
-      if (p.share_token) {
-        const url = shareUrl(p.share_token);
+      if (p.share_token && p.skey) {
+        const url = shareUrl(p);
         share.append(
           h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `${p.name} sees only their balance and history. No account needed.`),
           h("input", { id: "f-plink", class: "input", readOnly: true, value: url, hidden: true, style: { margin: "0 16px", width: "calc(100% - 32px)" } }),
           h("button", { type: "button", class: "row-btn", on: { click: () => copyText(url, "f-plink") } }, "Copy link"),
           p.phone ? h("a", { class: "row-btn", style: { display: "block", textDecoration: "none" }, href: waUrl(p.phone, linkMessage(p, p.share_token)), target: "_blank", rel: "noopener noreferrer" }, "Send link on WhatsApp") : null,
-          h("button", { type: "button", class: "row-btn danger", on: { click: () => { if (armed !== "unshare") { armed = "unshare"; draw(); return; } armed = null; put("people", { ...p, share_token: null }); toast("Link turned off."); draw(); } } }, armed === "unshare" ? "Tap again to turn off the link" : "Turn off link"));
+          h("button", { type: "button", class: "row-btn danger", on: { click: () => { if (armed !== "unshare") { armed = "unshare"; draw(); return; } armed = null; putMany([{ t: "people", r: { ...p, share_token: null, skey: null } }, ...history.map(e => ({ t: "loan_entries", r: { ...e } }))]); toast("Link turned off."); draw(); } } }, armed === "unshare" ? "Tap again to turn off the link" : "Turn off link"));
       } else {
         share.append(h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `Make a link that shows ${p.name} only their own balance and history.`),
-          h("button", { type: "button", class: "row-btn", on: { click: () => { put("people", { ...p, share_token: newToken() }); draw(); } } }, "Create private link"));
+          h("button", { type: "button", class: "row-btn", on: { click: () => { putMany([{ t: "people", r: { ...p, share_token: newToken(), skey: toUrl(b64u8(rand(32))) } }, ...history.map(e => ({ t: "loan_entries", r: { ...e } }))]); draw(); } } }, "Create private link"));
       }
       kids.push(share);
 
@@ -2181,14 +2188,23 @@
     const box = h("div", { class: "auth-box" }, h("p", { class: "hint" }, "Loading your balance…"));
     root.replaceChildren(h("div", { class: "auth" }, box));
     const fail = text => box.replaceChildren(h("img", { class: "auth-mark", src: "icons/icon-192.png", alt: "" }), h("h1", null, "Can't open this page"), h("p", null, text));
-    if (!TOKEN_RE.test(token)) return fail("This link isn't complete. Ask for it to be sent again.");
+    const [tok, skey] = String(token).split(".");
+    token = tok;
+    if (!TOKEN_RE.test(token) || !/^[A-Za-z0-9_-]{43}$/.test(skey || "")) return fail("This link is from an older version or isn't complete. Ask for a new one.");
     let data = null;
     try {
       const res = await sb.rpc("shared_ledger", { p_token: token });
       if (res.error) return fail("Couldn't load your balance. Check your connection and reload.");
       data = res.data;
     } catch { return fail("Couldn't load your balance. Check your connection and reload."); }
-    if (!data || typeof data !== "object") return fail("This link doesn't work anymore. Ask for a new one.");
+    if (!data || typeof data !== "object" || !data.person) return fail("This link doesn't work anymore. Ask for a new one.");
+    try {
+      const key = await aesKey(unb64(fromUrl(skey)));
+      const person = await openWith(key, data.person);
+      const entries = [];
+      for (const item of Array.isArray(data.history) ? data.history : []) { try { entries.push(await openWith(key, item)); } catch { } }
+      data = { ...person, history: entries, balance: entries.reduce((t, e) => t + (Number(e.amount) || 0), 0) };
+    } catch { return fail("This link doesn't work anymore. Ask for a new one."); }
     const cur = CUR_RE.test(String(data.currency)) ? data.currency : "USD";
     const balance = Number(data.balance) || 0;
     const from = typeof data.from === "string" && data.from.trim() ? data.from.trim().slice(0, 40) : "";
@@ -2528,6 +2544,7 @@
 
     const draw = () => {
       pick();
+      body.dataset.kind = f.kind;
       const a = acc(f.account);
       const cur = a.currency;
       if (curDec(cur) === 0 && f.amount.includes(".")) f.amount = f.amount.split(".")[0];
@@ -3094,8 +3111,11 @@
       const { error } = await sb.auth.updateUser({ password: v });
       btn.disabled = false;
       if (error) return fail(err, /same|different/i.test(error.message || "") ? "Choose a password you haven't used here before." : /weak|pwned/i.test(error.message || "") ? "That password is too weak. Try a longer one." : "Couldn't save the password. Request a new link and try again.");
+      if (VAULT.raw) await rewrapVault("wrapped_pw", v);
+      else { const unlocked = await unlockVault(v); if (unlocked.need) S.unlockNeed = "recovery"; }
       toast("Password changed. You're signed in.");
       render();
+      recoverySheet();
       sync();
     });
     root.replaceChildren(h("div", { class: "login" }, panel));
@@ -3124,6 +3144,7 @@
       const { error } = await sb.auth.updateUser({ password: next.value });
       btn.disabled = false;
       if (error) return fail(err, /weak|pwned/i.test(error.message || "") ? "That password is too weak. Try a longer one." : "Couldn't change the password. Try again.");
+      if (!(await rewrapVault("wrapped_pw", next.value))) { closeSheet(); return toast("Password changed, but your data key wasn't updated. Change the password again while online.", "error"); }
       closeSheet();
       toast("Password changed.");
     });
@@ -3198,7 +3219,9 @@
     openSheet("Privacy and your data", h("div", { class: "prose" },
       part("What is stored", "Your accounts, entries, categories, plan, the people you track and their balances, your settings, and your email address for signing in. Nothing else is collected. There are no ads and no tracking."),
       part("Where it lives", "Your data is kept in the app's database and a copy stays on this device so the app works offline. It travels encrypted between your device and the server."),
-      part("Who can see it", "Only you, when signed in. Database rules limit every record to the account that owns it. The administrator who runs this app manages its database, and sees your email, sign-in dates and record counts in the admin dashboard."),
+      part("Who can see it", "Only you. Names, amounts, notes, balances, your plan and your settings are encrypted on your device with a key made from your password before they are saved, so the database holds only unreadable text. The app's administrator cannot read them and sees only a masked email and record counts."),
+      part("What is not encrypted", "Dates, currencies, which entry belongs to which account or category (as codes, not names) and receipt photos. Receipt photos are private to your account but stored as normal images."),
+      part("If you forget your password", "Your recovery key is the only way to open your data again. Without the password or the key, nobody can recover it."),
       part("Private pages", "A private page you create for a person shows only that person's balance and history, to anyone who has the link. Turn the link off at any time and it stops working."),
       part("Receipts and exchange rates", "Receipt photos are stored privately under your account and only you can open them. Exchange rates come from a public rate service; nothing about you is sent to it."),
       part("Notifications", "If you turn on the daily reminder, this device's notification address is stored so the reminder can be delivered. Turning it off removes it."),
@@ -3235,6 +3258,186 @@
     openSheet("Delete account", body, btn);
   }
 
+  const VAULT = { key: null, raw: null };
+  const te = new TextEncoder(), td = new TextDecoder();
+  const rand = n => crypto.getRandomValues(new Uint8Array(n));
+  const b64u8 = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode(...u8.subarray(i, i + 0x8000)); return btoa(s); };
+  const toUrl = s => s.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const fromUrl = s => s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4);
+  const aesKey = raw => crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+  async function sealWith(key, obj) {
+    const iv = rand(12);
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, te.encode(JSON.stringify(obj))));
+    const out = new Uint8Array(12 + ct.length);
+    out.set(iv); out.set(ct, 12);
+    return "v1." + b64u8(out);
+  }
+  async function openWith(key, str) {
+    if (typeof str !== "string" || !str.startsWith("v1.")) throw new Error("format");
+    const raw = unb64(str.slice(3));
+    return JSON.parse(td.decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: raw.subarray(0, 12) }, key, raw.subarray(12))));
+  }
+  async function kdf(secret, salt) {
+    const base = await crypto.subtle.importKey("raw", te.encode(secret), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: unb64(salt), iterations: 310000 }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  }
+  const SECRET = {
+    accounts: { name: "•", opening_balance: 0 },
+    categories: { name: "•", budget: null },
+    transactions: { amount: 1, to_amount: null, rate: 1, note: null },
+    rules: { amount: 1, note: null },
+    settings: { data: {} },
+    people: { name: "•", phone: null },
+    loan_entries: { amount: 1, note: null }
+  };
+  const shareKeys = new Map();
+  const shareKey = async skey => {
+    if (!shareKeys.has(skey)) shareKeys.set(skey, await aesKey(unb64(fromUrl(skey))));
+    return shareKeys.get(skey);
+  };
+  async function sealRow(t, row, src) {
+    const secret = {};
+    for (const [k, placeholder] of Object.entries(SECRET[t])) {
+      secret[k] = row[k];
+      row[k] = k === "to_amount" && row[k] != null ? 1 : placeholder;
+    }
+    row.senc = undefined;
+    if (t === "people") {
+      secret.skey = src.skey || null;
+      row.senc = !src.deleted_at && src.share_token && src.skey ? await sealWith(await shareKey(src.skey), { name: secret.name, currency: row.currency, direction: row.direction, from: settings().name || "" }) : null;
+    }
+    if (t === "loan_entries") {
+      const p = S.data.people.get(src.person_id);
+      row.senc = !src.deleted_at && p && p.share_token && p.skey ? await sealWith(await shareKey(p.skey), { amount: secret.amount, note: secret.note, date: row.occurred_on }) : null;
+    }
+    if (row.senc === undefined) delete row.senc;
+    row.enc = await sealWith(VAULT.key, secret);
+    return row;
+  }
+  async function openRow(t, r) {
+    if (!r.enc) { delete r.enc; delete r.senc; return true; }
+    try {
+      const secret = await openWith(VAULT.key, r.enc);
+      for (const k of Object.keys(SECRET[t])) if (k in secret) r[k] = secret[k];
+      if (t === "people") r.skey = typeof secret.skey === "string" ? secret.skey : null;
+      delete r.enc; delete r.senc;
+      return true;
+    } catch { return false; }
+  }
+  async function setVaultKey(raw) {
+    VAULT.raw = raw;
+    VAULT.key = await aesKey(raw);
+    store.set("dk", b64u8(raw));
+  }
+  async function loadVaultKey() {
+    VAULT.key = null; VAULT.raw = null;
+    const saved = store.get("dk", null);
+    if (typeof saved !== "string") return;
+    try { const raw = unb64(saved); if (raw.length === 32) { VAULT.raw = raw; VAULT.key = await aesKey(raw); } } catch { VAULT.key = null; VAULT.raw = null; }
+  }
+  const newRecovery = () => { const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; return [...rand(24)].map(x => a[x % 32]).join("").replace(/(.{4})/g, "$1-").slice(0, -1); };
+  const normRecovery = s => String(s || "").toUpperCase().replace(/[^A-Z2-9]/g, "");
+  const wrapKey = async (secret, salt) => sealWith(await kdf(secret, salt), { k: b64u8(VAULT.raw) });
+
+  async function unlockVault(password, recovery) {
+    let row = null;
+    try {
+      const res = await sb.from("vault").select("salt, wrapped_pw, wrapped_rc").eq("user_id", S.uid).maybeSingle();
+      if (res.error) return { error: "network" };
+      row = res.data;
+    } catch { return { error: "network" }; }
+    if (!row) {
+      const raw = rand(32);
+      const salt = b64u8(rand(16));
+      const code = newRecovery();
+      const k = b64u8(raw);
+      const ins = await sb.from("vault").insert({ user_id: S.uid, salt, wrapped_pw: await sealWith(await kdf(password, salt), { k }), wrapped_rc: await sealWith(await kdf(normRecovery(code), salt), { k }) });
+      if (ins.error) return ins.error.code === "23505" ? unlockVault(password, recovery) : { error: "network" };
+      await setVaultKey(raw);
+      S.recoveryCode = code;
+      S.fullPull = true; S.last = {};
+      try { await pull(); } catch { }
+      const items = [];
+      for (const t of TABLES) for (const r of S.data[t].values()) items.push({ t, r });
+      if (items.length) putMany(items);
+      return { ok: true };
+    }
+    let raw = null;
+    try { raw = unb64((await openWith(await kdf(password, row.salt), row.wrapped_pw)).k); } catch { raw = null; }
+    if (!raw && recovery) {
+      try { raw = unb64((await openWith(await kdf(normRecovery(recovery), row.salt), row.wrapped_rc)).k); } catch { return { error: "recovery" }; }
+      VAULT.raw = raw;
+      const up = await sb.from("vault").update({ wrapped_pw: await wrapKey(password, row.salt), updated_at: new Date().toISOString() }).eq("user_id", S.uid);
+      if (up.error) return { error: "network" };
+    }
+    if (!raw || raw.length !== 32) return { need: "recovery" };
+    await setVaultKey(raw);
+    S.fullPull = true; S.last = {};
+    return { ok: true };
+  }
+  async function rewrapVault(field, secret) {
+    if (!VAULT.raw) return false;
+    try {
+      const { data: row } = await sb.from("vault").select("salt").eq("user_id", S.uid).maybeSingle();
+      if (!row) return false;
+      const { error } = await sb.from("vault").update({ [field]: await wrapKey(secret, row.salt), updated_at: new Date().toISOString() }).eq("user_id", S.uid);
+      return !error;
+    } catch { return false; }
+  }
+
+  function recoverySheet() {
+    const code = S.recoveryCode;
+    if (!code) return;
+    S.recoveryCode = null;
+    openSheet("Save your recovery key", h("div", { class: "form" },
+      h("p", { class: "hint" }, "Your data is now encrypted with your password, so nobody else can read it, not even the app's administrator. If you ever forget your password, this key is the only way to get your data back. Keep it somewhere safe."),
+      h("p", { class: "recovery-code num" }, code),
+      h("button", { type: "button", class: "btn alt", on: { click: () => copyText(code) } }, "Copy the key")),
+      h("button", { type: "button", class: "btn", on: { click: () => { closeSheet(); setTimeout(render, 400); } } }, "I've saved it"));
+  }
+  async function newRecoveryKey() {
+    if (!navigator.onLine) return toast("Connect to the internet to create a recovery key.", "error");
+    const code = newRecovery();
+    if (!(await rewrapVault("wrapped_rc", normRecovery(code)))) return toast("Couldn't create a recovery key. Try again.", "error");
+    S.recoveryCode = code;
+    recoverySheet();
+  }
+
+  function renderUnlock() {
+    shell = null;
+    const needRecovery = S.unlockNeed === "recovery";
+    const err = h("p", { class: "form-err", role: "alert" });
+    const pass = passField("ul-pass", "Password", "current-password");
+    const rec = needRecovery ? h("input", { id: "ul-rec", class: "input", autocomplete: "off", autocapitalize: "characters", spellcheck: "false", placeholder: "XXXX-XXXX-XXXX-XXXX-XXXX-XXXX", "aria-label": "Recovery key" }) : null;
+    const btn = h("button", { class: "btn login-go", type: "submit" }, "Unlock");
+    const panel = h("form", { class: "login-panel solo", novalidate: true },
+      h("div", { class: "login-title" }, h("img", { class: "login-logo", src: "icons/icon-192.png", alt: "" }), h("h2", null, "Unlock your data"),
+        h("p", null, needRecovery ? "Your password was changed by email, so your recovery key is needed once to open your encrypted data." : "Your data is encrypted with your password. Enter it once on this device.")),
+      h("div", { class: "login-fields" }, h("label", { class: "login-field", for: "ul-pass" }, icon("lock", "ico"), pass), rec ? h("label", { class: "login-field", for: "ul-rec" }, icon("shield", "ico"), rec) : null),
+      err, btn,
+      h("button", { type: "button", class: "link-btn login-link center", on: { click: signOut } }, "Sign out"));
+    panel.addEventListener("submit", async ev => {
+      ev.preventDefault();
+      if (!pass.value) return fail(err, "Enter your password.", panel.querySelector(".login-field"));
+      if (rec && normRecovery(rec.value).length !== 24) return fail(err, "Enter the 24-character recovery key.", rec);
+      if (!navigator.onLine) return fail(err, "Connect to the internet to unlock your data.");
+      btn.disabled = true;
+      const check = await sb.auth.signInWithPassword({ email: S.email, password: pass.value });
+      if (check.error || !check.data.session) { btn.disabled = false; return fail(err, check.error && check.error.status === 429 ? "Too many attempts. Wait a minute and try again." : "Incorrect password."); }
+      setSession(check.data.session);
+      const res = await unlockVault(pass.value, rec ? rec.value : null);
+      btn.disabled = false;
+      if (res.need) { S.unlockNeed = "recovery"; return renderUnlock(); }
+      if (res.error) return fail(err, res.error === "recovery" ? "That recovery key isn't correct." : "Couldn't unlock. Check your connection and try again.");
+      S.unlockNeed = null;
+      render();
+      recoverySheet();
+      sync();
+    });
+    root.replaceChildren(h("div", { class: "login" }, panel));
+    pass.focus();
+  }
+
   async function signOut() {
     S.armed = null;
     try { await sb.auth.signOut({ scope: "local" }); } catch { }
@@ -3244,6 +3447,7 @@
       localStorage.removeItem("wallet:lastUser");
     } catch { }
     S.session = null; S.uid = null; S.offline = false; S.outbox = []; S.last = {};
+    VAULT.key = null; VAULT.raw = null; S.unlockNeed = null; S.recoveryCode = null;
     ADMIN.allowed = null; ADMIN.data = null;
     for (const t of TABLES) S.data[t] = new Map();
     shell = null;
@@ -3286,7 +3490,7 @@
       history.replaceState(null, "", location.pathname);
       let res = null;
       try { res = await sb.auth.setSession({ access_token: hp.get("access_token"), refresh_token: hp.get("refresh_token") }); } catch { res = null; }
-      if (res && !res.error && res.data.session) { setSession(res.data.session); return renderNewPassword(); }
+      if (res && !res.error && res.data.session) { setSession(res.data.session); await loadVaultKey(); return renderNewPassword(); }
       S.notice = "That reset link has expired. Request a new one.";
     } else if (hp.get("error_code") || hp.get("error")) {
       history.replaceState(null, "", location.pathname);
@@ -3308,7 +3512,7 @@
     let session = null;
     try { const { data } = await sb.auth.getSession(); session = data.session; } catch { session = null; }
     S.booting = false;
-    if (session) setSession(session);
+    if (session) { setSession(session); await loadVaultKey(); }
     else if (last && !navigator.onLine) { S.offline = true; }
     else if (last) { S.uid = null; shell = null; }
     render();

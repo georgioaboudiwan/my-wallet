@@ -14,6 +14,12 @@ const cors = {
 };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
+const maskEmail = (email: string) => {
+  const [name, domain] = email.split("@");
+  if (!name || !domain) return "hidden";
+  return `${name.slice(0, 1)}${"•".repeat(Math.max(3, Math.min(8, name.length - 1)))}@${domain}`;
+};
+
 async function removeReceipts(userId: string) {
   for (let i = 0; i < 20; i++) {
     const { data } = await sb.storage.from("receipts").list(userId, { limit: 1000 });
@@ -44,7 +50,7 @@ Deno.serve(async req => {
     const perUser = (stats.data?.per_user ?? {}) as Record<string, unknown>;
     const users = list.data.users.map(u => ({
       id: u.id,
-      email: u.email ?? "",
+      email: maskEmail(u.email ?? ""),
       created_at: u.created_at,
       last_sign_in_at: u.last_sign_in_at ?? null,
       banned_until: (u as { banned_until?: string }).banned_until ?? null,
