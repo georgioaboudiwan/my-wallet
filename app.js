@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "1.8.0";
+  const VERSION = "2.0.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -115,6 +115,31 @@
   let ver = 0;
   const memo = new Map();
 
+  const I18N = window.WALLET_I18N || { words: {}, patterns: [] };
+  const LANGS = { en: "English", fr: "Français", ar: "العربية" };
+  let LANG = (() => { try { const v = localStorage.getItem("wallet:lang"); return LANGS[v] ? v : "en"; } catch { return "en"; } })();
+  const PATTERNS = I18N.patterns.map(([re, fr, ar]) => [new RegExp(re), fr, ar]);
+  const trCache = new Map();
+  const tr = str => {
+    if (LANG === "en" || typeof str !== "string" || !str) return str;
+    const i = LANG === "fr" ? 0 : 1;
+    const w = I18N.words[str];
+    if (w) return w[i];
+    if (trCache.has(str)) return trCache.get(str);
+    let out = str;
+    for (const [re, fr, ar] of PATTERNS) {
+      const m = str.match(re);
+      if (m) { out = (i === 0 ? fr : ar).replace(/\$(\d)/g, (_, n) => i === 1 ? `\u2068${tr(m[Number(n)])}\u2069` : tr(m[Number(n)])); break; }
+    }
+    if (trCache.size > 500) trCache.clear();
+    trCache.set(str, out);
+    return out;
+  };
+  const dateLocale = () => LANG === "fr" ? "fr-FR" : LANG === "ar" ? "ar-LB-u-nu-latn" : "en-GB";
+  const applyLang = () => { document.documentElement.lang = LANG; document.documentElement.dir = LANG === "ar" ? "rtl" : "ltr"; };
+  const setLang = v => { if (!LANGS[v] || v === LANG) return; LANG = v; trCache.clear(); try { localStorage.setItem("wallet:lang", v); } catch { } applyLang(); shell = null; render(); };
+  const TR_ATTRS = new Set(["placeholder", "aria-label", "title", "alt"]);
+
   const h = (tag, props, ...kids) => {
     const el = document.createElement(tag);
     if (props) {
@@ -124,12 +149,12 @@
         else if (k === "on") for (const [ev, fn] of Object.entries(v)) el.addEventListener(ev, fn);
         else if (k === "style") Object.assign(el.style, v);
         else if (k === "value" || k === "checked" || k === "disabled" || k === "readOnly" || k === "hidden") el[k] = v;
-        else el.setAttribute(k, v === true ? "" : String(v));
+        else el.setAttribute(k, v === true ? "" : TR_ATTRS.has(k) ? tr(String(v)) : String(v));
       }
     }
     for (const kid of kids.flat(Infinity)) {
       if (kid == null || kid === false) continue;
-      el.append(kid instanceof Node ? kid : String(kid));
+      el.append(kid instanceof Node ? kid : tr(String(kid)));
     }
     return el;
   };
@@ -151,14 +176,14 @@
   const monthOf = s => String(s).slice(0, 7);
   const shiftMonth = (m, k) => { const [y, mo] = m.split("-").map(Number); return ymd(new Date(y, mo - 1 + k, 1)).slice(0, 7); };
   const daysInMonth = m => { const [y, mo] = m.split("-").map(Number); return new Date(y, mo, 0).getDate(); };
-  const monthLabel = m => new Date(m + "-01T12:00:00").toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  const monthShort = m => new Date(m + "-01T12:00:00").toLocaleDateString("en-GB", { month: "short" });
-  const monthName = m => new Date(m + "-01T12:00:00").toLocaleDateString("en-GB", { month: "long" });
+  const monthLabel = m => new Date(m + "-01T12:00:00").toLocaleDateString(dateLocale(), { month: "long", year: "numeric" });
+  const monthShort = m => new Date(m + "-01T12:00:00").toLocaleDateString(dateLocale(), { month: "short" });
+  const monthName = m => new Date(m + "-01T12:00:00").toLocaleDateString(dateLocale(), { month: "long" });
   const dayLabel = s => {
     if (s === today()) return "Today";
     if (s === ymd(new Date(Date.now() - 864e5))) return "Yesterday";
     const d = new Date(s + "T12:00:00");
-    return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: s.slice(0, 4) === today().slice(0, 4) ? undefined : "numeric" });
+    return d.toLocaleDateString(dateLocale(), { weekday: "short", day: "numeric", month: "short", year: s.slice(0, 4) === today().slice(0, 4) ? undefined : "numeric" });
   };
   const nextMonthDay = (s, day) => {
     const [y, m] = s.split("-").map(Number);
@@ -172,7 +197,7 @@
     if (s < 60) return "just now";
     if (s < 3600) return `${Math.floor(s / 60)} min ago`;
     if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-    return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    return new Date(iso).toLocaleDateString(dateLocale(), { day: "numeric", month: "short" });
   };
 
   const CURRENCIES = {
@@ -554,7 +579,7 @@
     setTimeout(() => el.classList.remove("attn"), 1600);
   }
   function fail(errEl, msg, target) {
-    if (errEl) errEl.textContent = msg;
+    if (errEl) errEl.textContent = tr(msg);
     toast(msg, "error");
     shake(target || errEl);
   }
@@ -652,8 +677,9 @@
     if (!CFG.supabaseUrl || !CFG.supabaseAnonKey) return renderSetup();
     if (!S.session && !S.offline && !S.booting) return renderAuth();
     if (!shell) buildShell();
+    maybeOnboard();
     const v = VIEWS[S.view] || VIEWS.home;
-    shell.title.textContent = v.title;
+    shell.title.textContent = tr(v.title);
     shell.eye.replaceChildren(icon(S.hidden ? "eyeOff" : "eye"));
     shell.eye.setAttribute("aria-label", S.hidden ? "Show amounts" : "Hide amounts");
     const sameView = shell.lastView === S.view;
@@ -670,7 +696,7 @@
     for (const t of shell.tabs) t.setAttribute("aria-current", t.dataset.view === S.view ? "page" : "false");
     const tabIndex = ["home", "activity", "insights", "people"].indexOf(S.view === "plan" ? "insights" : S.view);
     shell.lens.style.opacity = tabIndex < 0 ? "0" : "1";
-    if (tabIndex >= 0) shell.lens.style.transform = `translateX(calc(${tabIndex * 100}% + ${tabIndex >= 2 ? 68 : 0}px))`;
+    if (tabIndex >= 0) shell.lens.style.transform = `translateX(calc(${LANG === "ar" ? "-1 * " : ""}(${tabIndex * 100}% + ${tabIndex >= 2 ? 68 : 0}px)))`;
     renderStatus();
   }
 
@@ -725,7 +751,8 @@
         err,
         h("button", { class: "btn login-go", type: "submit", disabled: busy }, busy ? h("span", { class: "spinner", "aria-hidden": "true" }) : null, busy ? "One moment…" : forgot ? "Send reset link" : create ? "Create account" : "Sign in"),
         forgot ? h("button", { type: "button", class: "link-btn login-link center", on: { click: () => { mode = "signin"; err.textContent = ""; draw(); } } }, "Back to sign in") : null,
-        h("p", { class: "login-note" }, icon("shield", "ico sm"), h("span", null, "Your data is private and encrypted in transit."))].filter(Boolean));
+        h("p", { class: "login-note" }, icon("shield", "ico sm"), h("span", null, "Your data is private and encrypted in transit.")),
+        h("div", { class: "login-langs" }, Object.entries(LANGS).map(([k, name]) => h("button", { type: "button", class: "link-btn", "aria-pressed": String(k === LANG), on: { click: () => setLang(k) } }, name)))].filter(Boolean));
       meter();
     };
 
@@ -883,7 +910,7 @@
       err);
     let armed = false;
     const del = g ? h("button", { type: "button", class: "btn danger", on: { click: () => {
-      if (!armed) { armed = true; del.textContent = "Tap again to delete"; del.classList.add("sure"); return; }
+      if (!armed) { armed = true; del.textContent = tr("Tap again to delete"); del.classList.add("sure"); return; }
       saveGoals(st.goals.filter(x => x.id !== g.id)); closeSheet(); toast("Goal deleted.");
     } } }, "Delete goal") : null;
     if (del) body.append(del);
@@ -1196,6 +1223,65 @@
       saveSettings({ rates, ratesAt: today() });
       return true;
     } catch { return false; }
+  }
+
+  function maybeOnboard() {
+    const st = settings();
+    if (S.onboarding || !S.session || !st.seeded || storedSettings().onboarded) return;
+    if (rows("transactions").length || rows("accounts").some(a => Number(a.opening_balance)) || st.income > 0 || Object.keys(st.incomeSteps).length) { saveSettings({ onboarded: true }); return; }
+    S.onboarding = true;
+    setTimeout(onboardSheet, 350);
+  }
+
+  function onboardSheet() {
+    const f = { step: 1, cur: mainCur(), income: "", bal: {} };
+    const body = h("form", { class: "form onboard", id: "ob-form", novalidate: true });
+    const err = h("p", { class: "form-err", role: "alert" });
+    const next = h("button", { type: "submit", class: "btn", form: "ob-form" });
+    const back = h("button", { type: "button", class: "btn alt", on: { click: () => { f.step--; draw(); } } }, "Back");
+    const foot = h("div", { class: "onboard-foot" }, back, next);
+    const finish = skipped => {
+      S.onboarding = false;
+      if (skipped) { saveSettings({ onboarded: true }); return closeSheet(); }
+      if (f.cur !== mainCur()) setMainCurrency(f.cur);
+      const income = parseAmt(f.income);
+      const items = [];
+      for (const a of rows("accounts")) {
+        const v = f.bal[a.id] ? parseAmt(f.bal[a.id]) : 0;
+        if (v) items.push({ t: "accounts", r: { ...a, opening_balance: roundCur(v, a.currency) } });
+      }
+      if (items.length) putMany(items);
+      saveSettings({ onboarded: true, ...(income ? { incomeMode: "fixed", incomeSteps: { [thisMonth()]: income } } : {}) });
+      closeSheet();
+      toast("Your wallet is ready.");
+    };
+    const draw = () => {
+      err.textContent = "";
+      const head = h("div", { class: "onboard-head" }, h("small", null, `Step ${f.step} of 3`), h("div", { class: "bar" }, h("span", { style: { width: (f.step / 3 * 100) + "%" } })));
+      let kids;
+      if (f.step === 1) kids = [h("h3", null, "Which currency do you think in?"), h("p", { class: "hint" }, "Totals and budgets are shown in it. You can still hold accounts in other currencies."),
+        h("div", { class: "chips wrap" }, ["USD", "LBP", "EUR", "AED", "SAR", "GBP"].map(c => h("button", { type: "button", class: "chip", "aria-pressed": String(f.cur === c), on: { click: () => { f.cur = c; draw(); } } }, `${c} · ${curInfo(c).name}`))),
+        curSelect("ob-cur", f.cur, c => { f.cur = c; draw(); })];
+      else if (f.step === 2) kids = [h("h3", null, "What is your monthly income?"), h("p", { class: "hint" }, "Leave it empty if it changes every month. The plan will follow what you log."),
+        h("input", { id: "ob-income", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: `${curSymbol(f.cur)} 1500`, value: f.income, "aria-label": "Monthly income", on: { input: e => { f.income = e.target.value; } } })];
+      else kids = [h("h3", null, "How much do you have right now?"), h("p", { class: "hint" }, "Enter today's balance for the accounts you use. Skip the rest."),
+        ...rows("accounts").filter(a => !a.archived).sort(bySort).map(a => h("label", { class: "field" }, h("span", null, `${tr(a.name)} (${a.currency})`),
+          h("input", { class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.bal[a.id] || "", on: { input: e => { f.bal[a.id] = e.target.value; } } })))];
+      body.replaceChildren(head, ...kids, err, h("button", { type: "button", class: "link-btn", on: { click: () => finish(true) } }, "Skip for now"));
+      back.style.display = f.step === 1 ? "none" : "";
+      next.textContent = tr(f.step === 3 ? "Finish" : "Continue");
+    };
+    body.addEventListener("submit", ev => {
+      ev.preventDefault();
+      if (f.step === 2 && f.income.trim() && !parseAmt(f.income)) return fail(err, "Enter the amount as a number, like 1500.", document.getElementById("ob-income"));
+      if (f.step === 3) {
+        if (Object.values(f.bal).some(v => v.trim() && !parseAmt(v))) return fail(err, "Enter each balance as a number, like 250.");
+        return finish(false);
+      }
+      f.step++; draw();
+    });
+    draw();
+    openSheet("Welcome", body, foot);
   }
 
   function viewHome() {
@@ -1743,6 +1829,8 @@
     const armed = S.armed === "signout";
     const locked = !!lockCfg();
     const nav = (title, sub, fn, ic) => h("button", { type: "button", class: "row", on: { click: fn } }, h("span", { class: "dot neutral" }, icon(ic, "ico sm")), h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), sub ? h("span", { class: "row-sub" }, sub) : null), icon("fwd"));
+    out.append(group("Language",
+      h("div", { class: "row lang-row" }, seg(Object.entries(LANGS), LANG, setLang, "Language"))));
     out.append(group("Security",
       h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("shield", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "App lock"), h("span", { class: "row-sub" }, lockSupported() ? "Ask for Face ID or your passcode when the app opens" : "Not available in this browser")),
@@ -2098,7 +2186,7 @@
         h("section", { class: "card" }, h("div", { class: "facts" },
           fact("Entries", st.transactions ?? 0), fact("Money accounts", st.accounts ?? 0),
           fact("Loan contacts", st.people ?? 0), fact("Reminders on", st.reminders ?? 0)),
-          h("p", { class: "hint" }, `Joined ${new Date(u.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} · last sign-in ${whenText(u.last_sign_in_at)} · last entry ${whenText(st.last_entry)}`))
+          h("p", { class: "hint" }, `Joined ${new Date(u.created_at).toLocaleDateString(dateLocale(), { day: "numeric", month: "short", year: "numeric" })} · last sign-in ${whenText(u.last_sign_in_at)} · last entry ${whenText(st.last_entry)}`))
       ];
       if (u.is_me) {
         kids.push(h("p", { class: "hint" }, "This is your admin account. You can't block or delete it from here."));
@@ -2255,7 +2343,7 @@
       const v = parseAmt(f.amount);
       const over = max != null && v && v > max;
       save.classList.toggle("waiting", !v || !!over);
-      save.textContent = verbFor(v);
+      save.textContent = tr(verbFor(v));
       preview.textContent = !v ? " " : over ? `That's more than the ${fmt(max, cur, { show: true })} balance.` : previewFor(v);
       preview.classList.toggle("bad", !!over);
     };
@@ -2339,7 +2427,7 @@
           ? [h("span", { class: "picked" }, h("span", { class: "picked-ico", style: { background: chosen.color } }, catGlyph(chosen, "ico")), chosen.name), conv ? h("span", { class: "conv" }, conv) : null]
           : v && needCat ? [h("span", { class: "nudge" }, "Now pick a category"), conv ? ` · ${conv}` : ""] : [conv || "\u00a0"]).filter(Boolean));
         const verb = { expense: "Save expense", income: "Save income", transfer: "Move money" }[f.kind];
-        saveBtn.textContent = !v ? "Type an amount" : needCat ? "Pick a category" : `${verb} · ${fmt(v, cur, { show: true })}`;
+        saveBtn.textContent = !v ? tr("Type an amount") : needCat ? tr("Pick a category") : `${verb} · ${fmt(v, cur, { show: true })}`;
         saveBtn.className = "btn " + f.kind + (!v || needCat ? " waiting" : "");
       };
       const pad = amountPad(cur, () => f.amount, v => { f.amount = v; }, refresh);
@@ -3038,6 +3126,7 @@
   }
 
   async function start() {
+    applyLang();
     S.month = thisMonth();
     if (!CFG.supabaseUrl || !CFG.supabaseAnonKey || !window.supabase) return render();
     sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, {

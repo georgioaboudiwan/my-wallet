@@ -1,26 +1,28 @@
 # My Wallet
 
-A phone-first money app: balances in dollars and lira, spending, monthly plan, budgets, repeating entries and backups. It installs on the iPhone home screen and syncs through your own Supabase project.
+A money app that installs on the phone home screen and works in any browser: balances in any currency, spending, a monthly plan with custom groups, budgets, savings goals, repeating entries, loans with private share pages, receipts, CSV import, daily reminders, and English, French and Arabic.
 
-## 1. Supabase
+Live at https://georgioaboudiwan.github.io/my-wallet/
 
-1. Create a project at supabase.com.
-2. Open **SQL Editor**, paste `supabase/schema.sql` and run it.
-3. **Authentication → Sign In / Providers → Email**: turn off **Confirm email** so you can sign in right after creating your account.
-4. **Authentication → URL Configuration**: set Site URL to your GitHub Pages address.
-5. Copy **Project URL** and the **anon public** key from Project Settings → API into `config.js`.
-6. Create your account in the app, then turn off **Allow new users to sign up** in Sign In / Providers so nobody else can create one.
+## How it is built
 
-Never put the `service_role` key in this app.
+- `index.html`, `styles.css`, `app.js`, `i18n.js`: the whole app, no build step.
+- `sw.js`: offline cache and push notifications.
+- `supabase/*.sql`: database schema, row-level security, reminders, admin.
+- `supabase/functions/send-reminder`: daily reminder push, with bills due tomorrow and the monthly summary.
+- `supabase/functions/admin`: admin dashboard (users, block, delete).
+- `supabase/functions/account`: lets a signed-in user delete their own account after re-entering the password.
 
-## 2. GitHub Pages
+## Setup
 
-1. Push this folder to a GitHub repository.
-2. **Settings → Pages**: deploy from the `main` branch, root folder.
-3. Open the Pages address in Safari on the iPhone, tap **Share → Add to Home Screen**.
+1. Create a Supabase project and run the files in `supabase/` in the SQL editor, starting with `schema.sql`.
+2. Authentication: enable Email with password. Set Site URL and add the app address to Redirect URLs so password reset links return to the app.
+3. Deploy the three functions in `supabase/functions/`.
+4. Put the project URL and publishable key in `config.js`. Never put a secret or service key in this app.
+5. Host the folder on GitHub Pages (main branch, root). On iPhone, open it in Safari and use Share, then Add to Home Screen.
 
 ## Notes
 
-- Works offline: changes wait on the phone and sync when you're back online.
-- Exchange rate is set in Settings and saved on each entry.
-- Settings → Your data exports a CSV and a full backup you can restore.
+- Works offline: changes wait on the device and sync when back online.
+- Exchange rates update once a day from open.er-api.com; a rate typed by hand stays until switched back to automatic.
+- App lock uses the device's Face ID, Touch ID or passcode through WebAuthn. It locks the screen; it does not encrypt the local copy.

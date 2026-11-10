@@ -1,9 +1,10 @@
-const CACHE = "wallet-shell-v37";
+const CACHE = "wallet-shell-v38";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./i18n.js",
   "./config.js",
   "./vendor/supabase.js",
   "./manifest.webmanifest",
