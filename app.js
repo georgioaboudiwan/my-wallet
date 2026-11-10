@@ -573,8 +573,10 @@
     shell.title.textContent = v.title;
     shell.eye.replaceChildren(icon(S.hidden ? "eyeOff" : "eye"));
     shell.eye.setAttribute("aria-label", S.hidden ? "Show amounts" : "Hide amounts");
+    const sameView = shell.lastView === S.view;
+    if (sameView) { clearTimeout(shell.enterTimer); shell.main.classList.remove("enter"); }
     keepFocus(() => shell.main.replaceChildren(v.draw()));
-    if (shell.lastView !== S.view) {
+    if (!sameView) {
       shell.main.classList.remove("enter");
       void shell.main.offsetWidth;
       shell.main.classList.add("enter");
