@@ -62,6 +62,7 @@
     link: "M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1",
     people: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8",
     chat: "M21 11.5a8.4 8.4 0 0 1-12.3 7.4L3 21l2.1-5.6A8.4 8.4 0 1 1 21 11.5z",
+    trash: "M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3",
     del: "M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zM17 9l-5 6M12 9l5 6",
     check: "M5 12.5l4.5 4.5L19 7.5",
     minus: "M5 12h14",
@@ -421,8 +422,22 @@
     return { perDay: Math.max(0, left) / daysLeft, left, daysLeft };
   }
 
-  function toast(msg) {
-    toastEl.replaceChildren(icon("check", "ico sm"), h("span", null, msg));
+  function shake(el) {
+    if (!el) return;
+    el.classList.remove("shake", "attn");
+    void el.offsetWidth;
+    el.classList.add("shake", "attn");
+    el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    setTimeout(() => el.classList.remove("attn"), 1600);
+  }
+  function fail(errEl, msg, target) {
+    if (errEl) errEl.textContent = msg;
+    toast(msg, "error");
+    shake(target || errEl);
+  }
+  function toast(msg, kind) {
+    toastEl.className = kind === "error" ? "error" : "";
+    toastEl.replaceChildren(icon(kind === "error" ? "warn" : "check", "ico sm"), h("span", null, msg));
     toastEl.classList.add("show");
     clearTimeout(toast.t);
     toast.t = setTimeout(() => toastEl.classList.remove("show"), 2800);
@@ -554,12 +569,12 @@
       ev.preventDefault();
       if (busy) return;
       err.textContent = "";
-      if (!navigator.onLine) { err.textContent = "You're offline. Connect to the internet to sign in."; return; }
+      if (!navigator.onLine) { fail(err, "You're offline. Connect to the internet to sign in."); return; }
       const email = document.getElementById("a-email").value.trim().toLowerCase();
       const password = document.getElementById("a-pass").value;
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) { err.textContent = "Enter a valid email address."; return; }
-      if (mode === "create" && (password.length < 10 || password.length > 72)) { err.textContent = "Use a password of at least 10 characters."; return; }
-      if (!password) { err.textContent = "Enter your password."; return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) { fail(err, "Enter a valid email address."); return; }
+      if (mode === "create" && (password.length < 10 || password.length > 72)) { fail(err, "Use a password of at least 10 characters."); return; }
+      if (!password) { fail(err, "Enter your password."); return; }
       busy = true; draw();
       const res = mode === "create"
         ? await sb.auth.signUp({ email, password })
@@ -568,17 +583,17 @@
       if (res.error) {
         draw();
         const m = String(res.error.message || "");
-        err.textContent = res.error.status === 429 ? "Too many tries. Wait a minute and try again."
+        fail(err, res.error.status === 429 ? "Too many tries. Wait a minute and try again."
           : /not allowed|disabled/i.test(m) ? "New accounts are turned off for this wallet."
           : /registered|exists/i.test(m) ? "That email already has an account. Sign in instead."
           : /confirm/i.test(m) ? "Confirm your email first, using the link Supabase sent you."
           : /weak|pwned|password/i.test(m) && mode === "create" ? "That password is too weak. Try a longer one."
-          : mode === "create" ? "We couldn't create the account. Try again." : "Wrong email or password.";
+          : mode === "create" ? "We couldn't create the account. Try again." : "Wrong email or password.");
         return;
       }
       if (!res.data.session) {
         mode = "signin"; draw();
-        err.textContent = "Account created. Check your email to confirm it, then sign in.";
+        fail(err, "Account created. Check your email to confirm it, then sign in.");
         return;
       }
       setSession(res.data.session);
@@ -1181,12 +1196,12 @@
     body.addEventListener("submit", ev => {
       ev.preventDefault();
       const name = f.name.trim().replace(/\s+/g, " ");
-      if (!name || name.length > 40) { err.textContent = "Enter a name."; return; }
-      if (rows("people").some(p => p.name.toLowerCase() === name.toLowerCase())) { err.textContent = `${name} is already on your list.`; return; }
+      if (!name || name.length > 40) { fail(err, "Enter a name."); return; }
+      if (rows("people").some(p => p.name.toLowerCase() === name.toLowerCase())) { fail(err, `${name} is already on your list.`); return; }
       const start = f.amount.trim() ? parseAmt(f.amount) : 0;
-      if (start === null) { err.textContent = "Enter the amount as a number, like 2000."; return; }
+      if (start === null) { fail(err, "Enter the amount as a number, like 2000."); return; }
       const phone = f.phone.trim() ? cleanPhone(f.phone) : null;
-      if (phone && !PHONE_RE.test(phone)) { err.textContent = "Enter a number like 70 123 456, or +33 6 12 34 56 78 outside Lebanon."; return; }
+      if (phone && !PHONE_RE.test(phone)) { fail(err, "Enter a number like 70 123 456, or +33 6 12 34 56 78 outside Lebanon."); return; }
       const person = { id: newId(), name, direction: f.direction, currency: f.currency, phone, share_token: null, sort: Math.max(-1, ...rows("people").map(r => r.sort || 0)) + 1 };
       const items = [{ t: "people", r: person }];
       if (start) items.push({ t: "loan_entries", r: { id: newId(), person_id: person.id, amount: f.currency === "LBP" ? Math.round(start) : start, note: "Starting balance", occurred_on: today(), created_at: new Date().toISOString() } });
@@ -1283,11 +1298,11 @@
     sheet.addEventListener("touchend", end);
     sheet.addEventListener("touchcancel", end);
   }
-  function openSheet(title, body, footer) {
+  function openSheet(title, body, footer, opts = {}) {
     document.querySelectorAll(".overlay").forEach(o => o.remove());
-    const sheet = h("section", { class: "sheet", role: "dialog", "aria-modal": "true", "aria-label": title },
+    const sheet = h("section", { class: "sheet" + (opts.fill ? " fill" : ""), role: "dialog", "aria-modal": "true", "aria-label": title },
       h("div", { class: "grab", "aria-hidden": "true" }),
-      h("header", { class: "sheet-head" }, h("h2", null, title), h("button", { type: "button", class: "icon-btn close", "aria-label": "Close", on: { click: closeSheet } }, icon("close"))),
+      h("header", { class: "sheet-head" }, h("h2", null, title), opts.headBtn || null, h("button", { type: "button", class: "icon-btn close", "aria-label": "Close", on: { click: closeSheet } }, icon("close"))),
       h("div", { class: "sheet-body" }, body),
       footer ? h("div", { class: "sheet-foot" }, footer) : null);
     const overlay = h("div", { class: "overlay", on: { click: e => { if (e.target === overlay) closeSheet(); } } }, sheet);
@@ -1370,7 +1385,7 @@
       display.set(f.amount);
       const v = parseAmt(f.amount);
       const over = max != null && v && v > max;
-      save.disabled = !v || over;
+      save.classList.toggle("waiting", !v || !!over);
       save.textContent = verbFor(v);
       preview.textContent = !v ? " " : over ? `That's more than the ${fmt(max, cur, { show: true })} balance.` : previewFor(v);
       preview.classList.toggle("bad", !!over);
@@ -1386,11 +1401,12 @@
     body.addEventListener("submit", ev => {
       ev.preventDefault();
       const v = parseAmt(f.amount);
-      if (!v || (max != null && v > max)) return;
+      if (!v) return fail(null, "Type the amount on the number pad first.", display);
+      if (max != null && v > max) return fail(null, `That's more than the ${fmt(max, cur, { show: true })} balance.`, display);
       onSave(v, f.note.trim().slice(0, 200) || null);
     });
     refresh();
-    openSheet(title, body, save);
+    openSheet(title, body, save, { fill: true });
   }
 
   function txnSheet(x) {
@@ -1435,10 +1451,12 @@
         display.set(f.amount);
         const v = parseAmt(f.amount);
         if (v && cross && !f.toTouched) { f.toAmount = String(convert(v, cur, to.currency)); toInput.value = f.toAmount; }
-        preview.textContent = !v ? " " : cur === "LBP" ? `≈ ${usd(v / st.rate, { show: true })}` : `≈ ${fmt(v * st.rate, "LBP", { show: true })}`;
+        const needCat = f.kind !== "transfer" && !f.category;
+        const conv = !v ? "" : cur === "LBP" ? `≈ ${usd(v / st.rate, { show: true })}` : `≈ ${fmt(v * st.rate, "LBP", { show: true })}`;
+        preview.replaceChildren(...(v && needCat ? [h("span", { class: "nudge" }, "Now pick a category"), conv ? ` · ${conv}` : ""] : [conv || "\u00a0"]));
         const verb = { expense: "Save expense", income: "Save income", transfer: "Move money" }[f.kind];
-        saveBtn.textContent = v ? `${verb} · ${fmt(v, cur, { show: true })}` : verb;
-        saveBtn.className = "btn " + f.kind;
+        saveBtn.textContent = !v ? "Type an amount" : needCat ? "Pick a category" : `${verb} · ${fmt(v, cur, { show: true })}`;
+        saveBtn.className = "btn " + f.kind + (!v || needCat ? " waiting" : "");
       };
       const pad = amountPad(cur, () => f.amount, v => { f.amount = v; }, refresh);
       const accChips = (value, onPick, exclude) => h("div", { class: "chips" }, accounts.filter(o => o.id !== exclude).map(o =>
@@ -1470,13 +1488,7 @@
         !x && f.kind !== "transfer" ? h("button", { type: "button", class: "chip", "aria-pressed": String(f.repeat), on: { click: () => { f.repeat = !f.repeat; draw(); } } }, icon("repeat", "ico sm"), "Monthly") : null));
       if (showNote) kids.push(h("input", { id: "f-note", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: f.kind === "expense" ? "What was it?" : "Note", value: f.note, "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }));
       if (f.repeat) kids.push(h("p", { class: "hint" }, `Adds this automatically on day ${Math.min(28, Number(f.date.slice(8)) || 1)} of every month.`));
-      kids.push(pad, err);
-      if (x) {
-        kids.push(h("button", { type: "button", class: "btn danger" + (armedDelete ? " sure" : ""), on: { click: () => {
-          if (!armedDelete) { armedDelete = true; draw(); return; }
-          removeRow("transactions", x); closeSheet(); toast("Entry deleted.");
-        } } }, armedDelete ? "Tap again to delete" : "Delete entry"));
-      }
+      kids.push(pad);
       keepFocus(() => body.replaceChildren(...kids));
       refresh();
     };
@@ -1486,15 +1498,15 @@
       err.textContent = "";
       const a = acc(f.account);
       const amount = parseAmt(f.amount);
-      if (!amount) { err.textContent = "Enter an amount."; return; }
-      if (!DATE_RE.test(f.date)) { err.textContent = "Pick a date."; return; }
+      if (!amount) { fail(null, "Type the amount on the number pad first.", body.querySelector(".amount-display")); return; }
+      if (!DATE_RE.test(f.date)) { fail(err, "Pick a date."); return; }
       let toAmount = null;
       if (f.kind === "transfer") {
         const to = acc(f.to);
-        if (!to || to.id === a.id) { err.textContent = "Pick a different account to move money to."; return; }
+        if (!to || to.id === a.id) { fail(err, "Pick a different account to move money to."); return; }
         toAmount = to.currency === a.currency ? amount : parseAmt(f.toAmount);
-        if (!toAmount) { err.textContent = `Enter how much ${to.name} receives.`; return; }
-      } else if (!f.category) { err.textContent = "Pick a category."; body.querySelector(".cat-grid")?.scrollIntoView({ block: "nearest", behavior: "smooth" }); return; }
+        if (!toAmount) { fail(err, `Enter how much ${to.name} receives.`); return; }
+      } else if (!f.category) { fail(null, f.kind === "income" ? "Pick where the money came from." : "Pick a category for this expense.", body.querySelector(".cat-grid")); return; }
       const sameRate = x && x.currency === a.currency && Number(x.rate) > 0;
       const row = {
         id: x ? x.id : newId(),
@@ -1524,7 +1536,14 @@
     });
 
     draw();
-    openSheet(x ? "Edit entry" : "New entry", body, saveBtn);
+    let headBtn = null;
+    if (x) {
+      headBtn = h("button", { type: "button", class: "head-del", "aria-label": "Delete entry", on: { click: () => {
+        if (!armedDelete) { armedDelete = true; headBtn.classList.add("sure"); headBtn.replaceChildren(icon("trash", "ico sm"), "Delete?"); return; }
+        removeRow("transactions", x); closeSheet(); toast("Entry deleted.");
+      } } }, icon("trash", "ico sm"));
+    }
+    openSheet(x ? "Edit entry" : "New entry", body, saveBtn, { fill: true, headBtn });
   }
 
   function accountSheet(a) {
@@ -1554,9 +1573,9 @@
     body.addEventListener("submit", ev => {
       ev.preventDefault();
       const name = f.name.trim().replace(/\s+/g, " ");
-      if (!name || name.length > 60) { err.textContent = "Give the account a name."; return; }
+      if (!name || name.length > 60) { fail(err, "Give the account a name."); return; }
       const wanted = parseSigned(f.balance);
-      if (wanted === null) { err.textContent = "Enter the balance as a number, like 250 or -40."; return; }
+      if (wanted === null) { fail(err, "Enter the balance as a number, like 250 or -40."); return; }
       const effect = a ? current - (Number(a.opening_balance) || 0) : 0;
       const opening = Math.round((wanted - effect) * 100) / 100;
       const maxSort = Math.max(-1, ...rows("accounts").map(r => r.sort || 0));
@@ -1588,9 +1607,9 @@
     body.addEventListener("submit", ev => {
       ev.preventDefault();
       const name = f.name.trim().replace(/\s+/g, " ");
-      if (!name || name.length > 40) { err.textContent = "Give the category a name."; return; }
+      if (!name || name.length > 40) { fail(err, "Give the category a name."); return; }
       let budget = null;
-      if (f.kind === "expense" && f.budget.trim()) { budget = parseAmt(f.budget); if (!budget) { err.textContent = "Enter the budget as a number, like 150."; return; } }
+      if (f.kind === "expense" && f.budget.trim()) { budget = parseAmt(f.budget); if (!budget) { fail(err, "Enter the budget as a number, like 150."); return; } }
       const maxSort = Math.max(-1, ...rows("categories").map(r => r.sort || 0));
       put("categories", c ? { ...c, name, bucket: f.kind === "expense" ? f.bucket : null, color: f.color, budget } : { id: newId(), name, kind: f.kind, bucket: f.kind === "expense" ? f.bucket : null, color: f.color, budget, sort: maxSort + 1 });
       closeSheet();
@@ -1623,8 +1642,8 @@
       ev.preventDefault();
       const amount = parseAmt(f.amount);
       const day = Number(f.day);
-      if (!amount) { err.textContent = "Enter an amount."; return; }
-      if (!Number.isInteger(day) || day < 1 || day > 28) { err.textContent = "Pick a day from 1 to 28."; return; }
+      if (!amount) { fail(err, "Enter an amount."); return; }
+      if (!Number.isInteger(day) || day < 1 || day > 28) { fail(err, "Pick a day from 1 to 28."); return; }
       let next = r.next_on;
       if (day !== r.day) {
         const t = today();
