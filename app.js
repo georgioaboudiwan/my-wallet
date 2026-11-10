@@ -514,7 +514,11 @@
     const tabs = [tab("home", "Home", "home"), tab("activity", "Activity", "list"), tab("insights", "Insights", "chart"), tab("people", "People", "people")];
     const add = h("button", { type: "button", class: "add-btn", "aria-label": "Add an entry", on: { click: () => txnSheet(null) } }, h("span", { class: "bubble" }, icon("plus")));
     const lens = h("span", { class: "lens", "aria-hidden": "true" });
-    const nav = h("nav", { class: "dock", "aria-label": "Sections" }, h("div", { class: "tabs glass" }, lens, ...tabs), add);
+    const brand = h("div", { class: "side-brand" }, h("img", { src: "icons/icon-192.png", alt: "" }), h("span", null, "My Wallet"));
+    const sideAdd = h("button", { type: "button", class: "side-add", on: { click: () => txnSheet(null) } }, icon("plus", "ico"), "New entry");
+    const sideSettings = h("button", { type: "button", class: "tab side-only", "data-view": "settings", on: { click: () => go("settings") } }, icon("gear"), h("span", null, "Settings"));
+    tabs.push(sideSettings);
+    const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, h("div", { class: "tabs glass" }, lens, ...tabs), add);
     const top = h("header", { class: "top" }, title, h("div", { class: "tool glass" }, status, eye, gear));
     const ptr = h("div", { class: "ptr", "aria-hidden": "true" }, icon("sync"));
     root.replaceChildren(h("div", { class: "shell" }, top, ptr, main, nav));
@@ -708,7 +712,7 @@
     }
     const txns = rows("transactions").sort(byRecent);
     const accounts = rows("accounts").filter(a => !a.archived).sort(bySort);
-    const out = h("div", { class: "stack" });
+    const out = h("div", { class: "stack home-grid" });
 
     out.append(h("section", { class: "hero" },
       h("p", { class: "hero-label" }, "Everything you have"),
@@ -744,7 +748,7 @@
         h("button", { type: "button", class: "btn alt", on: { click: () => go("settings") } }, "Set account balances")));
     }
 
-    const accCard = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Accounts"), h("button", { type: "button", class: "link-btn", on: { click: () => accountSheet(null) } }, "Add")));
+    const accCard = h("section", { class: "card flush col-a" }, h("div", { class: "card-head" }, h("h2", null, "Accounts"), h("button", { type: "button", class: "link-btn", on: { click: () => accountSheet(null) } }, "Add")));
     for (const a of accounts) {
       const v = bal.get(a.id) || 0;
       accCard.append(h("button", { type: "button", class: "row", on: { click: () => { S.filter = { q: "", kind: "all", account: a.id }; go("activity"); } } },
@@ -756,7 +760,7 @@
     out.append(accCard);
 
     if (txns.length) {
-      const recent = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Recent"), h("button", { type: "button", class: "link-btn", on: { click: () => { S.filter = { q: "", kind: "all", account: null }; go("activity"); } } }, "See all")));
+      const recent = h("section", { class: "card flush col-b" }, h("div", { class: "card-head" }, h("h2", null, "Recent"), h("button", { type: "button", class: "link-btn", on: { click: () => { S.filter = { q: "", kind: "all", account: null }; go("activity"); } } }, "See all")));
       txns.slice(0, 5).forEach(x => recent.append(txnRow(x)));
       out.append(recent);
     }

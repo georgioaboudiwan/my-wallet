@@ -746,3 +746,70 @@ html { background: var(--bg); min-height: 100%; }
 .login-note .ico { flex: none; }
 .login-panel { flex: 1 0 auto; }
 .login-panel .form-err.attn { box-shadow: none; background: none !important; }
+
+.btn::after { display: none !important; }
+.btn { box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 24%, transparent); }
+.btn.alt { box-shadow: inset 0 0 0 1.5px var(--line); background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.btn.waiting { box-shadow: none; background: var(--sunk); }
+.side-brand, .side-add, .side-only { display: none !important; }
+
+@media (min-width: 900px) {
+  body { font-size: 15px; }
+  .dock {
+    left: 0; right: auto; top: 0; bottom: 0; width: 248px; max-width: none; margin: 0;
+    flex-direction: column; align-items: stretch; gap: 14px;
+    padding: 22px 16px; background: var(--card); border-right: 1px solid var(--line);
+  }
+  .side-brand { display: flex !important; align-items: center; gap: 10px; padding: 4px 8px 10px; font: 800 19px var(--ui); letter-spacing: -0.02em; }
+  .side-brand img { width: 34px; height: 34px; border-radius: 10px; }
+  .side-add { display: flex !important; align-items: center; justify-content: center; gap: 8px; height: 46px; border: 0; border-radius: 14px; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 15px; box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 24%, transparent); transition: transform .15s var(--ease), background .2s; }
+  .side-add:hover { background: var(--accent-press); }
+  .side-add:active { transform: scale(.97); }
+  .side-add .ico { width: 20px; height: 20px; stroke-width: 2.5; }
+  .tabs { display: flex; flex-direction: column; gap: 2px; padding: 0; background: none; box-shadow: none; border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .tabs::after { display: none; }
+  .tabs .lens { display: none; }
+  .tab, .side-only { display: flex !important; flex-direction: row; justify-content: flex-start; gap: 12px; height: 44px; padding: 0 12px; border-radius: 12px; font-size: 15px; font-weight: 600; color: var(--muted); }
+  .tab:hover { background: var(--sunk); color: var(--ink); }
+  .tab[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
+  .tab .ico { width: 21px; height: 21px; }
+  .tab:active { transform: none; }
+  .side-only { margin-top: auto; }
+  .add-btn { display: none; }
+  .top { padding-left: 288px; padding-right: 40px; padding-top: 22px; }
+  .top h1 { font-size: 30px; }
+  .tool .icon-btn[aria-label="Settings"] { display: none; }
+  main.view { margin: 0 0 0 248px; width: auto; max-width: 1100px; padding: 6px 40px 48px; }
+  .home-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  .home-grid > * { grid-column: 1 / -1; }
+  .home-grid > .col-a { grid-column: 1; }
+  .home-grid > .col-b { grid-column: 2; }
+  .hero-total { font-size: 60px; }
+  button.row:hover, a.row:hover, button.cat-row:hover, .row-btn:hover { background: var(--sunk); }
+  .chip:hover { border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+  .ptr { display: none; }
+
+  .overlay { align-items: center; padding: 24px; }
+  .sheet { max-width: 560px; border-radius: 28px; max-height: min(860px, 92vh); transform: translateY(24px) scale(.97); opacity: 0; transition: transform .3s var(--ease), opacity .2s; }
+  .overlay.open .sheet { transform: none; opacity: 1; }
+  .sheet.fill { height: min(820px, 92vh); }
+  .grab { display: none; }
+  .sheet-head { padding-top: 16px; }
+  .sheet-foot { padding-bottom: 18px; border-radius: 0 0 28px 28px; }
+
+  #toast { top: 24px; }
+
+  .login { flex-direction: row; min-height: 100vh; }
+  .login-hero { flex: 1 1 55%; padding: 64px 72px; justify-content: center; }
+  .login-hero > * { max-width: 520px; margin: 0; }
+  .login-brand h1 { font-size: 56px; }
+  .login-brand p { font-size: 20px; }
+  .login-card { max-width: 420px; }
+  .login-panel { flex: 0 0 min(520px, 45%); margin: 0; border-radius: 0; box-shadow: -20px 0 60px rgb(0 0 0 / .25); align-content: center; padding: 64px 56px; gap: 16px; }
+  .login-panel > * { max-width: 400px; }
+}
+@media (min-width: 900px) {
+  .dock .tabs { flex: 1; width: 100%; align-items: stretch; margin: 0; }
+  .dock .tab, .dock .side-only { width: 100%; justify-items: start; align-items: center; justify-content: flex-start; }
+  .dock .tab > span { position: static; }
+}
