@@ -645,7 +645,7 @@
       title = c ? c.name : (x.kind === "income" ? "Income" : "Uncategorized");
       dot = h("span", { class: "dot", style: { background: c ? c.color : "#5b7083" } }, c ? catGlyph(c, "ico sm") : title.charAt(0).toUpperCase());
       sign = x.kind === "income" ? "+" : "−";
-      if (x.kind === "income") cls += " pos";
+      cls += x.kind === "income" ? " pos" : " neg";
     }
     const sub = [x.note, x.kind !== "transfer" && a ? a.name : null, x.rule_id ? "Monthly" : null].filter(Boolean).join(" · ");
     const toAcc = acc(x.to_account_id);
@@ -768,7 +768,7 @@
       const cards = [...groups].map(([d, xs]) => {
         const spent = xs.filter(x => x.kind === "expense").reduce((a, x) => a + txUsd(x), 0);
         return h("section", { class: "card flush day" },
-          h("div", { class: "day-head" }, h("span", null, dayLabel(d)), spent ? h("span", { class: "num" }, "−" + usd(spent)) : null),
+          h("div", { class: "day-head" }, h("span", null, dayLabel(d)), spent ? h("span", { class: "num neg-text" }, "−" + usd(spent)) : null),
           xs.map(txnRow));
       });
       if (matches.length > shown.length) cards.push(h("button", { type: "button", class: "btn alt", on: { click: () => { S.limit += 300; fill(); } } }, `Show more (${matches.length - shown.length})`));
@@ -1150,7 +1150,7 @@
 
       kids.push(h("div", { class: "actions" },
         h("button", { type: "button", class: "action", on: { click: () => openAmount("more") } }, h("span", { class: "action-ico" }, icon("plus")), owesMe(p) ? "Lent more" : "Borrowed more"),
-        h("button", { type: "button", class: "action", disabled: balance <= 0, on: { click: () => openAmount("back") } }, h("span", { class: "action-ico in" }, icon("minus")), owesMe(p) ? "Paid me back" : "I paid back")));
+        h("button", { type: "button", class: "action", disabled: balance <= 0, on: { click: () => openAmount("back") } }, h("span", { class: "action-ico out" }, icon("minus")), owesMe(p) ? "Paid me back" : "I paid back")));
 
       if (p.phone) kids.push(waButton(p.phone, balanceMessage(p, balance), "Send balance on WhatsApp", "alt wa-alt"));
 
@@ -1175,7 +1175,7 @@
         const label = owesMe(p) ? (v > 0 ? "Lent" : "Paid back") : (v > 0 ? "Borrowed" : "Paid back");
         hist.append(h("div", { class: "row" },
           h("span", { class: "row-main" }, h("span", { class: "row-title" }, e.note || label), h("span", { class: "row-sub" }, e.note ? `${label} · ${dayLabel(e.occurred_on)}` : dayLabel(e.occurred_on))),
-          h("span", { class: "row-end" + (v < 0 ? " pos" : "") }, (v > 0 ? "+" : "−") + fmt(Math.abs(v), cur)),
+          h("span", { class: "row-end" + (v < 0 ? " neg" : " pos") }, (v > 0 ? "+" : "−") + fmt(Math.abs(v), cur)),
           h("button", { type: "button", class: "icon-btn", "aria-label": armed === e.id ? "Confirm delete" : "Delete entry", style: armed === e.id ? { color: "var(--neg)" } : null,
             on: { click: () => { if (armed !== e.id) { armed = e.id; draw(); return; } armed = null; removeRow("loan_entries", e); toast("Entry deleted."); draw(); } } }, icon(armed === e.id ? "warn" : "close"))));
       }
@@ -1267,7 +1267,7 @@
       const kind = data.direction === "owes_me" ? (v > 0 ? "Borrowed" : "Paid back") : (v > 0 ? "Lent" : "Paid back");
       list.append(h("div", { class: "row" },
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, typeof e.note === "string" && e.note ? e.note : kind), h("span", { class: "row-sub" }, `${kind} · ${DATE_RE.test(String(e.date)) ? dayLabel(e.date) : ""}`)),
-        h("span", { class: "row-end" + (v < 0 ? " pos" : "") }, (v > 0 ? "+" : "−") + fmt(Math.abs(v), cur, { show: true }))));
+        h("span", { class: "row-end" + (v < 0 ? " neg" : " pos") }, (v > 0 ? "+" : "−") + fmt(Math.abs(v), cur, { show: true }))));
     }
     if (!history.length) list.append(h("p", { class: "empty" }, "Nothing here yet."));
     box.className = "auth-box";

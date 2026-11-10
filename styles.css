@@ -647,3 +647,7 @@ html { background: var(--bg); min-height: 100%; }
 .row-sub.wrap { white-space: normal; }
 .row-btn:disabled { opacity: .5; }
 .time-input { width: 136px; }
+.action-ico.out { background: var(--neg-soft); color: var(--neg); }
+.action-ico:not(.in):not(.out) { background: var(--accent-soft); color: var(--accent); }
+.neg-text { color: var(--neg); }
+.key.fn { color: var(--neg); }
