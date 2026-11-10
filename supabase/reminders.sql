@@ -44,3 +44,4 @@ grant select, update, delete on public.push_subs to service_role;
 grant select on public.transactions to service_role;
 create index if not exists push_subs_user_id_idx on public.push_subs (user_id);
 grant select on public.rules, public.categories to service_role;
+alter table public.push_subs add column if not exists last_status integer;

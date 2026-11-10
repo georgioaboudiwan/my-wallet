@@ -480,3 +480,17 @@ window.WALLET_I18N.patterns = [
   ["^My Wallet · Version (.+)$", "Mon Portefeuille · Version $1", "محفظتي · الإصدار $1"],
   ["^Step (\\d) of (\\d)$", "Étape $1 sur $2", "الخطوة $1 من $2"]
 ];
+Object.assign(window.WALLET_I18N.words, {
+  "Get a daily reminder": ["Recevoir un rappel quotidien", "احصل على تذكير يومي"],
+  "A notification at the time you choose, so no expense is forgotten.": ["Une notification à l'heure de votre choix, pour ne rien oublier.", "إشعار في الوقت الذي تختاره كي لا تنسى أي مصروف."],
+  "Remind me at": ["Me rappeler à", "ذكّرني عند"],
+  "Turn on": ["Activer", "تفعيل"],
+  "Not now": ["Pas maintenant", "ليس الآن"],
+  "You can turn it on later in Settings.": ["Vous pourrez l'activer plus tard dans Réglages.", "يمكنك تفعيله لاحقاً من الإعدادات."],
+  "Group added. Name it and set its percentage.": ["Groupe ajouté. Nommez-le et définissez son pourcentage.", "تمت إضافة المجموعة. سمِّها وحدّد نسبتها."],
+  "New group": ["Nouveau groupe", "مجموعة جديدة"]
+});
+window.WALLET_I18N.patterns.push(
+  ["^Reminder set for (.+) every day\\.$", "Rappel réglé à $1 chaque jour.", "تم ضبط التذكير عند $1 كل يوم."],
+  ["^Reminder moved to (.+)\\.$", "Rappel déplacé à $1.", "تم نقل التذكير إلى $1."]
+);

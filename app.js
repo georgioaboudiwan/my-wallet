@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "2.1.0";
+  const VERSION = "2.2.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -147,6 +147,7 @@
   const dateLocale = () => LANG === "fr" ? "fr-FR" : LANG === "ar" ? "ar-LB-u-nu-latn" : "en-GB";
   const applyLang = () => { document.documentElement.lang = LANG; document.documentElement.dir = LANG === "ar" ? "rtl" : "ltr"; };
   const setLang = v => { if (!LANGS[v] || v === LANG) return; LANG = v; trCache.clear(); try { localStorage.setItem("wallet:lang", v); } catch { } applyLang(); shell = null; render(); };
+  const toTop = () => { window.scrollTo(0, 0); if (document.scrollingElement) document.scrollingElement.scrollTop = 0; if (shell && shell.main) shell.main.scrollTop = 0; };
   const langChosen = () => { try { return !!LANGS[localStorage.getItem("wallet:lang")]; } catch { return true; } };
   function renderLangPick() {
     shell = null;
@@ -321,9 +322,12 @@
   const catGlyph = (c, cls = "ico") => { const n = catIconName(c); return n ? icon(n, cls) : (c ? c.name.charAt(0).toUpperCase() : "?"); };
   const settingsId = () => "settings:" + S.uid;
   const storedSettings = () => (S.data.settings.get(settingsId()) || {}).data || {};
+  let settingsSrc = null, settingsCache = null;
   const settings = () => {
     const d = storedSettings();
-    return {
+    if (settingsCache && settingsSrc === d) return settingsCache;
+    settingsSrc = d;
+    settingsCache = {
       main: CUR_RE.test(d.main || "") ? d.main : "USD",
       rates: { LBP: Number(d.rate) > 0 ? Number(d.rate) : 89500, ...(d.rates && typeof d.rates === "object" ? Object.fromEntries(Object.entries(d.rates).filter(([k, v]) => CUR_RE.test(k) && Number(v) > 0).map(([k, v]) => [k, Number(v)])) : {}) },
       loanDue: d.loanDue && typeof d.loanDue === "object" ? Object.fromEntries(Object.entries(d.loanDue).filter(([k, v]) => typeof k === "string" && DATE_RE.test(String(v)))) : {},
@@ -341,6 +345,7 @@
       seeded: !!d.seeded,
       name: typeof d.name === "string" ? d.name : ""
     };
+    return settingsCache;
   };
   const bySort = (a, b) => (a.sort || 0) - (b.sort || 0) || a.name.localeCompare(b.name);
   const byRecent = (a, b) => b.occurred_on.localeCompare(a.occurred_on) || String(b.created_at || "").localeCompare(String(a.created_at || ""));
@@ -1007,6 +1012,23 @@
     openSheet(`${monthName(m)} summary`, body, h("button", { type: "button", class: "btn", on: { click: () => { closeSheet(); S.month = m; go("insights"); } } }, "Open full insights"));
   }
 
+  function reminderCard() {
+    if (store.get("remindAsk", "") === "no") return null;
+    if (PUSH.state === null) { loadPushState(); return null; }
+    if (PUSH.state !== "off" && PUSH.state !== "install") return null;
+    const later = h("button", { type: "button", class: "btn alt", on: { click: () => { store.set("remindAsk", "no"); render(); toast("You can turn it on later in Settings."); } } }, "Not now");
+    if (PUSH.state === "install") return h("section", { class: "card remind" },
+      h("div", { class: "remind-top" }, h("span", { class: "dot gold" }, icon("bell", "ico sm")), h("div", null, h("h2", null, "Get a daily reminder"), h("p", null, "Add My Wallet to your Home Screen first, then open it from there."))),
+      later);
+    const timeIn = h("input", { id: "h-remind", class: "input time-input", type: "time", value: PUSH.time || "21:00", "aria-label": "Reminder time", on: { change: e => { if (/^\d{2}:\d{2}$/.test(e.target.value)) PUSH.time = e.target.value; } } });
+    return h("section", { class: "card remind" },
+      h("div", { class: "remind-top" }, h("span", { class: "dot gold" }, icon("bell", "ico sm")), h("div", null, h("h2", null, "Get a daily reminder"), h("p", null, "A notification at the time you choose, so no expense is forgotten."))),
+      h("label", { class: "remind-time" }, h("span", null, "Remind me at"), timeIn),
+      h("div", { class: "remind-actions" },
+        h("button", { type: "button", class: "btn", disabled: PUSH.busy, on: { click: () => enablePush(timeIn.value || "21:00") } }, PUSH.busy ? "One moment…" : "Turn on"),
+        later));
+  }
+
   function recapCard() {
     const pm = shiftMonth(thisMonth(), -1);
     if (Number(today().slice(8)) > 10 || store.get("recapSeen", "") === pm || !monthStats(pm).count) return null;
@@ -1365,6 +1387,8 @@
           h("span", { class: "fav-dot", style: { background: c.color } }, catGlyph(c, "ico sm")), c.name)))));
     }
 
+    const remind = reminderCard();
+    if (remind) out.append(remind);
     const recap = recapCard();
     if (recap) out.append(recap);
     const coming = upcomingCard();
@@ -1719,7 +1743,7 @@
       const pctIn = h("input", { id: `g-pct-${g.id}`, class: "grp-pct num", inputmode: "numeric", value: String(g.pct), autocomplete: "off", "aria-label": `${g.name} percent`,
         on: { change: e => { const v = Number(e.target.value); if (!Number.isInteger(v) || v < 0 || v > 100) { toast("Use a whole number from 0 to 100.", "error"); e.target.value = String(g.pct); return; } update(g.id, { pct: v }); } } });
       const colorBtn = h("button", { type: "button", class: "grp-color", style: { background: g.color }, "aria-label": `Change ${g.name} color`, on: { click: () => update(g.id, { color: BUCKET_COLORS[(BUCKET_COLORS.indexOf(g.color) + 1) % BUCKET_COLORS.length] }) } });
-      card.append(h("div", { class: "grp" },
+      card.append(h("div", { class: "grp" + (S.freshGroup === g.id ? " fresh" : "") },
         h("div", { class: "grp-top" }, colorBtn, nameIn,
           h("div", { class: "stepper" },
             h("button", { type: "button", "aria-label": `Lower ${g.name}`, on: { click: () => step(g, -5) } }, icon("minus", "ico sm")),
@@ -1741,8 +1765,13 @@
     }
     if (groups.length < 8) card.append(h("button", { type: "button", class: "row-btn add-grp", on: { click: () => {
       const id = "g" + newId().replace(/[^a-z0-9]/gi, "").slice(0, 10).toLowerCase();
+      S.freshGroup = id;
       saveGroups([...groups, { id, name: "New group", pct: Math.max(0, 100 - sum), color: BUCKET_COLORS[groups.length % BUCKET_COLORS.length], save: false }]);
-      setTimeout(() => { const el = document.getElementById(`g-name-${id}`); if (el) { el.focus(); el.select(); } }, 60);
+      render();
+      const el = document.getElementById(`g-name-${id}`);
+      if (el) { el.scrollIntoView({ block: "center", behavior: "smooth" }); el.focus({ preventScroll: true }); el.select(); }
+      setTimeout(() => { S.freshGroup = null; }, 1700);
+      toast("Group added. Name it and set its percentage.");
     } } }, icon("plus", "ico sm"), "Add a group"));
     const presets = [["50 / 30 / 20", [50, 30, 20]], ["60 / 20 / 20", [60, 20, 20]], ["70 / 20 / 10", [70, 20, 10]]];
     card.append(h("div", { class: "chips wrap" },
@@ -1877,15 +1906,15 @@
     if (page) {
       const keep = sections.filter(el => page[4].includes(el.dataset.key));
       out.replaceChildren(
-        h("button", { type: "button", class: "back-row", on: { click: () => { S.setPage = null; render(); window.scrollTo(0, 0); } } }, icon("back", "ico"), h("span", null, "Settings")),
-        h("h2", { class: "page-title" }, page[1]),
+        h("button", { type: "button", class: "back-row", on: { click: () => { S.setPage = null; render(); toTop(); } } }, icon("back", "ico"), h("span", null, "Settings")),
         ...keep);
+      shell.title.textContent = tr(page[1]);
       return out;
     }
     const menu = h("section", { class: "card flush" });
     for (const [id, title, sub, ic, keys] of PAGES) {
       if (!sections.some(el => keys.includes(el.dataset.key))) continue;
-      menu.append(h("button", { type: "button", class: "row", on: { click: () => { S.setPage = id; render(); window.scrollTo(0, 0); } } },
+      menu.append(h("button", { type: "button", class: "row", on: { click: () => { S.setPage = id; render(); toTop(); } } },
         h("span", { class: "dot neutral" }, icon(ic, "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), h("span", { class: "row-sub wrap" }, sub)),
         icon("fwd")));
@@ -2319,11 +2348,11 @@
 
   const seg = (options, value, onPick, label) => {
     const idx = Math.max(0, options.findIndex(o => o[0] === value));
-    const thumb = h("span", { class: "seg-thumb", "aria-hidden": "true", style: { width: `calc((100% - 6px) / ${options.length})`, transform: `translateX(${idx * 100}%)` } });
+    const thumb = h("span", { class: "seg-thumb", "aria-hidden": "true", style: { width: `calc((100% - 6px) / ${options.length})`, transform: `translateX(${(LANG === "ar" ? -1 : 1) * idx * 100}%)` } });
     const el = h("div", { class: "seg", role: "group", "aria-label": label }, thumb,
       options.map(([k, l, disabled], i) => h("button", { type: "button", "aria-pressed": String(value === k), disabled: !!disabled, on: { click: () => {
         if (k === value) return;
-        thumb.style.transform = `translateX(${i * 100}%)`;
+        thumb.style.transform = `translateX(${(LANG === "ar" ? -1 : 1) * i * 100}%)`;
         el.querySelectorAll("button").forEach((b, j) => b.setAttribute("aria-pressed", String(j === i)));
         setTimeout(() => onPick(k), 170);
       } } }, l)));
@@ -2759,7 +2788,7 @@
       }
     } catch { state = "off"; }
     PUSH.state = state; PUSH.time = time; PUSH.loading = false;
-    if (S.view === "settings") render();
+    if (S.view === "settings" || S.view === "home") render();
   }
 
   async function enablePush(time) {
@@ -2791,7 +2820,7 @@
       const j = sub.toJSON();
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Beirut";
       await sb.from("push_subs").delete().eq("endpoint", j.endpoint).neq("id", deviceId());
-      const { error: e2 } = await sb.from("push_subs").upsert({ id: deviceId(), user_id: S.uid, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, remind_at: time, tz, enabled: true }, { onConflict: "id" });
+      const { error: e2 } = await sb.from("push_subs").upsert({ id: deviceId(), user_id: S.uid, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, remind_at: time, tz, enabled: true, last_sent: null }, { onConflict: "id" });
       if (e2) return toast("Couldn't save the reminder. Try again.", "error");
       PUSH.state = "on"; PUSH.time = time;
       toast(`Reminder set for ${time} every day.`);

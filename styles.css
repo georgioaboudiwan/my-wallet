@@ -967,3 +967,14 @@ main.view:not(.enter) > * { animation: none; }
 .lang-pick p { color: var(--muted); font-size: 16px; }
 .lang-list { display: grid; gap: 12px; width: 100%; max-width: 340px; margin-top: 22px; }
 .lang-list .btn { font-size: 18px; min-height: 58px; }
+[dir="rtl"] .seg-thumb { left: auto; right: 3px; }
+.row:has(> #s-main) { flex-wrap: wrap; }
+#s-main { flex: 1 0 100%; width: 100%; max-width: none; }
+.grp.fresh { animation: fresh 1.6s ease-out; border-radius: 14px; }
+@keyframes fresh { 0%, 40% { background: var(--accent-soft); } 100% { background: transparent; } }
+.remind { gap: 14px; }
+.remind-top { display: flex; gap: 12px; align-items: flex-start; }
+.remind-top h2 { font-size: 17px; font-weight: 700; }
+.remind-top p { font-size: 14px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
+.remind-time { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; font-weight: 600; }
+.remind-actions { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; }

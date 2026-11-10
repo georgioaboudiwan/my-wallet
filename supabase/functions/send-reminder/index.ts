@@ -91,7 +91,7 @@ async function push(keys: Keys, sub: Sub, message: { title: string; body: string
       "Content-Encoding": "aes128gcm",
       "Content-Type": "application/octet-stream",
       TTL: "43200",
-      Urgency: "normal"
+      Urgency: "high"
     },
     body
   });
@@ -152,9 +152,12 @@ Deno.serve(async req => {
       try { now = localNow(sub.tz); } catch { continue; }
       const [h, m] = sub.remind_at.split(":").map(Number);
       const due = h * 60 + m;
-      if (now.minutes < due || now.minutes - due > 90 || sub.last_sent === now.date) continue;
+      if (now.minutes < due || now.minutes - due > 180 || sub.last_sent === now.date) continue;
       await sb.from("push_subs").update({ last_sent: now.date }).eq("id", sub.id);
-      try { await push(keys, sub, await reminderFor(sub, now.date)); sent++; } catch { }
+      let status = 0;
+      try { status = await push(keys, sub, await reminderFor(sub, now.date)); } catch (e) { console.error("push failed", String((e as Error)?.message || e).slice(0, 200)); }
+      if (status >= 200 && status < 300) sent++; else console.error("push status", status, new URL(sub.endpoint).host);
+      await sb.from("push_subs").update({ last_status: status }).eq("id", sub.id);
     }
     return json({ sent });
   }
