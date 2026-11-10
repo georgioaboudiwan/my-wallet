@@ -78,6 +78,8 @@
     bell: "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0",
     shield: "M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z",
     users: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+    mail: "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM3 7l9 6 9-6",
+    lock: "M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V7a4 4 0 0 1 8 0v4",
     trash: "M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3",
     del: "M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zM17 9l-5 6M12 9l5 6",
     check: "M5 12.5l4.5 4.5L19 7.5",
@@ -582,58 +584,90 @@
     shell = null;
     let mode = "signin";
     let busy = false;
-    const box = h("form", { class: "auth-box", novalidate: true });
+    let showPass = false;
+    let email = "";
+    let password = "";
     const err = h("p", { class: "form-err", role: "alert" });
+    const panel = h("form", { class: "login-panel", novalidate: true });
+
+    const field = (id, ic, input, trailing) => h("label", { class: "login-field", for: id }, icon(ic, "ico"), input, trailing || null);
+
     const draw = () => {
       const create = mode === "create";
-      const email = (document.getElementById("a-email") || {}).value || "";
-      box.replaceChildren(
-        h("img", { class: "auth-mark", src: "icons/icon-192.png", alt: "" }),
-        h("h1", null, "My Wallet"),
-        h("p", null, create ? "Create your account. Use a password you don't use anywhere else." : "Sign in to see your money."),
-        h("label", { class: "field" }, h("span", null, "Email"), h("input", { id: "a-email", class: "input", type: "email", autocomplete: "username", inputmode: "email", required: true, value: email })),
-        h("label", { class: "field" }, h("span", null, create ? "New password (at least 10 characters)" : "Password"), h("input", { id: "a-pass", class: "input", type: "password", autocomplete: create ? "new-password" : "current-password", required: true, minlength: "10", maxlength: "72" })),
+      const emailIn = h("input", { id: "a-email", type: "email", autocomplete: "username", inputmode: "email", autocapitalize: "none", spellcheck: "false", enterkeyhint: "next", placeholder: "Email", value: email, "aria-label": "Email",
+        on: { input: e => { email = e.target.value; } } });
+      const passIn = h("input", { id: "a-pass", type: showPass ? "text" : "password", autocomplete: create ? "new-password" : "current-password", enterkeyhint: "go", placeholder: create ? "New password (10+ characters)" : "Password", maxlength: "72", value: password, "aria-label": "Password",
+        on: { input: e => { password = e.target.value; meter(); } } });
+      const eye = h("button", { type: "button", class: "login-eye", "aria-label": showPass ? "Hide password" : "Show password", on: { click: () => { showPass = !showPass; draw(); document.getElementById("a-pass").focus(); } } }, icon(showPass ? "eyeOff" : "eye", "ico"));
+      const strength = h("div", { class: "login-meter", "aria-hidden": "true" }, h("span"), h("span"), h("span"));
+      const meterText = h("p", { class: "login-hint" });
+      const meter = () => {
+        if (!create) return;
+        const p = password;
+        const score = !p ? 0 : p.length < 10 ? 1 : (/[A-Z]/.test(p) + /[0-9]/.test(p) + /[^A-Za-z0-9]/.test(p) + (p.length >= 14)) >= 2 ? 3 : 2;
+        strength.dataset.score = String(score);
+        meterText.textContent = !p ? "Use at least 10 characters." : score === 1 ? `${10 - p.length} more character${10 - p.length === 1 ? "" : "s"} needed.` : score === 2 ? "Okay. Add numbers or symbols to make it stronger." : "Strong password.";
+      };
+      panel.replaceChildren(...[
+        seg([["signin", "Sign in"], ["create", "Create account"]], mode, k => { mode = k; err.textContent = ""; draw(); }, "Sign in or create an account"),
+        h("div", { class: "login-fields" },
+          field("a-email", "mail", emailIn),
+          field("a-pass", "lock", passIn, eye)),
+        create ? h("div", { class: "login-strength" }, strength, meterText) : null,
         err,
-        h("button", { class: "btn", type: "submit", disabled: busy }, busy ? "One moment…" : create ? "Create account" : "Sign in"),
-        h("button", { class: "btn alt", type: "button", on: { click: () => { mode = create ? "signin" : "create"; err.textContent = ""; draw(); } } }, create ? "I already have an account" : "Create an account"));
+        h("button", { class: "btn login-go", type: "submit", disabled: busy }, busy ? h("span", { class: "spinner", "aria-hidden": "true" }) : null, busy ? "One moment…" : create ? "Create my wallet" : "Sign in"),
+        h("p", { class: "login-note" }, icon("shield", "ico sm"), h("span", null, "Private to you. Everything is sent encrypted."))].filter(Boolean));
+      meter();
     };
-    box.addEventListener("submit", async ev => {
+
+    panel.addEventListener("submit", async ev => {
       ev.preventDefault();
       if (busy) return;
       err.textContent = "";
-      if (!navigator.onLine) { fail(err, "You're offline. Connect to the internet to sign in."); return; }
-      const email = document.getElementById("a-email").value.trim().toLowerCase();
-      const password = document.getElementById("a-pass").value;
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) { fail(err, "Enter a valid email address."); return; }
-      if (mode === "create" && (password.length < 10 || password.length > 72)) { fail(err, "Use a password of at least 10 characters."); return; }
-      if (!password) { fail(err, "Enter your password."); return; }
+      const target = email.trim().toLowerCase();
+      if (!navigator.onLine) return fail(err, "You're offline. Connect to the internet to sign in.");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target) || target.length > 254) return fail(err, "Enter a valid email address.", panel.querySelector(".login-field"));
+      if (!password) return fail(err, "Enter your password.", panel.querySelectorAll(".login-field")[1]);
+      if (mode === "create" && (password.length < 10 || password.length > 72)) return fail(err, "Use a password of at least 10 characters.", panel.querySelectorAll(".login-field")[1]);
       busy = true; draw();
       const res = mode === "create"
-        ? await sb.auth.signUp({ email, password })
-        : await sb.auth.signInWithPassword({ email, password });
+        ? await sb.auth.signUp({ email: target, password })
+        : await sb.auth.signInWithPassword({ email: target, password });
       busy = false;
       if (res.error) {
         draw();
         const m = String(res.error.message || "");
-        fail(err, res.error.status === 429 ? "Too many tries. Wait a minute and try again."
+        return fail(err, res.error.status === 429 ? "Too many tries. Wait a minute and try again."
+          : /banned/i.test(m) ? "This account is blocked."
           : /not allowed|disabled/i.test(m) ? "New accounts are turned off for this wallet."
           : /registered|exists/i.test(m) ? "That email already has an account. Sign in instead."
-          : /confirm/i.test(m) ? "Confirm your email first, using the link Supabase sent you."
+          : /confirm/i.test(m) ? "Confirm your email first, using the link we sent you."
           : /weak|pwned|password/i.test(m) && mode === "create" ? "That password is too weak. Try a longer one."
           : mode === "create" ? "We couldn't create the account. Try again." : "Wrong email or password.");
-        return;
       }
-      if (!res.data.session) {
-        mode = "signin"; draw();
-        fail(err, "Account created. Check your email to confirm it, then sign in.");
-        return;
-      }
+      if (!res.data.session) { mode = "signin"; draw(); return fail(err, "Account created. Check your email to confirm it, then sign in."); }
+      password = "";
       setSession(res.data.session);
       render();
       sync();
     });
+
     draw();
-    root.replaceChildren(h("div", { class: "auth" }, box));
+    root.replaceChildren(h("div", { class: "login" },
+      h("header", { class: "login-hero" },
+        h("div", { class: "login-brand" },
+          h("img", { class: "login-logo", src: "icons/icon-192.png", alt: "" }),
+          h("h1", null, "My Wallet"),
+          h("p", null, "Your dollars and lira, all in one place.")),
+        h("div", { class: "login-card", "aria-hidden": "true" },
+          h("span", { class: "lc-label" }, "Everything you have"),
+          h("span", { class: "lc-total num" }, "$2,450"),
+          h("span", { class: "lc-row" }, h("i", { class: "lc-bar a" }), h("i", { class: "lc-bar b" }), h("i", { class: "lc-bar c" }))),
+        h("ul", { class: "login-perks" },
+          h("li", null, icon("chart", "ico sm"), "Insights"),
+          h("li", null, icon("plan", "ico sm"), "Budgets"),
+          h("li", null, icon("people", "ico sm"), "Loans"))),
+      panel));
   }
 
   function txnRow(x) {
