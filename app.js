@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "1.5.0";
+  const VERSION = "1.5.1";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -1113,8 +1113,18 @@
       seg([["auto", "As received"], ["fixed", "Every month"], ["month", `Only ${monthShort(m)}`]], tab, pick, "Where the amount comes from")
     ];
     if (tab !== "auto") {
-      const current = tab === "month" ? st.incomeByMonth[m] : fixedIncome(m);
-      kids.push(h("label", { class: "field" }, h("span", null, tab === "month" ? `Income for ${name} (${curSymbol(mainCur())})` : `Monthly income from ${monthLabel(m)} (${curSymbol(mainCur())})`),
+      const from = tab === "fixed" && S.incomeFrom && S.incomeFrom.m === m ? S.incomeFrom.k : m;
+      const current = tab === "month" ? st.incomeByMonth[m] : fixedIncome(from);
+      if (tab === "fixed") {
+        const first = [shiftMonth(thisMonth(), -12), m].sort()[0];
+        const options = [];
+        for (let k = first; k <= shiftMonth(thisMonth(), 24); k = shiftMonth(k, 1)) options.push(k);
+        const sel = h("select", { id: "p-from", class: "input", on: { change: e => { S.incomeFrom = { m, k: e.target.value }; render(); } } },
+          options.map(k => h("option", { value: k, selected: k === from }, k === thisMonth() ? `${monthLabel(k)} (this month)` : monthLabel(k))));
+        sel.value = from;
+        kids.push(h("label", { class: "field" }, h("span", null, "Starting from"), sel));
+      }
+      kids.push(h("label", { class: "field" }, h("span", null, tab === "month" ? `Income for ${name} (${curSymbol(mainCur())})` : `Monthly income (${curSymbol(mainCur())})`),
         h("input", { id: "p-income", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: p.base > 0 ? String(Math.round(p.base)) : "e.g. 1500", value: current ? String(current) : "",
           on: { change: e => {
             const raw = e.target.value.trim();
@@ -1127,13 +1137,15 @@
               if (!v) S.incomePick = null;
               toast(v ? `${name} now uses ${money(v, { show: true })}.` : `${name} is back to its usual setting.`);
             } else {
-              const steps = Object.fromEntries(Object.entries(st.incomeSteps).filter(([k]) => k !== m));
-              if (v) steps[m] = v;
+              const steps = Object.fromEntries(Object.entries(st.incomeSteps).filter(([k]) => k !== from));
+              if (v) steps[from] = v;
               const keys = Object.keys(steps).filter(k => k <= m).sort();
-              const still = v || (keys.length ? steps[keys.pop()] : st.income);
-              if (!still) S.incomePick = null;
-              saveSettings({ incomeSteps: steps, incomeMode: still ? "fixed" : "auto", incomeByMonth: without() });
-              toast(v ? `${money(v, { show: true })} a month from ${monthLabel(m)}. Earlier months are unchanged.` : still ? `${name} is back to ${money(still, { show: true })}.` : "The plan now follows the income you log.");
+              const still = keys.length ? steps[keys.pop()] : st.income;
+              const any = still || Object.keys(steps).length;
+              if (!any) S.incomePick = null;
+              const later = Object.keys(steps).filter(k => k > from).sort()[0];
+              saveSettings({ incomeSteps: steps, incomeMode: any ? "fixed" : "auto", incomeByMonth: from === m ? without() : st.incomeByMonth });
+              toast(v ? `${money(v, { show: true })} a month from ${monthLabel(from)}${later ? ` until ${monthLabel(shiftMonth(later, -1))}` : ""}. Earlier months are unchanged.` : any ? `Change from ${monthLabel(from)} removed.` : "The plan now follows the income you log.");
             }
           } } })));
     }
@@ -1144,7 +1156,7 @@
           : p.source === "estimate" ? `No income logged in ${name} yet, so this is the average of your last 3 months. It switches to the real amount once you log income.`
           : p.source === "month" ? `${name} has its own amount. Clear it under “Only ${monthShort(m)}” to follow your logged income.`
           : "Log your income with + and the plan follows it, month by month.")
-        : tab === "fixed" ? `Applies from ${monthLabel(m)} onward. Earlier months keep the amount they had. For a raise, go to the month it starts and enter the new amount. ${logged}`
+        : tab === "fixed" ? `Pick the month the amount starts, then enter it. It applies from that month until the next change in the list. Months before it are not affected. ${logged}`
         : `Only ${name} uses this amount. Other months keep their usual setting. ${logged}`));
     const changes = Object.entries(st.incomeSteps).sort();
     if (tab === "fixed" && changes.length) {
