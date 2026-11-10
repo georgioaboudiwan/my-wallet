@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "2.0.0";
+  const VERSION = "2.1.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -127,9 +127,18 @@
     if (w) return w[i];
     if (trCache.has(str)) return trCache.get(str);
     let out = str;
+    let hit = false;
     for (const [re, fr, ar] of PATTERNS) {
       const m = str.match(re);
-      if (m) { out = (i === 0 ? fr : ar).replace(/\$(\d)/g, (_, n) => i === 1 ? `\u2068${tr(m[Number(n)])}\u2069` : tr(m[Number(n)])); break; }
+      if (m) { out = (i === 0 ? fr : ar).replace(/\$(\d)/g, (_, n) => i === 1 ? `\u2068${tr(m[Number(n)])}\u2069` : tr(m[Number(n)])); hit = true; break; }
+    }
+    if (!hit && str.length < 400) {
+      for (const sep of [" · ", ", "]) {
+        if (!str.includes(sep)) continue;
+        const parts = str.split(sep);
+        const done = parts.map(tr);
+        if (done.some((d, k) => d !== parts[k])) { out = done.join(LANG === "ar" && sep === ", " ? "، " : sep); break; }
+      }
     }
     if (trCache.size > 500) trCache.clear();
     trCache.set(str, out);
@@ -138,6 +147,18 @@
   const dateLocale = () => LANG === "fr" ? "fr-FR" : LANG === "ar" ? "ar-LB-u-nu-latn" : "en-GB";
   const applyLang = () => { document.documentElement.lang = LANG; document.documentElement.dir = LANG === "ar" ? "rtl" : "ltr"; };
   const setLang = v => { if (!LANGS[v] || v === LANG) return; LANG = v; trCache.clear(); try { localStorage.setItem("wallet:lang", v); } catch { } applyLang(); shell = null; render(); };
+  const langChosen = () => { try { return !!LANGS[localStorage.getItem("wallet:lang")]; } catch { return true; } };
+  function renderLangPick() {
+    shell = null;
+    const pick = k => { LANG = k; trCache.clear(); try { localStorage.setItem("wallet:lang", k); } catch { } applyLang(); render(); };
+    root.replaceChildren(h("div", { class: "lang-pick" },
+      h("img", { class: "login-logo", src: "icons/icon-192.png", alt: "" }),
+      h("h1", null, "My Wallet"),
+      h("p", { lang: "en" }, "Choose your language"),
+      h("p", { lang: "fr" }, "Choisissez votre langue"),
+      h("p", { lang: "ar", dir: "rtl" }, "اختر لغتك"),
+      h("div", { class: "lang-list" }, Object.entries(LANGS).map(([k, name]) => h("button", { type: "button", class: "btn alt", lang: k, on: { click: () => pick(k) } }, name)))));
+  }
   const TR_ATTRS = new Set(["placeholder", "aria-label", "title", "alt"]);
 
   const h = (tag, props, ...kids) => {
@@ -608,7 +629,7 @@
   function go(view) {
     S.view = view;
     S.armed = null;
-    if (view === "settings") PUSH.state = null;
+    if (view === "settings") { PUSH.state = null; S.setPage = null; }
     if (view === "insights" || view === "plan") S.month = S.month || thisMonth();
     render();
     window.scrollTo(0, 0);
@@ -632,13 +653,13 @@
     const main = h("main", { class: "view" });
     const tab = (view, label, ic) => h("button", { type: "button", class: "tab", "data-view": view, on: { click: () => go(view) } }, icon(ic), h("span", null, label));
     const tabs = [tab("home", "Home", "home"), tab("activity", "Activity", "list"), tab("insights", "Insights", "chart"), tab("people", "People", "people")];
-    const add = h("button", { type: "button", class: "add-btn", "aria-label": "Add an entry", on: { click: () => txnSheet(null) } }, h("span", { class: "bubble" }, icon("plus")));
+    const add = h("button", { type: "button", class: "add-btn", "aria-label": "Add an entry", on: { click: () => txnSheet(null) } }, icon("plus"), h("span", null, "Add"));
     const lens = h("span", { class: "lens", "aria-hidden": "true" });
     const brand = h("div", { class: "side-brand" }, h("img", { src: "icons/icon-192.png", alt: "" }), h("span", null, "My Wallet"));
     const sideAdd = h("button", { type: "button", class: "side-add", on: { click: () => txnSheet(null) } }, icon("plus", "ico"), "New entry");
     const sideSettings = h("button", { type: "button", class: "tab side-only", "data-view": "settings", on: { click: () => go("settings") } }, icon("gear"), h("span", null, "Settings"));
     tabs.push(sideSettings);
-    const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, h("div", { class: "tabs glass" }, lens, tabs[0], tabs[1], add, ...tabs.slice(2)));
+    const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, h("div", { class: "tabs glass" }, lens, ...tabs), add);
     const top = h("header", { class: "top" }, title, h("div", { class: "tool glass" }, status, eye, gear));
     const ptr = h("div", { class: "ptr", "aria-hidden": "true" }, icon("sync"));
     root.replaceChildren(h("div", { class: "shell" }, top, ptr, main, nav));
@@ -668,20 +689,21 @@
       label = S.syncedAt ? `Synced ${ago(S.syncedAt)}. Tap to sync now.` : "Tap to sync now.";
     }
     el.className = cls;
-    el.setAttribute("aria-label", label);
-    el.title = label;
+    el.setAttribute("aria-label", tr(label));
+    el.title = tr(label);
     el.replaceChildren(icon(ic), ...(text ? [h("span", null, text)] : []));
   }
 
   function render() {
     if (!CFG.supabaseUrl || !CFG.supabaseAnonKey) return renderSetup();
+    if (!langChosen()) return renderLangPick();
     if (!S.session && !S.offline && !S.booting) return renderAuth();
     if (!shell) buildShell();
     maybeOnboard();
     const v = VIEWS[S.view] || VIEWS.home;
     shell.title.textContent = tr(v.title);
     shell.eye.replaceChildren(icon(S.hidden ? "eyeOff" : "eye"));
-    shell.eye.setAttribute("aria-label", S.hidden ? "Show amounts" : "Hide amounts");
+    shell.eye.setAttribute("aria-label", tr(S.hidden ? "Show amounts" : "Hide amounts"));
     const sameView = shell.lastView === S.view;
     if (sameView) { clearTimeout(shell.enterTimer); shell.main.classList.remove("enter"); }
     keepFocus(() => shell.main.replaceChildren(v.draw()));
@@ -696,7 +718,7 @@
     for (const t of shell.tabs) t.setAttribute("aria-current", t.dataset.view === S.view ? "page" : "false");
     const tabIndex = ["home", "activity", "insights", "people"].indexOf(S.view === "plan" ? "insights" : S.view);
     shell.lens.style.opacity = tabIndex < 0 ? "0" : "1";
-    if (tabIndex >= 0) shell.lens.style.transform = `translateX(calc(${LANG === "ar" ? "-1 * " : ""}(${tabIndex * 100}% + ${tabIndex >= 2 ? 68 : 0}px)))`;
+    if (tabIndex >= 0) shell.lens.style.transform = `translateX(${LANG === "ar" ? -tabIndex * 100 : tabIndex * 100}%)`;
     renderStatus();
   }
 
@@ -737,7 +759,7 @@
         const p = password;
         const score = !p ? 0 : p.length < 10 ? 1 : (/[A-Z]/.test(p) + /[0-9]/.test(p) + /[^A-Za-z0-9]/.test(p) + (p.length >= 14)) >= 2 ? 3 : 2;
         strength.dataset.score = String(score);
-        meterText.textContent = !p ? "Use at least 10 characters." : score === 1 ? `${10 - p.length} more character${10 - p.length === 1 ? "" : "s"} needed.` : score === 2 ? "Okay. Add numbers or symbols to make it stronger." : "Strong password.";
+        meterText.textContent = tr(!p ? "Use at least 10 characters." : score === 1 ? `${10 - p.length} more character${10 - p.length === 1 ? "" : "s"} needed.` : score === 2 ? "Okay. Add numbers or symbols to make it stronger." : "Strong password.");
       };
       panel.replaceChildren(...[
         forgot
@@ -1766,7 +1788,7 @@
     const st = settings();
     const bal = balances();
     const out = h("div", { class: "stack" });
-    const group = (title, ...kids) => h("section", { class: "group" }, h("h2", { class: "group-title" }, title), h("div", { class: "card flush" }, ...kids));
+    const group = (title, ...kids) => h("section", { class: "group", "data-key": title }, h("h2", { class: "group-title" }, title), h("div", { class: "card flush" }, ...kids));
 
     const pending = S.outbox.length;
     out.append(group("Sync",
@@ -1842,7 +1864,33 @@
       h("button", { type: "button", class: "row-btn danger", on: { click: deleteAccountSheet } }, "Delete account"),
       h("button", { type: "button", class: "row-btn danger", on: { click: () => { if (armed) signOut(); else { S.armed = "signout"; render(); } } } },
         armed ? (pending ? `Sign out and lose ${pending} unsynced changes?` : "Tap again to sign out") : "Sign out")));
-    out.append(h("p", { class: "about" }, `My Wallet · Version ${VERSION}`));
+    const PAGES = [
+      ["general", "General", "Language, your name and currency", "gear", ["Language", "Your name", "Currency"]],
+      ["money", "Accounts and categories", "Accounts, categories and repeating entries", "bank", ["Accounts", "Spending categories", "Income categories", "Every month"]],
+      ["reminders", "Reminders", "Daily notification to log your spending", "bell", ["Reminders", "Daily reminder"]],
+      ["data", "Sync and backup", "Sync, export, import and restore", "sync", ["Sync", "Your data"]],
+      ["security", "Security and account", "App lock, password, privacy and sign out", "shield", ["Security", "Account"]],
+      ["admin", "Admin", "Users, activity and server health", "users", ["Admin"]]
+    ];
+    const sections = [...out.children].filter(el => el.dataset && el.dataset.key);
+    const page = PAGES.find(p => p[0] === S.setPage);
+    if (page) {
+      const keep = sections.filter(el => page[4].includes(el.dataset.key));
+      out.replaceChildren(
+        h("button", { type: "button", class: "back-row", on: { click: () => { S.setPage = null; render(); window.scrollTo(0, 0); } } }, icon("back", "ico"), h("span", null, "Settings")),
+        h("h2", { class: "page-title" }, page[1]),
+        ...keep);
+      return out;
+    }
+    const menu = h("section", { class: "card flush" });
+    for (const [id, title, sub, ic, keys] of PAGES) {
+      if (!sections.some(el => keys.includes(el.dataset.key))) continue;
+      menu.append(h("button", { type: "button", class: "row", on: { click: () => { S.setPage = id; render(); window.scrollTo(0, 0); } } },
+        h("span", { class: "dot neutral" }, icon(ic, "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), h("span", { class: "row-sub wrap" }, sub)),
+        icon("fwd")));
+    }
+    out.replaceChildren(menu, h("p", { class: "about" }, `My Wallet · Version ${VERSION}`));
     return out;
   }
 
@@ -2020,7 +2068,7 @@
           putMany(items); closeSheet(); toast(`${p.name} removed.`);
         } } }, armed === "delete" ? `Tap again to remove ${p.name} and their history` : "Remove person")));
 
-      keepFocus(() => body.replaceChildren(...kids));
+      keepFocus(() => body.replaceChildren(...kids.filter(Boolean)));
     };
     draw();
     openSheet(p.name, body);
@@ -2200,7 +2248,7 @@
           h("p", { class: "hint" }, "Deleting removes this account and every entry, account, person, shared page and reminder it has. This can't be undone."),
           input, del));
       }
-      keepFocus(() => body.replaceChildren(...kids));
+      keepFocus(() => body.replaceChildren(...kids.filter(Boolean)));
     };
     draw();
     openSheet(u.email || "User", body);
@@ -2427,7 +2475,7 @@
           ? [h("span", { class: "picked" }, h("span", { class: "picked-ico", style: { background: chosen.color } }, catGlyph(chosen, "ico")), chosen.name), conv ? h("span", { class: "conv" }, conv) : null]
           : v && needCat ? [h("span", { class: "nudge" }, "Now pick a category"), conv ? ` · ${conv}` : ""] : [conv || "\u00a0"]).filter(Boolean));
         const verb = { expense: "Save expense", income: "Save income", transfer: "Move money" }[f.kind];
-        saveBtn.textContent = !v ? tr("Type an amount") : needCat ? tr("Pick a category") : `${verb} · ${fmt(v, cur, { show: true })}`;
+        saveBtn.textContent = !v ? tr("Type an amount") : needCat ? tr("Pick a category") : `${tr(verb)} · ${fmt(v, cur, { show: true })}`;
         saveBtn.className = "btn " + f.kind + (!v || needCat ? " waiting" : "");
       };
       const pad = amountPad(cur, () => f.amount, v => { f.amount = v; }, refresh);
@@ -2468,7 +2516,7 @@
       if (showNote) kids.push(h("input", { id: "f-note", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: f.kind === "expense" ? "What was it?" : "Note", value: f.note, "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }));
       if (f.repeat) kids.push(h("p", { class: "hint" }, `Adds this automatically on day ${Math.min(28, Number(f.date.slice(8)) || 1)} of every month.`));
       kids.push(pad);
-      keepFocus(() => body.replaceChildren(...kids));
+      keepFocus(() => body.replaceChildren(...kids.filter(Boolean)));
       refresh();
     };
 
@@ -2574,7 +2622,7 @@
         kids.push(h("button", { type: "button", class: "btn alt", on: { click: () => { put("accounts", { ...a, archived: !a.archived }); closeSheet(); toast(a.archived ? "Account shown again." : "Account hidden. Its history stays."); } } }, a.archived ? "Show this account again" : "Hide this account"));
         if (!used) kids.push(h("button", { type: "button", class: "btn danger" + (armedDelete ? " sure" : ""), on: { click: () => { if (!armedDelete) { armedDelete = true; draw(); return; } removeRow("accounts", a); closeSheet(); toast("Account deleted."); } } }, armedDelete ? "Tap again to delete" : "Delete account"));
       }
-      keepFocus(() => body.replaceChildren(...kids));
+      keepFocus(() => body.replaceChildren(...kids.filter(Boolean)));
     };
     body.addEventListener("submit", ev => {
       ev.preventDefault();
@@ -2613,7 +2661,7 @@
       }
       kids.push(h("div", { class: "field" }, h("span", { class: "label" }, "Color"), h("div", { class: "swatches" }, COLORS.map(col => h("button", { type: "button", "aria-label": `Color ${col}`, "aria-pressed": String(f.color === col), style: { background: col }, on: { click: () => { f.color = col; draw(); } } })))), err, h("button", { type: "submit", class: "btn" }, c ? "Save category" : "Add category"));
       if (c) kids.push(h("button", { type: "button", class: "btn danger" + (armedDelete ? " sure" : ""), on: { click: () => { if (!armedDelete) { armedDelete = true; draw(); return; } removeRow("categories", c); closeSheet(); toast("Category deleted. Its entries show as Uncategorized."); } } }, armedDelete ? "Tap again to delete" : "Delete category"));
-      keepFocus(() => body.replaceChildren(...kids));
+      keepFocus(() => body.replaceChildren(...kids.filter(Boolean)));
     };
     body.addEventListener("submit", ev => {
       ev.preventDefault();
@@ -2647,7 +2695,7 @@
         h("button", { type: "submit", class: "btn" }, "Save"),
         h("button", { type: "button", class: "btn danger" + (armedDelete ? " sure" : ""), on: { click: () => { if (!armedDelete) { armedDelete = true; draw(); return; } removeRow("rules", r); closeSheet(); toast("Repeat stopped. Past entries are kept."); } } }, armedDelete ? "Tap again to stop it for good" : "Stop repeating")
       ];
-      keepFocus(() => body.replaceChildren(...kids));
+      keepFocus(() => body.replaceChildren(...kids.filter(Boolean)));
     };
     body.addEventListener("submit", ev => {
       ev.preventDefault();

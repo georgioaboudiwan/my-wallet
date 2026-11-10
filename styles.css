@@ -929,14 +929,6 @@ main.view:not(.enter) > * { animation: none; }
 .viewer { position: fixed; inset: 0; z-index: 40; background: rgb(3 12 9 / .94); display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 12px; padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px)); }
 .viewer img { width: 100%; height: 100%; object-fit: contain; border-radius: 14px; }
 .viewer-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 480px; width: 100%; margin: 0 auto; }
-@media (max-width: 899px) {
-  .dock .tabs { grid-template-columns: 1fr 1fr 68px 1fr 1fr; }
-  .dock .tabs .lens { width: calc((100% - 78px) / 4); }
-  .dock .add-btn { width: 68px; height: 56px; z-index: 1; }
-  .dock .add-btn .bubble { width: 50px; height: 50px; margin: auto; border-radius: 18px; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 34%, transparent); }
-  .dock .add-btn .bubble::before, .dock .add-btn .bubble::after { display: none; }
-  .dock .add-btn .ico { width: 24px; height: 24px; stroke-width: 2.4; color: var(--on-accent); }
-}
 
 .lang-row { padding: 10px 12px; }
 .lang-row > * { flex: 1; }
@@ -957,3 +949,21 @@ main.view:not(.enter) > * { animation: none; }
 [dir="rtl"] .card-head h2, [dir="rtl"] .group-title, [dir="rtl"] .quick h2 { letter-spacing: 0; }
 [dir="rtl"] .keypad, [dir="rtl"] .amount-display, [dir="rtl"] .income-big, [dir="rtl"] .month-top > span { direction: ltr; }
 [dir="rtl"] .amount-display { unicode-bidi: isolate; }
+
+@media (max-width: 899px) {
+  .dock { display: block; }
+  .dock .tabs { width: 100%; }
+  .dock .add-btn { position: absolute; inset-inline-end: 2px; bottom: calc(100% + 12px); width: auto; height: 58px; padding: 0 24px 0 18px; border-radius: 29px; display: inline-flex; align-items: center; gap: 8px; background: var(--accent); color: var(--on-accent); font: 700 17px var(--ui); box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 38%, transparent), 0 2px 6px rgb(0 0 0 / .12); }
+  .dock .add-btn .ico { width: 24px; height: 24px; stroke-width: 2.6; color: var(--on-accent); filter: none; }
+  .dock .add-btn:active { transform: scale(.95); }
+  main.view { padding-bottom: calc(196px + env(safe-area-inset-bottom, 0px)); }
+}
+.back-row { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; color: var(--accent); font: 650 16px var(--ui); padding: 6px 4px; min-height: 40px; justify-self: start; }
+.back-row .ico { width: 20px; height: 20px; }
+[dir="rtl"] .back-row .ico { transform: scaleX(-1); }
+.page-title { font-size: 24px; font-weight: 780; letter-spacing: -0.02em; margin-top: -6px; }
+.lang-pick { min-height: 100dvh; display: grid; align-content: center; justify-items: center; gap: 8px; padding: 32px 24px; text-align: center; }
+.lang-pick h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin: 8px 0 10px; }
+.lang-pick p { color: var(--muted); font-size: 16px; }
+.lang-list { display: grid; gap: 12px; width: 100%; max-width: 340px; margin-top: 22px; }
+.lang-list .btn { font-size: 18px; min-height: 58px; }
