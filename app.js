@@ -62,6 +62,12 @@
     link: "M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1",
     people: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8",
     chat: "M21 11.5a8.4 8.4 0 0 1-12.3 7.4L3 21l2.1-5.6A8.4 8.4 0 1 1 21 11.5z",
+    del: "M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zM17 9l-5 6M12 9l5 6",
+    check: "M5 12.5l4.5 4.5L19 7.5",
+    minus: "M5 12h14",
+    cal: "M3 9h18M8 3v4M16 3v4M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z",
+    note: "M4 20h4L18.5 9.5a2.8 2.8 0 0 0-4-4L4 16z",
+    repeat: "M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3",
     warn: "M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"
   };
 
@@ -416,7 +422,7 @@
   }
 
   function toast(msg) {
-    toastEl.textContent = msg;
+    toastEl.replaceChildren(icon("check", "ico sm"), h("span", null, msg));
     toastEl.classList.add("show");
     clearTimeout(toast.t);
     toast.t = setTimeout(() => toastEl.classList.remove("show"), 2800);
@@ -459,12 +465,14 @@
     const eye = h("button", { type: "button", class: "icon-btn", on: { click: () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); } } });
     const gear = h("button", { type: "button", class: "icon-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, icon("gear"));
     const main = h("main", { class: "view" });
-    const tab = (view, label, ic) => h("button", { type: "button", class: "tab", "data-view": view, on: { click: () => go(view) } }, icon(ic), label);
+    const tab = (view, label, ic) => h("button", { type: "button", class: "tab", "data-view": view, on: { click: () => go(view) } }, icon(ic), h("span", null, label));
     const tabs = [tab("home", "Home", "home"), tab("activity", "Activity", "list"), tab("insights", "Insights", "chart"), tab("people", "People", "people")];
     const add = h("button", { type: "button", class: "tab add", "aria-label": "Add an entry", on: { click: () => txnSheet(null) } }, h("span", { class: "bubble" }, icon("plus")));
     const nav = h("nav", { class: "tabs", "aria-label": "Sections" }, tabs[0], tabs[1], add, tabs[2], tabs[3]);
-    root.replaceChildren(h("div", { class: "shell" }, h("header", { class: "top" }, title, status, eye, gear), main, nav));
-    shell = { title, status, eye, main, tabs };
+    const top = h("header", { class: "top" }, title, status, eye, gear);
+    const ptr = h("div", { class: "ptr", "aria-hidden": "true" }, icon("sync"));
+    root.replaceChildren(h("div", { class: "shell" }, top, ptr, main, nav));
+    shell = { title, status, eye, main, tabs, top, ptr, lastView: null };
   }
 
   function renderStatus() {
@@ -504,6 +512,12 @@
     shell.eye.replaceChildren(icon(S.hidden ? "eyeOff" : "eye"));
     shell.eye.setAttribute("aria-label", S.hidden ? "Show amounts" : "Hide amounts");
     keepFocus(() => shell.main.replaceChildren(v.draw()));
+    if (shell.lastView !== S.view) {
+      shell.main.classList.remove("enter");
+      void shell.main.offsetWidth;
+      shell.main.classList.add("enter");
+      shell.lastView = S.view;
+    }
     for (const t of shell.tabs) t.setAttribute("aria-current", t.dataset.view === S.view ? "page" : "false");
     renderStatus();
   }
@@ -1046,65 +1060,53 @@
     return out;
   }
 
-  function personSheet(p) {
+  function personSheet(p, notice) {
     if (!p) return newPersonSheet();
     const body = h("div", { class: "form" });
-    const f = { mode: "more", amount: "", note: "", phone: p.phone || "", name: p.name, editing: false };
-    let notice = null;
+    const f = { phone: p.phone || "", name: p.name };
     let armed = null;
+    const openAmount = mode => {
+      const balance = loanBalances().get(p.id) || 0;
+      const cur = p.currency;
+      const back = mode === "back";
+      amountSheet({
+        title: back ? (owesMe(p) ? `${p.name} paid you back` : `You paid ${p.name} back`) : (owesMe(p) ? `You lent ${p.name} more` : `You borrowed more from ${p.name}`),
+        cur, max: back ? balance : null,
+        quick: cur === "LBP" ? [1e6, 5e6, 10e6] : [50, 100, 500, 1000],
+        verbFor: v => !v ? "Enter an amount" : back ? `Record ${fmt(v, cur, { show: true })} paid back` : `Add ${fmt(v, cur, { show: true })}`,
+        previewFor: v => `New balance: ${fmt(balance + (back ? -v : v), cur, { show: true })}`,
+        onSave: (v, note) => {
+          const amount = (cur === "LBP" ? Math.round(v) : v) * (back ? -1 : 1);
+          put("loan_entries", { id: newId(), person_id: p.id, amount, note, occurred_on: today(), created_at: new Date().toISOString() });
+          const next = balance + amount;
+          personSheet(S.data.people.get(p.id) || p, { title: next === 0 ? "Saved. All settled." : `Saved. Balance is now ${fmt(next, cur, { show: true })}.`, message: loanMessage(p, amount, next, note) });
+        }
+      });
+    };
     const draw = () => {
       p = S.data.people.get(p.id) || p;
       const balance = loanBalances().get(p.id) || 0;
       const cur = p.currency;
       const history = rows("loan_entries").filter(e => e.person_id === p.id).sort(byRecent);
       const kids = [];
-      kids.push(h("div", { class: "person-head" },
-        h("p", { class: "hint" }, balance === 0 ? "All settled" : owesMe(p) ? `${p.name} owes you` : `You owe ${p.name}`),
-        h("p", { class: "big num" }, fmt(balance, cur))));
+      kids.push(h("div", { class: "hero person-hero" + (balance === 0 ? " settled" : owesMe(p) ? "" : " owe") },
+        h("p", { class: "hero-label" }, balance === 0 ? "All settled" : owesMe(p) ? `${p.name} owes you` : `You owe ${p.name}`),
+        h("p", { class: "hero-total num" }, fmt(balance, cur, { show: true })),
+        history.length ? h("p", { class: "hero-sub" }, `Last change ${dayLabel(history[0].occurred_on).toLowerCase()}`) : null));
 
       if (notice) {
-        kids.push(h("div", { class: "notice" }, h("p", null, notice.title),
+        kids.push(h("div", { class: "notice" }, h("p", null, icon("check", "ico sm"), notice.title),
           h("div", { class: "btn-row" },
-            p.phone ? waButton(p.phone, notice.message, `Tell ${p.name}`) : null,
+            p.phone ? waButton(p.phone, notice.message, `Tell ${p.name}`, "wa") : null,
             h("button", { type: "button", class: "btn alt", on: { click: () => { notice = null; draw(); } } }, p.phone ? "Skip" : "OK")),
-          p.phone ? null : h("p", { class: "hint" }, "Add their WhatsApp number below to send updates.")));
+          p.phone ? null : h("p", { class: "hint" }, "Add their WhatsApp number in Details to send updates.")));
       }
 
-      const amt = h("input", { id: "f-pamt", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.amount, "aria-label": `Amount in ${cur === "LBP" ? "lira" : "dollars"}`, on: { input: e => { f.amount = e.target.value; refresh(); } } });
-      const preview = h("p", { class: "preview num" });
-      const submit = h("button", { type: "button", class: "btn" });
-      const refresh = () => {
-        const v = parseAmt(f.amount);
-        const back = f.mode === "back";
-        const tooMuch = back && v && v > balance;
-        submit.disabled = !v || tooMuch;
-        submit.textContent = !v ? "Enter an amount" : back ? `Record ${fmt(v, cur, { show: true })} paid back` : `Add ${fmt(v, cur, { show: true })}`;
-        preview.textContent = !v ? "" : tooMuch ? `That's more than the ${fmt(balance, cur, { show: true })} balance.` : `New balance: ${fmt(balance + (back ? -v : v), cur, { show: true })}`;
-      };
-      submit.addEventListener("click", () => {
-        const v = parseAmt(f.amount);
-        if (!v) return;
-        const back = f.mode === "back";
-        if (back && v > balance) return;
-        const amount = (cur === "LBP" ? Math.round(v) : v) * (back ? -1 : 1);
-        const note = f.note.trim().slice(0, 200) || null;
-        put("loan_entries", { id: newId(), person_id: p.id, amount, note, occurred_on: today(), created_at: new Date().toISOString() });
-        const next = balance + amount;
-        notice = { title: `Saved. ${next === 0 ? "All settled." : `Balance is now ${fmt(next, cur, { show: true })}.`}`, message: loanMessage(p, amount, next, note) };
-        f.amount = ""; f.note = "";
-        draw();
-      });
-      kids.push(h("div", { class: "form" },
-        seg([["more", owesMe(p) ? "Lent more" : "Borrowed more"], ["back", owesMe(p) ? "Paid me back" : "I paid back"]], f.mode, k => { f.mode = k; draw(); }, "Change type"),
-        h("label", { class: "amount", for: "f-pamt" }, h("span", { class: "cur" }, cur === "LBP" ? "LBP" : "$"), amt),
-        h("div", { class: "chips" },
-          (cur === "LBP" ? [1e6, 5e6, 10e6] : [100, 500, 1000]).map(n => h("button", { type: "button", class: "chip", on: { click: () => { f.amount = String(n); amt.value = f.amount; refresh(); } } }, fmt(n, cur, { show: true, compact: true }))),
-          f.mode === "back" && balance > 0 ? h("button", { type: "button", class: "chip", on: { click: () => { f.amount = String(balance); amt.value = f.amount; refresh(); } } }, "Full balance") : null),
-        h("input", { id: "f-pnote", class: "input", maxlength: "200", autocomplete: "off", placeholder: "What's it for? (optional)", value: f.note, "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }),
-        preview, submit));
-      refresh();
+      kids.push(h("div", { class: "actions" },
+        h("button", { type: "button", class: "action", on: { click: () => openAmount("more") } }, h("span", { class: "action-ico" }, icon("plus")), owesMe(p) ? "Lent more" : "Borrowed more"),
+        h("button", { type: "button", class: "action", disabled: balance <= 0, on: { click: () => openAmount("back") } }, h("span", { class: "action-ico in" }, icon("minus")), owesMe(p) ? "Paid me back" : "I paid back")));
 
-      if (p.phone) kids.push(waButton(p.phone, balanceMessage(p, balance), "Send balance on WhatsApp", "alt"));
+      if (p.phone) kids.push(waButton(p.phone, balanceMessage(p, balance), "Send balance on WhatsApp", "alt wa-alt"));
 
       const share = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Their private page")));
       if (p.share_token) {
@@ -1126,7 +1128,7 @@
         const v = Number(e.amount);
         const label = owesMe(p) ? (v > 0 ? "Lent" : "Paid back") : (v > 0 ? "Borrowed" : "Paid back");
         hist.append(h("div", { class: "row" },
-          h("span", { class: "row-main" }, h("span", { class: "row-title" }, e.note || label), h("span", { class: "row-sub" }, `${label} · ${dayLabel(e.occurred_on)}`)),
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, e.note || label), h("span", { class: "row-sub" }, e.note ? `${label} · ${dayLabel(e.occurred_on)}` : dayLabel(e.occurred_on))),
           h("span", { class: "row-end" + (v < 0 ? " pos" : "") }, (v > 0 ? "+" : "−") + fmt(Math.abs(v), cur)),
           h("button", { type: "button", class: "icon-btn", "aria-label": armed === e.id ? "Confirm delete" : "Delete entry", style: armed === e.id ? { color: "var(--neg)" } : null,
             on: { click: () => { if (armed !== e.id) { armed = e.id; draw(); return; } armed = null; removeRow("loan_entries", e); toast("Entry deleted."); draw(); } } }, icon(armed === e.id ? "warn" : "close"))));
@@ -1236,24 +1238,160 @@
   function closeSheet() {
     const o = document.querySelector(".overlay");
     if (!o) return;
+    const sheet = o.querySelector(".sheet");
+    if (sheet) { sheet.style.transition = ""; sheet.style.transform = ""; }
     o.classList.remove("open");
+    document.body.classList.remove("locked");
     document.removeEventListener("keydown", onSheetKey);
-    setTimeout(() => o.remove(), 260);
+    setTimeout(() => o.remove(), 320);
   }
-  function onSheetKey(e) { if (e.key === "Escape") closeSheet(); }
-  function openSheet(title, body) {
+  function onSheetKey(e) {
+    if (e.key === "Escape") return closeSheet();
+    if (e.target && e.target.closest && e.target.closest("input, textarea, select")) return;
+    const pad = document.querySelector(".overlay.open .keypad");
+    if (!pad || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (/^[0-9]$/.test(e.key)) { e.preventDefault(); pad.press(e.key); }
+    else if (e.key === "." || e.key === ",") { e.preventDefault(); pad.press("."); }
+    else if (e.key === "Backspace") { e.preventDefault(); pad.press("del"); }
+  }
+  function dragToClose(sheet) {
+    const body = sheet.querySelector(".sheet-body");
+    let y0 = null, dy = 0, t0 = 0, fromBody = false;
+    sheet.addEventListener("touchstart", e => {
+      y0 = null;
+      if (e.touches.length !== 1) return;
+      const inBody = body.contains(e.target);
+      if (inBody && (body.scrollTop > 0 || e.target.closest("input, textarea, .keypad, .chips, .cat-grid"))) return;
+      y0 = e.touches[0].clientY; dy = 0; t0 = Date.now(); fromBody = inBody;
+    }, { passive: true });
+    sheet.addEventListener("touchmove", e => {
+      if (y0 == null) return;
+      dy = e.touches[0].clientY - y0;
+      if (dy <= 0) { if (fromBody) y0 = null; sheet.style.transform = ""; return; }
+      if (fromBody && body.scrollTop > 0) { y0 = null; return; }
+      e.preventDefault();
+      sheet.style.transition = "none";
+      sheet.style.transform = `translateY(${dy}px)`;
+    }, { passive: false });
+    const end = () => {
+      if (y0 == null) return;
+      const v = dy / Math.max(1, Date.now() - t0);
+      sheet.style.transition = "";
+      y0 = null;
+      if (dy > 130 || (dy > 50 && v > 0.55)) closeSheet(); else sheet.style.transform = "";
+    };
+    sheet.addEventListener("touchend", end);
+    sheet.addEventListener("touchcancel", end);
+  }
+  function openSheet(title, body, footer) {
     document.querySelectorAll(".overlay").forEach(o => o.remove());
-    const overlay = h("div", { class: "overlay", on: { click: e => { if (e.target === overlay) closeSheet(); } } },
-      h("section", { class: "sheet", role: "dialog", "aria-modal": "true", "aria-label": title },
-        h("header", { class: "sheet-head" }, h("h2", null, title), h("button", { type: "button", class: "icon-btn", "aria-label": "Close", on: { click: closeSheet } }, icon("close"))),
-        h("div", { class: "sheet-body" }, body)));
+    const sheet = h("section", { class: "sheet", role: "dialog", "aria-modal": "true", "aria-label": title },
+      h("div", { class: "grab", "aria-hidden": "true" }),
+      h("header", { class: "sheet-head" }, h("h2", null, title), h("button", { type: "button", class: "icon-btn close", "aria-label": "Close", on: { click: closeSheet } }, icon("close"))),
+      h("div", { class: "sheet-body" }, body),
+      footer ? h("div", { class: "sheet-foot" }, footer) : null);
+    const overlay = h("div", { class: "overlay", on: { click: e => { if (e.target === overlay) closeSheet(); } } }, sheet);
     document.body.append(overlay);
+    document.body.classList.add("locked");
     document.addEventListener("keydown", onSheetKey);
+    dragToClose(sheet);
     requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add("open")));
   }
 
-  const seg = (options, value, onPick, label) => h("div", { class: "seg", role: "group", "aria-label": label },
-    options.map(([k, l, disabled]) => h("button", { type: "button", "aria-pressed": String(value === k), disabled: !!disabled, on: { click: () => onPick(k) } }, l)));
+  const seg = (options, value, onPick, label) => {
+    const idx = Math.max(0, options.findIndex(o => o[0] === value));
+    const thumb = h("span", { class: "seg-thumb", "aria-hidden": "true", style: { width: `calc((100% - 6px) / ${options.length})`, transform: `translateX(${idx * 100}%)` } });
+    const el = h("div", { class: "seg", role: "group", "aria-label": label }, thumb,
+      options.map(([k, l, disabled], i) => h("button", { type: "button", "aria-pressed": String(value === k), disabled: !!disabled, on: { click: () => {
+        if (k === value) return;
+        thumb.style.transform = `translateX(${i * 100}%)`;
+        el.querySelectorAll("button").forEach((b, j) => b.setAttribute("aria-pressed", String(j === i)));
+        setTimeout(() => onPick(k), 170);
+      } } }, l)));
+    return el;
+  };
+
+  const fmtTyped = v => {
+    if (!v) return "0";
+    const [i, d] = v.split(".");
+    const whole = Number(i || "0").toLocaleString("en-US");
+    return d !== undefined ? `${whole}.${d}` : whole;
+  };
+
+  function amountPad(cur, getV, setV, onChange) {
+    const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", cur === "LBP" ? "000" : ".", "0", "del"];
+    const press = k => {
+      let v = getV();
+      if (k === "del") v = v.slice(0, -1);
+      else if (k === ".") { if (cur === "LBP" || v.includes(".")) return; v = (v || "0") + "."; }
+      else if (k === "000") { if (!v || v === "0" || v.length > 11) return; v += "000"; }
+      else {
+        const [i, d] = v.split(".");
+        if (d !== undefined && d.length >= 2) return;
+        if (d === undefined && (i || "").length >= 13) return;
+        v = v === "0" ? k : v + k;
+      }
+      setV(v);
+      onChange();
+      const btn = pad.querySelector(`[data-k="${k}"]`);
+      if (btn) { btn.classList.remove("hit"); void btn.offsetWidth; btn.classList.add("hit"); }
+    };
+    let hold = null;
+    const pad = h("div", { class: "keypad", role: "group", "aria-label": "Number pad" },
+      keys.map(k => h("button", {
+        type: "button", class: "key" + (k === "del" ? " fn" : "") + (k === "000" ? " small" : ""), "data-k": k,
+        "aria-label": k === "del" ? "Delete. Hold to clear" : k === "." ? "Decimal point" : k,
+        on: {
+          click: () => press(k),
+          pointerdown: () => { if (k === "del") hold = setTimeout(() => { setV(""); onChange(); }, 550); },
+          pointerup: () => clearTimeout(hold),
+          pointerleave: () => clearTimeout(hold),
+          contextmenu: e => e.preventDefault()
+        }
+      }, k === "del" ? icon("del") : k)));
+    pad.press = press;
+    return pad;
+  }
+
+  function amountDisplay(cur, kind) {
+    const val = h("span", { class: "val" });
+    const el = h("div", { class: "amount-display " + (kind || ""), "aria-live": "polite" }, h("span", { class: "cur" }, cur === "LBP" ? "LBP" : "$"), val);
+    el.set = v => { val.textContent = fmtTyped(v); el.classList.toggle("empty", !v); el.classList.toggle("long", fmtTyped(v).length > 9); };
+    return el;
+  }
+
+  function amountSheet({ title, cur, max, quick, verbFor, previewFor, onSave }) {
+    const f = { amount: "", note: "" };
+    const body = h("form", { class: "form", id: "amt-form", novalidate: true });
+    const save = h("button", { type: "submit", class: "btn", form: "amt-form" });
+    const display = amountDisplay(cur);
+    const preview = h("p", { class: "preview num" });
+    const refresh = () => {
+      display.set(f.amount);
+      const v = parseAmt(f.amount);
+      const over = max != null && v && v > max;
+      save.disabled = !v || over;
+      save.textContent = verbFor(v);
+      preview.textContent = !v ? " " : over ? `That's more than the ${fmt(max, cur, { show: true })} balance.` : previewFor(v);
+      preview.classList.toggle("bad", !!over);
+    };
+    const pad = amountPad(cur, () => f.amount, v => { f.amount = v; }, refresh);
+    const setQuick = n => { f.amount = String(n); refresh(); };
+    body.append(display, preview,
+      h("div", { class: "chips center" },
+        quick.map(n => h("button", { type: "button", class: "chip", on: { click: () => setQuick(n) } }, fmt(n, cur, { show: true, compact: true }))),
+        max ? h("button", { type: "button", class: "chip", on: { click: () => setQuick(max) } }, "All of it") : null),
+      h("input", { id: "f-anote", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: "Add a note (optional)", "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }),
+      pad);
+    body.addEventListener("submit", ev => {
+      ev.preventDefault();
+      const v = parseAmt(f.amount);
+      if (!v || (max != null && v > max)) return;
+      onSave(v, f.note.trim().slice(0, 200) || null);
+    });
+    refresh();
+    openSheet(title, body, save);
+  }
 
   function txnSheet(x) {
     const st = settings();
@@ -1263,12 +1401,15 @@
     const f = x
       ? { kind: x.kind, amount: String(Number(x.amount)), account: x.account_id, to: x.to_account_id, toAmount: x.to_amount != null ? String(Number(x.to_amount)) : "", toTouched: true, category: x.category_id, date: x.occurred_on, note: x.note || "", repeat: false }
       : { kind: "expense", amount: "", account: null, to: null, toAmount: "", toTouched: false, category: null, date: today(), note: "", repeat: false };
+    if (x && x.currency === "LBP") f.amount = String(Math.round(Number(x.amount)));
     const usage = new Map();
     const cutoff = ymd(new Date(Date.now() - 90 * 864e5));
     for (const t of rows("transactions")) if (t.category_id && t.occurred_on >= cutoff) usage.set(t.category_id, (usage.get(t.category_id) || 0) + 1);
-    const body = h("form", { class: "form", novalidate: true });
+    const body = h("form", { class: "form txn", id: "txn-form", novalidate: true });
     const err = h("p", { class: "form-err", role: "alert" });
+    const saveBtn = h("button", { type: "submit", class: "btn", form: "txn-form" });
     let armedDelete = false;
+    let showNote = !!f.note;
 
     const pick = () => {
       if (!f.account || !acc(f.account)) f.account = lastAcc(f.kind) || accounts[0].id;
@@ -1284,54 +1425,52 @@
       pick();
       const a = acc(f.account);
       const cur = a.currency;
+      if (cur === "LBP" && f.amount.includes(".")) f.amount = f.amount.split(".")[0];
       const to = f.kind === "transfer" ? acc(f.to) : null;
       const cross = to && to.currency !== cur;
+      const display = amountDisplay(cur, f.kind);
       const preview = h("p", { class: "preview num" });
-      const saveBtn = h("button", { type: "submit", class: "btn" });
       const toInput = cross ? h("input", { id: "f-toamt", class: "input num", inputmode: "decimal", autocomplete: "off", value: f.toAmount, on: { input: e => { f.toAmount = e.target.value; f.toTouched = true; } } }) : null;
       const refresh = () => {
+        display.set(f.amount);
         const v = parseAmt(f.amount);
         if (v && cross && !f.toTouched) { f.toAmount = String(convert(v, cur, to.currency)); toInput.value = f.toAmount; }
-        preview.textContent = !v ? (f.amount.trim() ? "Use a number like 25 or 25.50." : "")
-          : cur === "LBP" ? `${fmt(v, "LBP", { show: true })} ≈ ${usd(v / st.rate, { show: true })}` : `≈ ${fmt(v * st.rate, "LBP", { show: true })}`;
+        preview.textContent = !v ? " " : cur === "LBP" ? `≈ ${usd(v / st.rate, { show: true })}` : `≈ ${fmt(v * st.rate, "LBP", { show: true })}`;
         const verb = { expense: "Save expense", income: "Save income", transfer: "Move money" }[f.kind];
         saveBtn.textContent = v ? `${verb} · ${fmt(v, cur, { show: true })}` : verb;
+        saveBtn.className = "btn " + f.kind;
       };
-      const amt = h("input", { id: "f-amt", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.amount, "aria-label": `Amount in ${cur === "LBP" ? "lira" : "dollars"}`, enterkeyhint: "done",
-        on: { input: e => { f.amount = e.target.value; refresh(); } } });
+      const pad = amountPad(cur, () => f.amount, v => { f.amount = v; }, refresh);
+      const accChips = (value, onPick, exclude) => h("div", { class: "chips" }, accounts.filter(o => o.id !== exclude).map(o =>
+        h("button", { type: "button", class: "chip", "aria-pressed": String(o.id === value), on: { click: () => onPick(o.id) } }, h("span", { class: "cur-tag" }, o.currency === "LBP" ? "ل" : "$"), o.name)));
 
-      const accChips = (value, onPick, exclude) => h("div", { class: "chips" }, accounts.filter(o => o.id !== exclude).map(o => h("button", { type: "button", class: "chip", "aria-pressed": String(o.id === value), on: { click: () => onPick(o.id) } }, o.name, h("small", null, o.currency))));
       const kids = [
         seg([["expense", "Expense"], ["income", "Income"], ["transfer", "Move", accounts.length < 2]], f.kind, k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; draw(); }, "Entry type"),
-        h("div", null,
-          h("label", { class: "amount", for: "f-amt" }, h("span", { class: "cur" }, cur === "LBP" ? "LBP" : "$"), amt),
-          cur === "LBP" ? h("div", { class: "chips", style: { marginTop: "8px" } },
-            [["000", "Add 000"], ["000000", "Add 000,000"]].map(([z, l]) => h("button", { type: "button", class: "chip", on: { click: () => { f.amount = (f.amount.replace(/[,\s]/g, "") || "1") + z; amt.value = f.amount; refresh(); amt.focus(); } } }, l))) : null,
-          preview),
-        h("div", { class: "field" }, h("span", { class: "label" }, f.kind === "income" ? "Into" : "From"), accChips(f.account, id => { f.account = id; f.toTouched = false; draw(); }))
+        display, preview
       ];
       if (f.kind === "transfer") {
+        kids.push(h("div", { class: "field" }, h("span", { class: "label" }, "From"), accChips(f.account, id => { f.account = id; f.toTouched = false; draw(); })));
         kids.push(h("div", { class: "field" }, h("span", { class: "label" }, "To"), accChips(f.to, id => { f.to = id; f.toTouched = false; draw(); }, f.account)));
-        if (cross) kids.push(h("label", { class: "field" }, h("span", null, `${to.name} receives (${to.currency})`), toInput, h("span", { class: "hint" }, `At LBP ${st.rate.toLocaleString("en-US")} for $1. Change it if you got a different rate.`)));
+        if (cross) kids.push(h("label", { class: "field" }, h("span", null, `${to.name} receives (${to.currency === "LBP" ? "LBP" : "$"})`), toInput, h("span", { class: "hint" }, `At LBP ${st.rate.toLocaleString("en-US")} for $1. Change it if you got a different rate.`)));
       } else {
         const cats = rows("categories").filter(c => c.kind === f.kind).sort((p, q) => (usage.get(q.id) || 0) - (usage.get(p.id) || 0) || bySort(p, q));
-        kids.push(h("div", { class: "field" }, h("span", { class: "label" }, "Category"),
-          cats.length ? h("div", { class: "chips wrap" }, cats.map(c => h("button", { type: "button", class: "chip", "aria-pressed": String(c.id === f.category), on: { click: () => { f.category = c.id; draw(); } } }, h("span", { class: "swatch", style: { background: c.color } }), c.name)))
-            : h("p", { class: "hint" }, "No categories yet. Add some in Settings.")));
+        kids.push(cats.length
+          ? h("div", { class: "cat-grid", role: "group", "aria-label": "Category" }, cats.map(c => h("button", { type: "button", class: "cat-btn", "aria-pressed": String(c.id === f.category), on: { click: () => { f.category = c.id; draw(); } } },
+            h("span", { class: "cat-ico", style: { background: c.color } }, c.name.charAt(0).toUpperCase()), h("span", { class: "cat-name" }, c.name))))
+          : h("p", { class: "hint" }, "No categories yet. Add some in Settings."));
+        kids.push(accChips(f.account, id => { f.account = id; draw(); }));
       }
       const yest = ymd(new Date(Date.now() - 864e5));
-      kids.push(
-        h("div", { class: "field" }, h("span", { class: "label" }, "Date"),
-          h("div", { class: "inline" },
-            h("button", { type: "button", class: "chip", "aria-pressed": String(f.date === today()), on: { click: () => { f.date = today(); draw(); } } }, "Today"),
-            h("button", { type: "button", class: "chip", "aria-pressed": String(f.date === yest), on: { click: () => { f.date = yest; draw(); } } }, "Yesterday"),
-            h("input", { id: "f-date", class: "input", type: "date", value: f.date, max: ymd(new Date(Date.now() + 366 * 864e5)), "aria-label": "Date", on: { change: e => { f.date = e.target.value; draw(); } } }))),
-        h("label", { class: "field" }, h("span", null, "Note"), h("input", { id: "f-note", class: "input", maxlength: "200", autocomplete: "off", placeholder: f.kind === "expense" ? "What was it? (optional)" : "Optional", value: f.note, on: { input: e => { f.note = e.target.value; } } })));
-      if (!x && f.kind !== "transfer") {
-        const day = Math.min(28, Number(f.date.slice(8)) || 1);
-        kids.push(h("label", { class: "check" }, h("input", { id: "f-repeat", type: "checkbox", checked: f.repeat, on: { change: e => { f.repeat = e.target.checked; } } }), `Repeat every month on day ${day}`));
-      }
-      kids.push(err, saveBtn);
+      const dateText = f.date === today() ? "Today" : f.date === yest ? "Yesterday" : dayLabel(f.date);
+      kids.push(h("div", { class: "chips meta" },
+        h("label", { class: "chip date-chip" }, icon("cal", "ico sm"), dateText,
+          h("input", { id: "f-date", type: "date", value: f.date, max: ymd(new Date(Date.now() + 366 * 864e5)), "aria-label": "Date", on: { change: e => { if (DATE_RE.test(e.target.value)) { f.date = e.target.value; draw(); } } } })),
+        f.date !== today() ? h("button", { type: "button", class: "chip", on: { click: () => { f.date = today(); draw(); } } }, "Today") : h("button", { type: "button", class: "chip", on: { click: () => { f.date = yest; draw(); } } }, "Yesterday"),
+        h("button", { type: "button", class: "chip", "aria-pressed": String(showNote), on: { click: () => { showNote = !showNote; draw(); if (showNote) document.getElementById("f-note").focus(); } } }, icon("note", "ico sm"), f.note ? f.note.slice(0, 18) + (f.note.length > 18 ? "…" : "") : "Note"),
+        !x && f.kind !== "transfer" ? h("button", { type: "button", class: "chip", "aria-pressed": String(f.repeat), on: { click: () => { f.repeat = !f.repeat; draw(); } } }, icon("repeat", "ico sm"), "Monthly") : null));
+      if (showNote) kids.push(h("input", { id: "f-note", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: f.kind === "expense" ? "What was it?" : "Note", value: f.note, "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }));
+      if (f.repeat) kids.push(h("p", { class: "hint" }, `Adds this automatically on day ${Math.min(28, Number(f.date.slice(8)) || 1)} of every month.`));
+      kids.push(pad, err);
       if (x) {
         kids.push(h("button", { type: "button", class: "btn danger" + (armedDelete ? " sure" : ""), on: { click: () => {
           if (!armedDelete) { armedDelete = true; draw(); return; }
@@ -1347,7 +1486,7 @@
       err.textContent = "";
       const a = acc(f.account);
       const amount = parseAmt(f.amount);
-      if (!amount) { err.textContent = "Enter an amount, like 25 or 25.50."; return; }
+      if (!amount) { err.textContent = "Enter an amount."; return; }
       if (!DATE_RE.test(f.date)) { err.textContent = "Pick a date."; return; }
       let toAmount = null;
       if (f.kind === "transfer") {
@@ -1355,7 +1494,7 @@
         if (!to || to.id === a.id) { err.textContent = "Pick a different account to move money to."; return; }
         toAmount = to.currency === a.currency ? amount : parseAmt(f.toAmount);
         if (!toAmount) { err.textContent = `Enter how much ${to.name} receives.`; return; }
-      } else if (!f.category) { err.textContent = "Pick a category."; return; }
+      } else if (!f.category) { err.textContent = "Pick a category."; body.querySelector(".cat-grid")?.scrollIntoView({ block: "nearest", behavior: "smooth" }); return; }
       const sameRate = x && x.currency === a.currency && Number(x.rate) > 0;
       const row = {
         id: x ? x.id : newId(),
@@ -1381,12 +1520,11 @@
       store.set("lastAcc:" + f.kind, a.id);
       putMany(items);
       closeSheet();
-      toast(x ? "Entry updated." : `${{ expense: "Expense", income: "Income", transfer: "Transfer" }[f.kind]} saved: ${fmt(row.amount, row.currency, { show: true })}.`);
+      toast(x ? "Entry updated." : `${{ expense: "Expense", income: "Income", transfer: "Transfer" }[f.kind]} saved · ${fmt(row.amount, row.currency, { show: true })}`);
     });
 
     draw();
-    openSheet(x ? "Edit entry" : "New entry", body);
-    if (!x) document.getElementById("f-amt").focus({ preventScroll: true });
+    openSheet(x ? "Edit entry" : "New entry", body, saveBtn);
   }
 
   function accountSheet(a) {
@@ -1638,5 +1776,28 @@
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => { });
 
   window.addEventListener("hashchange", () => location.reload());
+  window.addEventListener("scroll", () => { if (shell) shell.top.classList.toggle("scrolled", window.scrollY > 4); }, { passive: true });
+  (() => {
+    let y0 = null, dy = 0;
+    window.addEventListener("touchstart", e => {
+      y0 = null;
+      if (!shell || !S.session || window.scrollY > 0 || document.querySelector(".overlay") || e.touches.length !== 1) return;
+      y0 = e.touches[0].clientY; dy = 0;
+    }, { passive: true });
+    window.addEventListener("touchmove", e => {
+      if (y0 == null) return;
+      dy = Math.max(0, e.touches[0].clientY - y0);
+      const d = Math.min(80, dy * 0.45);
+      shell.ptr.style.transform = `translate(-50%, ${d}px) rotate(${d * 4}deg)`;
+      shell.ptr.style.opacity = String(Math.min(1, d / 55));
+      shell.ptr.classList.toggle("ready", d >= 55);
+    }, { passive: true });
+    window.addEventListener("touchend", () => {
+      if (y0 == null) return;
+      if (dy * 0.45 >= 55) sync();
+      shell.ptr.style.transform = ""; shell.ptr.style.opacity = ""; shell.ptr.classList.remove("ready");
+      y0 = null;
+    });
+  })();
   start();
 })();
