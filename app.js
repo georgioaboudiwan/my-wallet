@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "1.6.0";
+  const VERSION = "1.7.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -279,6 +279,7 @@
     return {
       main: CUR_RE.test(d.main || "") ? d.main : "USD",
       rates: { LBP: Number(d.rate) > 0 ? Number(d.rate) : 89500, ...(d.rates && typeof d.rates === "object" ? Object.fromEntries(Object.entries(d.rates).filter(([k, v]) => CUR_RE.test(k) && Number(v) > 0).map(([k, v]) => [k, Number(v)])) : {}) },
+      goals: Array.isArray(d.goals) ? d.goals.filter(g => g && typeof g.id === "string" && Number(g.target) > 0).slice(0, 12).map((g, i) => ({ id: g.id.slice(0, 40), name: String(g.name || "Goal").slice(0, 40), target: Number(g.target), saved: Math.max(0, Number(g.saved) || 0), by: /^\d{4}-\d{2}$/.test(g.by || "") ? g.by : "", color: /^#[0-9a-f]{6}$/i.test(g.color) ? g.color : COLORS[i % COLORS.length] })) : [],
       buckets: Array.isArray(d.buckets) && d.buckets.length
         ? d.buckets.filter(b => b && BUCKET_ID.test(b.id)).slice(0, 8).map((b, i) => ({ id: b.id, name: String(b.name || "Group").slice(0, 24), pct: Math.max(0, Math.min(100, Math.round(Number(b.pct) || 0))), color: /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : BUCKET_COLORS[i % BUCKET_COLORS.length], save: !!b.save }))
         : DEFAULT_BUCKETS.map(b => ({ ...b, pct: d.plan && Number.isFinite(d.plan[b.id]) ? d.plan[b.id] : b.pct })),
@@ -806,6 +807,218 @@
       h("span", { class: cls }, sign + fmt(Number(x.amount), x.currency), other));
   }
 
+  function budgetState(catId) {
+    const m = thisMonth();
+    const c = cat(catId);
+    const budget = c ? Number(c.budget) || 0 : 0;
+    const spent = monthStats(m).byCat.get(catId) || 0;
+    const safe = safeToSpend();
+    return { c: budget > 0 ? c : null, budget, ratio: budget > 0 ? spent / budget : 0, left: safe ? safe.left : 0 };
+  }
+
+  const monthsUntil = by => { const [y1, m1] = thisMonth().split("-").map(Number); const [y2, m2] = by.split("-").map(Number); return (y2 - y1) * 12 + (m2 - m1); };
+  const goalNeed = g => {
+    const left = Math.max(0, g.target - g.saved);
+    if (!left) return { left: 0, perMonth: 0, months: 0, late: false };
+    if (!g.by) return { left, perMonth: 0, months: 0, late: false };
+    const months = monthsUntil(g.by) + 1;
+    return { left, perMonth: months > 0 ? left / months : left, months: Math.max(0, months), late: months <= 0 };
+  };
+  const saveGoals = list => saveSettings({ goals: list });
+
+  function goalsCard(always) {
+    const goals = settings().goals;
+    if (!goals.length && !always) return null;
+    const card = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Savings goals"), h("button", { type: "button", class: "link-btn", on: { click: () => goalSheet(null) } }, "Add")));
+    for (const g of goals) {
+      const n = goalNeed(g);
+      const pct = Math.min(100, g.saved / g.target * 100);
+      card.append(h("button", { type: "button", class: "cat-row", on: { click: () => goalSheet(g) } },
+        h("div", { class: "cat-line" }, h("span", { class: "swatch", style: { background: g.color } }), h("span", { class: "name" }, g.name), h("span", { class: "val" }, `${money(g.saved, { whole: true })} / ${money(g.target, { whole: true })}`)),
+        h("div", { class: "bar" }, h("span", { style: { width: pct + "%", background: g.color } })),
+        h("span", { class: "goal-sub" + (n.late ? " neg" : "") }, !n.left ? "Goal reached" : n.late ? `${money(n.left, { whole: true })} to go · target date passed` : g.by ? `${money(n.perMonth, { whole: true })} a month until ${monthLabel(g.by)}` : `${money(n.left, { whole: true })} to go`)));
+    }
+    if (!goals.length) card.append(h("p", { class: "empty" }, "Set a target, such as an emergency fund or a trip, and see how much to put aside each month."));
+    return card;
+  }
+
+  function goalSheet(g) {
+    const st = settings();
+    const cur = mainCur();
+    const f = { name: g ? g.name : "", target: g ? String(g.target) : "", by: g ? g.by : "" };
+    const err = h("p", { class: "form-err", role: "alert" });
+    const body = h("form", { class: "form", id: "goal-form", novalidate: true });
+    const move = sign => amountSheet({
+      title: sign > 0 ? `Add to ${g.name}` : `Take out of ${g.name}`, cur, max: sign < 0 ? g.saved : null,
+      quick: [50, 100, 200, 500].map(n => roundCur(convert(n, "USD", cur), cur)),
+      verbFor: v => !v ? "Enter an amount" : sign > 0 ? `Add ${fmt(v, cur, { show: true })}` : `Take out ${fmt(v, cur, { show: true })}`,
+      previewFor: v => `Saved so far: ${fmt(g.saved + sign * v, cur, { show: true })} of ${fmt(g.target, cur, { show: true })}`,
+      onSave: v => {
+        const saved = Math.max(0, g.saved + sign * v);
+        saveGoals(st.goals.map(x => x.id === g.id ? { ...x, saved } : x));
+        closeSheet();
+        toast(saved >= g.target ? `${g.name} reached. Well done.` : `${g.name}: ${fmt(saved, cur, { show: true })} saved.`);
+      }
+    });
+    if (g) {
+      const n = goalNeed(g);
+      body.append(h("div", { class: "goal-top" },
+        h("p", { class: "income-big num" }, fmt(g.saved, cur, { whole: true })),
+        h("p", { class: "hint" }, `of ${fmt(g.target, cur, { whole: true, show: true })}${n.left ? ` · ${fmt(n.left, cur, { whole: true, show: true })} to go` : " · reached"}`),
+        h("div", { class: "bar" }, h("span", { style: { width: Math.min(100, g.saved / g.target * 100) + "%", background: g.color } })),
+        h("div", { class: "inline" },
+          h("button", { type: "button", class: "btn", on: { click: () => move(1) } }, "Add money"),
+          h("button", { type: "button", class: "btn alt", disabled: !(g.saved > 0), on: { click: () => move(-1) } }, "Take out"))));
+    }
+    body.append(
+      h("label", { class: "field" }, h("span", null, "Name"), h("input", { id: "g-name", class: "input", maxlength: "40", autocomplete: "off", placeholder: "e.g. Emergency fund", value: f.name, on: { input: e => { f.name = e.target.value; } } })),
+      h("label", { class: "field" }, h("span", null, `Target amount (${curSymbol(cur)})`), h("input", { id: "g-target", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "e.g. 5000", value: f.target, on: { input: e => { f.target = e.target.value; } } })),
+      h("label", { class: "field" }, h("span", null, "Target month (optional)"), h("input", { id: "g-by", class: "input", type: "month", min: thisMonth(), value: f.by, on: { input: e => { f.by = e.target.value; } } })),
+      err);
+    let armed = false;
+    const del = g ? h("button", { type: "button", class: "btn danger", on: { click: () => {
+      if (!armed) { armed = true; del.textContent = "Tap again to delete"; del.classList.add("sure"); return; }
+      saveGoals(st.goals.filter(x => x.id !== g.id)); closeSheet(); toast("Goal deleted.");
+    } } }, "Delete goal") : null;
+    if (del) body.append(del);
+    body.addEventListener("submit", ev => {
+      ev.preventDefault();
+      const name = f.name.trim();
+      const target = parseAmt(f.target);
+      if (!name) return fail(err, "Give the goal a name.", document.getElementById("g-name"));
+      if (!target) return fail(err, "Enter the target as a number, like 5000.", document.getElementById("g-target"));
+      if (f.by && !/^\d{4}-\d{2}$/.test(f.by)) return fail(err, "Pick a target month.", document.getElementById("g-by"));
+      if (!g && st.goals.length >= 12) return fail(err, "You can have up to 12 goals.");
+      const next = g
+        ? st.goals.map(x => x.id === g.id ? { ...x, name, target, by: f.by } : x)
+        : [...st.goals, { id: newId(), name, target, saved: 0, by: f.by, color: COLORS[st.goals.length % COLORS.length] }];
+      saveGoals(next);
+      closeSheet();
+      toast(g ? "Goal saved." : "Goal added.");
+    });
+    openSheet(g ? g.name : "New goal", body, h("button", { type: "submit", class: "btn", form: "goal-form" }, g ? "Save changes" : "Add goal"));
+  }
+
+  function upcomingRules(days) {
+    const t = today();
+    const end = ymd(new Date(Date.now() + days * 864e5));
+    return rows("rules").filter(r => r.active && acc(r.account_id) && DATE_RE.test(r.next_on) && r.next_on > t && r.next_on <= end).sort((a, b) => a.next_on.localeCompare(b.next_on));
+  }
+
+  function upcomingCard() {
+    const list = upcomingRules(7);
+    if (!list.length) return null;
+    const card = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Coming up this week")));
+    for (const r of list.slice(0, 4)) {
+      const c = cat(r.category_id);
+      const days = Math.round((new Date(r.next_on + "T12:00:00") - new Date(today() + "T12:00:00")) / 864e5);
+      card.append(h("button", { type: "button", class: "row", on: { click: () => ruleSheet(r) } },
+        h("span", { class: "dot", style: { background: c ? c.color : "#5b7083" } }, c ? catGlyph(c, "ico sm") : icon("repeat", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, r.note || (c ? c.name : "Repeating entry")), h("span", { class: "row-sub" }, days === 1 ? "Tomorrow" : `In ${days} days · ${dayLabel(r.next_on)}`)),
+        h("span", { class: "row-end " + (r.kind === "income" ? "pos" : "neg") }, (r.kind === "income" ? "+" : "−") + fmt(Number(r.amount), r.currency))));
+    }
+    return card;
+  }
+
+  function recapData(m) {
+    const s = monthStats(m);
+    const prev = monthStats(shiftMonth(m, -1));
+    const p = planFor(m);
+    let noSpend = 0;
+    for (let d = 1; d <= daysInMonth(m); d++) if (!s.days.has(`${m}-${pad(d)}`)) noSpend++;
+    const top = [...s.byCat].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id, v]) => ({ c: cat(id), v }));
+    return { s, prev, p, noSpend, top, change: prev.spent > 0 && s.spent > 0 ? Math.round((s.spent - prev.spent) / prev.spent * 100) : null };
+  }
+
+  function recapSheet(m) {
+    const d = recapData(m);
+    const left = d.s.income - d.s.spent;
+    const line = (k, v, cls) => h("div", { class: "cat-line" }, h("span", { class: "name" }, k), h("span", { class: "val" + (cls ? " " + cls : "") }, v));
+    const body = h("div", { class: "prose" },
+      h("div", { class: "tiles" },
+        h("div", { class: "tile" }, h("small", null, "Spent"), h("strong", null, money(d.s.spent, { whole: true }))),
+        h("div", { class: "tile" }, h("small", null, "Came in"), h("strong", null, money(d.s.income, { whole: true }))),
+        h("div", { class: "tile " + (left >= 0 ? "good" : "bad") }, h("small", null, left >= 0 ? "Left over" : "Overspent"), h("strong", null, money(Math.abs(left), { whole: true })))),
+      h("section", { class: "card" },
+        d.p.base > 0 ? line("Against your plan", d.s.spent <= d.p.base ? `${money(d.p.base - d.s.spent, { whole: true })} under` : `${money(d.s.spent - d.p.base, { whole: true })} over`, d.s.spent <= d.p.base ? "pos" : "neg") : null,
+        d.change != null ? line(`Compared with ${monthName(shiftMonth(m, -1))}`, d.change === 0 ? "The same" : `${Math.abs(d.change)}% ${d.change > 0 ? "more" : "less"}`, d.change > 0 ? "neg" : "pos") : null,
+        line("Days with no spending", `${d.noSpend} of ${daysInMonth(m)}`),
+        line("Expenses logged", String(d.s.count)),
+        d.s.biggest ? line("Biggest expense", `${money(txMain(d.s.biggest), { whole: true })} · ${(cat(d.s.biggest.category_id) || { name: "Uncategorized" }).name}`) : null),
+      d.top.length ? h("section", { class: "card" }, h("div", { class: "card-head" }, h("h2", null, "Top categories")),
+        d.top.map(t => h("div", { class: "cat-line" }, h("span", { class: "swatch", style: { background: t.c ? t.c.color : "#5b7083" } }), h("span", { class: "name" }, t.c ? t.c.name : "Uncategorized"), h("span", { class: "val" }, money(t.v, { whole: true })), h("span", { class: "pct" }, `${Math.round(t.v / d.s.spent * 100)}%`)))) : null,
+      d.p.base > 0 ? h("section", { class: "card" }, h("div", { class: "card-head" }, h("h2", null, "Plan groups")),
+        d.p.buckets.map(b => h("div", { class: "cat-line" }, h("span", { class: "swatch", style: { background: b.g.color } }), h("span", { class: "name" }, b.g.name), h("span", { class: "val" }, `${money(b.actual, { whole: true })} / ${money(b.planned, { whole: true })}`)))) : null);
+    openSheet(`${monthName(m)} summary`, body, h("button", { type: "button", class: "btn", on: { click: () => { closeSheet(); S.month = m; go("insights"); } } }, "Open full insights"));
+  }
+
+  function recapCard() {
+    const pm = shiftMonth(thisMonth(), -1);
+    if (Number(today().slice(8)) > 10 || store.get("recapSeen", "") === pm || !monthStats(pm).count) return null;
+    const d = recapData(pm);
+    const seen = () => store.set("recapSeen", pm);
+    return h("section", { class: "card recap" },
+      h("div", { class: "card-head" }, h("h2", null, `${monthName(pm)} summary`), h("button", { type: "button", class: "link-btn", on: { click: () => { seen(); render(); } } }, "Dismiss")),
+      h("p", null, `You spent ${money(d.s.spent, { whole: true })}${d.change != null && d.change !== 0 ? `, ${Math.abs(d.change)}% ${d.change > 0 ? "more" : "less"} than the month before` : ""}${d.p.base > 0 ? (d.s.spent <= d.p.base ? `, and stayed ${money(d.p.base - d.s.spent, { whole: true })} under plan.` : `, ${money(d.s.spent - d.p.base, { whole: true })} over plan.`) : "."}`),
+      h("button", { type: "button", class: "btn alt", on: { click: () => { seen(); recapSheet(pm); } } }, "See the summary"));
+  }
+
+  function netWorthSeries(m, count) {
+    const months = [];
+    for (let k = count - 1; k >= 0; k--) months.push(shiftMonth(m, -k));
+    const accounts = rows("accounts");
+    const txns = rows("transactions");
+    const people = new Map(rows("people").map(p => [p.id, p]));
+    const loans = rows("loan_entries");
+    return months.map(mm => {
+      const end = `${mm}-${pad(daysInMonth(mm))}`;
+      const b = new Map(accounts.map(a => [a.id, Number(a.opening_balance) || 0]));
+      const add = (id, v) => { if (b.has(id)) b.set(id, b.get(id) + v); };
+      for (const x of txns) {
+        if (x.occurred_on > end) continue;
+        const amt = Number(x.amount) || 0;
+        if (x.kind === "income") add(x.account_id, amt);
+        else if (x.kind === "expense") add(x.account_id, -amt);
+        else { add(x.account_id, -amt); if (x.to_account_id) add(x.to_account_id, Number(x.to_amount) || 0); }
+      }
+      let cash = 0;
+      for (const a of accounts) cash += toMain(b.get(a.id) || 0, a.currency);
+      let owed = 0;
+      for (const e of loans) {
+        const p = people.get(e.person_id);
+        if (!p || e.occurred_on > end) continue;
+        owed += toMain(Number(e.amount) || 0, p.currency) * (owesMe(p) ? 1 : -1);
+      }
+      return { m: mm, cash, owed, total: cash + owed };
+    });
+  }
+
+  function netWorthCard(m) {
+    const series = netWorthSeries(m, 6);
+    const vals = series.map(x => x.total);
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    if (!rows("accounts").length) return null;
+    const W = 320, H = 120, padX = 8, padY = 14;
+    const span = hi - lo || Math.max(1, Math.abs(hi));
+    const x = i => padX + i * (W - 2 * padX) / (series.length - 1);
+    const y = v => H - padY - (v - lo) / span * (H - 2 * padY);
+    const el = (tag, attrs) => { const n = document.createElementNS(SVGNS, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); return n; };
+    const pts = series.map((p, i) => `${x(i).toFixed(1)},${y(p.total).toFixed(1)}`);
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, class: "nw-chart", role: "img", "aria-label": series.map(p => `${monthName(p.m)}: ${money(p.total, { whole: true, show: true })}`).join(". "), preserveAspectRatio: "none" });
+    svg.append(el("path", { d: `M${pts[0]} L${pts.slice(1).join(" L")} L${x(series.length - 1).toFixed(1)},${H} L${x(0).toFixed(1)},${H} Z`, class: "nw-area" }),
+      el("path", { d: `M${pts[0]} L${pts.slice(1).join(" L")}`, class: "nw-line" }),
+      el("circle", { cx: x(series.length - 1).toFixed(1), cy: y(vals[vals.length - 1]).toFixed(1), r: "4", class: "nw-dot" }));
+    const last = series[series.length - 1];
+    const first = series[0];
+    const diff = last.total - first.total;
+    return h("section", { class: "card" },
+      h("div", { class: "card-head" }, h("h2", null, "Net worth"), h("span", { class: "hint num" }, diff === 0 ? "No change in 6 months" : `${diff > 0 ? "+" : "−"}${money(Math.abs(diff), { whole: true })} in 6 months`)),
+      h("p", { class: "income-big num" }, money(last.total, { whole: true })),
+      svg,
+      h("div", { class: "nw-labels" }, series.map(p => h("span", null, monthShort(p.m)))),
+      h("p", { class: "hint" }, last.owed !== 0 ? `Accounts ${money(last.cash, { whole: true })} ${last.owed > 0 ? "plus" : "minus"} ${money(Math.abs(last.owed), { whole: true })} ${last.owed > 0 ? "owed to you" : "you owe"}. Past months use today's exchange rates.` : "Your account balances at the end of each month, at today's exchange rates."));
+  }
+
   function viewHome() {
     const st = settings();
     const bal = balances();
@@ -865,6 +1078,11 @@
           h("span", { class: "fav-dot", style: { background: c.color } }, catGlyph(c, "ico sm")), c.name)))));
     }
 
+    const recap = recapCard();
+    if (recap) out.append(recap);
+    const coming = upcomingCard();
+    if (coming) out.append(coming);
+
     const alerts = rows("categories").filter(c => c.kind === "expense" && Number(c.budget) > 0)
       .map(c => ({ c, spent: s.byCat.get(c.id) || 0, budget: Number(c.budget) }))
       .filter(a => a.spent >= a.budget * 0.8)
@@ -906,6 +1124,9 @@
       txns.slice(0, 5).forEach(x => recent.append(txnRow(x)));
       out.append(recent);
     }
+
+    const goals = goalsCard(false);
+    if (goals) out.append(goals);
 
     const lb = loanBalances();
     const people = rows("people");
@@ -997,6 +1218,7 @@
       h("div", { class: "tile" }, h("small", null, "Spent"), h("strong", null, money(s.spent, { whole: true })), changeText ? h("span", null, changeText) : null),
       h("div", { class: "tile" }, h("small", null, "Came in"), h("strong", null, money(s.income, { whole: true }))),
       h("div", { class: "tile " + (left >= 0 ? "good" : "bad") }, h("small", null, left >= 0 ? "Left over" : "Overspent"), h("strong", null, money(Math.abs(left), { whole: true })))));
+    if (s.count) out.append(h("button", { type: "button", class: "btn alt", on: { click: () => recapSheet(m) } }, `${monthName(m)} summary`));
 
     const where = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Where it went")));
     const cats = [...s.byCat].sort((a, b) => b[1] - a[1]);
@@ -1023,6 +1245,9 @@
           h("div", { class: "col-bars" }, h("span", { class: "b-in", style: { height: (x.income / max * 100) + "%" } }), h("span", { class: "b-out", style: { height: (x.spent / max * 100) + "%" } })),
           h("span", { class: "col-label" }, monthShort(mm))))),
       h("div", { class: "legend" }, h("span", null, h("i", { class: "swatch b-out" }), "Spent"), h("span", null, h("i", { class: "swatch b-in" }), "Came in"))));
+
+    const nw = netWorthCard(m);
+    if (nw) out.append(nw);
 
     const isCur = m === thisMonth();
     const daysSoFar = isCur ? Number(today().slice(8)) : daysInMonth(m);
@@ -1064,6 +1289,7 @@
     out.append(incomeCard(m, p));
 
     out.append(planEditor());
+    out.append(goalsCard(true));
 
     if (m === thisMonth()) {
       const safe = safeToSpend();
@@ -1991,8 +2217,16 @@
       }
       items.unshift({ t: "transactions", r: row });
       store.set("lastAcc:" + f.kind, a.id);
+      const before = f.kind === "expense" ? budgetState(row.category_id) : null;
       putMany(items);
       closeSheet();
+      const after = before ? budgetState(row.category_id) : null;
+      const crossed = after && after.c
+        ? (after.ratio >= 1 && before.ratio < 1 ? `${after.c.name} is now over its ${money(after.budget, { whole: true, show: true })} budget.`
+          : after.ratio >= 0.8 && before.ratio < 0.8 ? `${after.c.name} has used ${Math.round(after.ratio * 100)}% of its budget.` : null)
+        : null;
+      const overPlan = after && after.left < 0 && before.left >= 0 ? "You're now over this month's plan." : null;
+      if (crossed || overPlan) return toast(crossed || overPlan, "error");
       toast(x ? "Entry updated." : `${{ expense: "Expense", income: "Income", transfer: "Transfer" }[f.kind]} saved · ${fmt(row.amount, row.currency, { show: true })}`);
     });
 

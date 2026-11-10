@@ -104,11 +104,36 @@ function localNow(tz: string) {
   return { date: `${parts.year}-${parts.month}-${parts.day}`, minutes: Number(parts.hour) * 60 + Number(parts.minute) };
 }
 
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+function nextDay(date: string) {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+async function dueTomorrow(userId: string, date: string) {
+  const { data: rules } = await sb.from("rules").select("amount, currency, note, category_id").eq("user_id", userId).eq("active", true).eq("next_on", nextDay(date)).is("deleted_at", null).limit(4);
+  if (!rules || !rules.length) return "";
+  const ids = [...new Set(rules.map(r => r.category_id).filter(Boolean))];
+  const { data: cats } = ids.length ? await sb.from("categories").select("id, name").in("id", ids) : { data: [] };
+  const names = new Map((cats ?? []).map(c => [c.id, c.name]));
+  const parts = rules.map(r => `${String(r.note || names.get(r.category_id) || "Repeating entry").slice(0, 40)} ${r.currency} ${Number(r.amount).toLocaleString("en-US", { maximumFractionDigits: 2 })}`);
+  return ` Due tomorrow: ${parts.join(", ")}.`;
+}
+
 async function reminderFor(sub: Sub, date: string) {
-  const { count } = await sb.from("transactions").select("id", { count: "exact", head: true }).eq("user_id", sub.user_id).eq("occurred_on", date).is("deleted_at", null);
+  const [{ count }, due] = await Promise.all([
+    sb.from("transactions").select("id", { count: "exact", head: true }).eq("user_id", sub.user_id).eq("occurred_on", date).is("deleted_at", null),
+    dueTomorrow(sub.user_id, date).catch(() => "")
+  ]);
+  if (date.slice(8) === "01") {
+    const prev = MONTHS[(Number(date.slice(5, 7)) + 10) % 12];
+    return { title: `Your ${prev} summary is ready`, body: `See how ${prev} went against your plan.${due}` };
+  }
   return count
-    ? { title: "Anything else today?", body: `You logged ${count} ${count === 1 ? "entry" : "entries"} today. Tap to add anything you missed.` }
-    : { title: "Log today's spending", body: "Nothing logged yet today. Tap to add what you spent." };
+    ? { title: "Anything else today?", body: `You logged ${count} ${count === 1 ? "entry" : "entries"} today. Tap to add anything you missed.${due}` }
+    : { title: "Log today's spending", body: `Nothing logged yet today. Tap to add what you spent.${due}` };
 }
 
 Deno.serve(async req => {
