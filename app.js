@@ -99,6 +99,12 @@
     restore: null, armed: null
   };
   let sb = null;
+  let renderQueued = false;
+  const scheduleRender = () => {
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(() => { renderQueued = false; render(); });
+  };
   let shell = null;
   let ver = 0;
   const memo = new Map();
@@ -259,7 +265,7 @@
     }
     ver++;
     save();
-    render();
+    scheduleRender();
     flushSoon();
   };
   const put = (t, r) => putMany([{ t, r }]);
@@ -312,7 +318,8 @@
   }
 
   async function pull() {
-    for (const t of TABLES) {
+    let changed = 0;
+    await Promise.all(TABLES.map(async t => {
       const since = S.last[t] ? new Date(new Date(S.last[t]).getTime() - 120000).toISOString() : "1970-01-01T00:00:00Z";
       let from = 0;
       let max = S.last[t] || null;
@@ -320,18 +327,21 @@
         const { data, error } = await sb.from(t).select("*").gte("updated_at", since).order("updated_at", { ascending: true }).order("id", { ascending: true }).range(from, from + 999);
         if (error) throw error;
         for (const r of data) {
-          if (r.deleted_at) S.data[t].delete(r.id); else S.data[t].set(r.id, r);
+          const prev = S.data[t].get(r.id);
+          if (r.deleted_at) { if (prev) { S.data[t].delete(r.id); changed++; } }
+          else if (!prev || prev.updated_at !== r.updated_at) { S.data[t].set(r.id, r); changed++; }
           if (!max || r.updated_at > max) max = r.updated_at;
         }
         if (data.length < 1000) break;
         from += 1000;
       }
       if (max) S.last[t] = max;
-    }
+    }));
     for (const o of S.outbox) {
       if (o.r.deleted_at) S.data[o.t].delete(o.r.id); else S.data[o.t].set(o.r.id, o.r);
     }
-    ver++;
+    if (changed) ver++;
+    return changed;
   }
 
   async function sync() {
@@ -340,14 +350,13 @@
     renderStatus();
     try {
       await flush();
-      await pull();
+      const changed = await pull();
       S.syncedAt = new Date().toISOString();
       store.set("syncedAt", S.syncedAt);
       S.syncError = false;
       ensureDefaults();
       runRules();
-      save();
-      render();
+      if (changed) { save(); scheduleRender(); }
     } catch {
       S.syncError = true;
     } finally {
@@ -388,7 +397,9 @@
     if (items.length) putMany(items);
   }
 
+  let balMemo = { ver: -1, value: null };
   function balances() {
+    if (balMemo.ver === ver) return balMemo.value;
     const b = new Map(rows("accounts").map(a => [a.id, Number(a.opening_balance) || 0]));
     const add = (id, v) => b.set(id, (b.get(id) || 0) + v);
     for (const x of rows("transactions")) {
@@ -400,6 +411,7 @@
         if (x.to_account_id) add(x.to_account_id, Number(x.to_amount) || 0);
       }
     }
+    balMemo = { ver, value: b };
     return b;
   }
 
@@ -555,7 +567,7 @@
 
   function render() {
     if (!CFG.supabaseUrl || !CFG.supabaseAnonKey) return renderSetup();
-    if (!S.session && !S.offline) return renderAuth();
+    if (!S.session && !S.offline && !S.booting) return renderAuth();
     if (!shell) buildShell();
     const v = VIEWS[S.view] || VIEWS.home;
     shell.title.textContent = v.title;
@@ -567,6 +579,8 @@
       void shell.main.offsetWidth;
       shell.main.classList.add("enter");
       shell.lastView = S.view;
+      clearTimeout(shell.enterTimer);
+      shell.enterTimer = setTimeout(() => shell && shell.main.classList.remove("enter"), 700);
     }
     for (const t of shell.tabs) t.setAttribute("aria-current", t.dataset.view === S.view ? "page" : "false");
     const tabIndex = ["home", "activity", "insights", "people"].indexOf(S.view === "plan" ? "insights" : S.view);
@@ -2098,14 +2112,20 @@
         if (S.uid === session.user.id) S.session = session;
       }
     });
+    let last = null;
+    try { last = localStorage.getItem("wallet:lastUser"); } catch { last = null; }
+    if (last) {
+      S.uid = last;
+      S.booting = true;
+      loadCache();
+      render();
+    }
     let session = null;
     try { const { data } = await sb.auth.getSession(); session = data.session; } catch { session = null; }
+    S.booting = false;
     if (session) setSession(session);
-    else {
-      let last = null;
-      try { last = localStorage.getItem("wallet:lastUser"); } catch { last = null; }
-      if (last && !navigator.onLine) { S.uid = last; S.offline = true; loadCache(); }
-    }
+    else if (last && !navigator.onLine) { S.offline = true; }
+    else if (last) { S.uid = null; shell = null; }
     render();
     if (S.session) sync();
     if (S.session && location.hash === "#add") { history.replaceState(null, "", location.pathname); txnSheet(null); }

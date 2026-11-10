@@ -1,4 +1,4 @@
-const CACHE = "wallet-shell-v25";
+const CACHE = "wallet-shell-v26";
 const ASSETS = [
   "./",
   "./index.html",
@@ -27,20 +27,23 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
-  event.respondWith(
-    fetch(event.request, { cache: "no-cache" })
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    const key = event.request.mode === "navigate" ? "./index.html" : event.request;
+    const cached = await cache.match(key, { ignoreSearch: true });
+    const network = fetch(event.request, { cache: "no-cache" })
       .then(response => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put(event.request, copy));
-        }
+        if (response.ok) cache.put(key, response.clone());
         return response;
       })
-      .catch(() => caches.match(event.request, { ignoreSearch: true })
-        .then(hit => hit || (event.request.mode === "navigate" ? caches.match("./index.html") : Response.error())))
-  );
+      .catch(() => null);
+    if (cached) {
+      event.waitUntil(network);
+      return cached;
+    }
+    return (await network) || Response.error();
+  })());
 });
-
 self.addEventListener("push", event => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch { data = {}; }

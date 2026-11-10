@@ -813,3 +813,21 @@ html { background: var(--bg); min-height: 100%; }
   .dock .tab, .dock .side-only { width: 100%; justify-items: start; align-items: center; justify-content: flex-start; }
   .dock .tab > span { position: static; }
 }
+
+body { background: var(--bg); background-attachment: scroll; }
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(70% 45% at 0% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
+    radial-gradient(60% 40% at 100% 30%, color-mix(in srgb, var(--gold) 14%, transparent), transparent 70%),
+    radial-gradient(70% 50% at 20% 100%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%);
+  transform: translateZ(0);
+}
+.bar span, .col-bars span { animation: none; }
+main.view.enter .bar span { animation: grow .6s var(--ease) both; }
+main.view.enter .col-bars span { animation: growUp .6s var(--ease) both; }
+main.view:not(.enter) > * { animation: none; }
+.glass { -webkit-backdrop-filter: blur(16px) saturate(1.7); backdrop-filter: blur(16px) saturate(1.7); }
+.tabs, .tool, .add-btn .bubble { will-change: transform; transform: translateZ(0); }
+.card, .tile, .hero { contain: layout paint; }
+.sheet-body { contain: layout; }
