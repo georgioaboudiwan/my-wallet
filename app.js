@@ -75,6 +75,7 @@
     work: "M3 8h18v12H3zM8 8V5h8v3M3 13h18",
     laptop: "M4 5h16v11H4zM2 19h20",
     coin: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v10M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .8-3 2s1.3 1.7 3 2 3 .9 3 2-1.3 2-3 2c-1.4 0-2.6-.6-3-1.6",
+    bell: "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0",
     trash: "M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3",
     del: "M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zM17 9l-5 6M12 9l5 6",
     check: "M5 12.5l4.5 4.5L19 7.5",
@@ -483,6 +484,7 @@
   function go(view) {
     S.view = view;
     S.armed = null;
+    if (view === "settings") PUSH.state = null;
     if (view === "insights" || view === "plan") S.month = S.month || thisMonth();
     render();
     window.scrollTo(0, 0);
@@ -1008,11 +1010,7 @@
 
     const nameIn = h("input", { id: "s-name", class: "input", maxlength: "40", autocomplete: "name", placeholder: "e.g. Georgio", value: st.name, "aria-label": "Your name",
       on: { change: e => { const v = e.target.value.trim().replace(/\s+/g, " ").slice(0, 40); saveSettings({ name: v }); toast("Name saved."); } } });
-    const remindTime = h("input", { id: "s-remind", class: "input time-input", type: "time", value: store.get("remindAt", "21:00"), "aria-label": "Reminder time", on: { change: e => { if (/^\d{2}:\d{2}$/.test(e.target.value)) store.set("remindAt", e.target.value); } } });
-    out.append(group("Daily reminder",
-      h("div", { class: "row" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Remind me to log my spending"), h("span", { class: "row-sub" }, "Every day at this time")), remindTime),
-      h("button", { type: "button", class: "row-btn", on: { click: () => addDailyReminder(remindTime.value) } }, "Add to my Calendar"),
-      h("p", { class: "row-sub", style: { padding: "0 16px 14px", whiteSpace: "normal" } }, "Opens your iPhone Calendar with a daily alert. Tap Add All to save it. To change the time later, delete the old one in Calendar and add a new one.")));
+    out.append(reminderGroup(group));
 
     out.append(group("Your name", h("div", { class: "row" }, h("span", { class: "row-main" }, nameIn, h("span", { class: "row-sub", style: { marginTop: "6px" } }, "Shown on the private pages you share")))));
 
@@ -1710,37 +1708,125 @@
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
-  function addDailyReminder(time) {
-    if (!/^\d{2}:\d{2}$/.test(time)) return toast("Pick a time first.", "error");
-    store.set("remindAt", time);
-    const d = new Date();
-    const [hh, mm] = time.split(":");
-    const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
-    const start = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${hh}${mm}00`;
-    const endD = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Number(hh), Number(mm) + 5);
-    const end = `${endD.getFullYear()}${pad(endD.getMonth() + 1)}${pad(endD.getDate())}T${pad(endD.getHours())}${pad(endD.getMinutes())}00`;
-    const app = location.origin + location.pathname;
-    const ics = [
-      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//My Wallet//Daily reminder//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
-      "BEGIN:VEVENT",
-      `UID:wallet-daily-${S.uid || "me"}@my-wallet`,
-      `DTSTAMP:${stamp}`,
-      `DTSTART:${start}`, `DTEND:${end}`,
-      "RRULE:FREQ=DAILY",
-      "SUMMARY:Log today's spending",
-      `DESCRIPTION:Open My Wallet and add what you spent today: ${app}`,
-      `URL:${app}`,
-      "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Log today's spending in My Wallet", "TRIGGER:PT0M", "END:VALARM",
-      "END:VEVENT", "END:VCALENDAR"
-    ].join("\r\n");
-    const file = new File([ics], "wallet-reminder.ics", { type: "text/calendar" });
-    const url = URL.createObjectURL(file);
-    const a = h("a", { href: url, download: "wallet-reminder.ics" });
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-    toast(`Reminder for ${time} every day. Tap Add All in Calendar.`);
+  const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const b64uToBytes = v => Uint8Array.from(atob(v.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((v.length + 3) % 4)), c => c.charCodeAt(0));
+  const deviceId = () => {
+    let id = null;
+    try { id = localStorage.getItem("wallet:device"); } catch { id = null; }
+    if (!id || !ID_RE.test(id)) { id = "dev-" + newId(); try { localStorage.setItem("wallet:device", id); } catch { } }
+    return id;
+  };
+  const PUSH = { state: null, time: null, busy: false, loading: false };
+
+  async function loadPushState() {
+    if (PUSH.loading) return;
+    PUSH.loading = true;
+    let state = "off", time = PUSH.time || "21:00";
+    try {
+      if (!pushSupported()) state = /iPhone|iPad|iPod/.test(navigator.userAgent) && !isStandalone() ? "install" : "unsupported";
+      else if (Notification.permission === "denied") state = "denied";
+      else {
+        const reg = await navigator.serviceWorker.getRegistration();
+        const sub = reg ? await reg.pushManager.getSubscription() : null;
+        const { data } = await sb.from("push_subs").select("enabled, remind_at").eq("id", deviceId()).maybeSingle();
+        if (data && data.remind_at) time = String(data.remind_at).slice(0, 5);
+        state = sub && data && data.enabled ? "on" : "off";
+      }
+    } catch { state = "off"; }
+    PUSH.state = state; PUSH.time = time; PUSH.loading = false;
+    if (S.view === "settings") render();
+  }
+
+  async function enablePush(time) {
+    if (PUSH.busy) return;
+    if (!navigator.onLine) return toast("Connect to the internet to turn on reminders.", "error");
+    PUSH.busy = true; render();
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") { PUSH.state = perm === "denied" ? "denied" : "off"; return toast("Notifications weren't allowed. Turn them on in iPhone Settings → Notifications → Wallet.", "error"); }
+      const { data: key, error } = await sb.rpc("push_public_key");
+      if (error || !key) return toast("Reminders aren't ready on the server yet. Finish the Supabase steps, then try again.", "error");
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      const appKey = b64uToBytes(key);
+      try {
+        if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
+      } catch {
+        if (sub) await sub.unsubscribe();
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
+      }
+      const j = sub.toJSON();
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Beirut";
+      await sb.from("push_subs").delete().eq("endpoint", j.endpoint).neq("id", deviceId());
+      const { error: e2 } = await sb.from("push_subs").upsert({ id: deviceId(), user_id: S.uid, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, remind_at: time, tz, enabled: true }, { onConflict: "id" });
+      if (e2) return toast("Couldn't save the reminder. Try again.", "error");
+      PUSH.state = "on"; PUSH.time = time;
+      toast(`Reminder set for ${time} every day.`);
+    } catch {
+      toast("Couldn't turn on notifications. Make sure My Wallet is opened from your Home Screen.", "error");
+    } finally {
+      PUSH.busy = false; render();
+    }
+  }
+
+  async function disablePush() {
+    if (PUSH.busy) return;
+    PUSH.busy = true; render();
+    try {
+      await sb.from("push_subs").update({ enabled: false }).eq("id", deviceId());
+      const reg = await navigator.serviceWorker.getRegistration();
+      const sub = reg ? await reg.pushManager.getSubscription() : null;
+      if (sub) await sub.unsubscribe();
+      PUSH.state = "off";
+      toast("Daily reminder turned off.");
+    } catch {
+      toast("Couldn't turn it off. Try again.", "error");
+    } finally {
+      PUSH.busy = false; render();
+    }
+  }
+
+  async function setPushTime(time) {
+    if (!/^\d{2}:\d{2}$/.test(time)) return;
+    PUSH.time = time;
+    if (PUSH.state !== "on") return;
+    const { error } = await sb.from("push_subs").update({ remind_at: time, last_sent: null }).eq("id", deviceId());
+    toast(error ? "Couldn't change the time. Try again." : `Reminder moved to ${time}.`, error ? "error" : undefined);
+  }
+
+  async function testPush() {
+    if (PUSH.busy) return;
+    PUSH.busy = true; render();
+    try {
+      const { data, error } = await sb.functions.invoke("send-reminders", { body: { test: true } });
+      if (error || !data || !data.sent) toast("The test didn't go through. Check the Supabase function is deployed.", "error");
+      else toast("Test sent. It should arrive in a few seconds.");
+    } catch {
+      toast("The test didn't go through. Check your connection.", "error");
+    } finally {
+      PUSH.busy = false; render();
+    }
+  }
+
+  function reminderGroup(group) {
+    if (PUSH.state === null) loadPushState();
+    const st = PUSH.state;
+    const on = st === "on";
+    const time = PUSH.time || "21:00";
+    const sw = h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(on), "aria-label": "Daily reminder", disabled: PUSH.busy || st === null || st === "install" || st === "unsupported",
+      on: { click: () => on ? disablePush() : enablePush(document.getElementById("s-remind").value || time) } }, h("span", { class: "knob" }));
+    const timeIn = h("input", { id: "s-remind", class: "input time-input", type: "time", value: time, "aria-label": "Reminder time", on: { change: e => setPushTime(e.target.value) } });
+    const sub = st === null ? "Checking…"
+      : on ? `Every day at ${time}. Tells you if nothing is logged yet.`
+      : st === "install" ? "Add My Wallet to your Home Screen first, then open it from there."
+      : st === "denied" ? "Notifications are blocked. Allow them in iPhone Settings → Notifications → Wallet."
+      : st === "unsupported" ? "This browser can't show notifications."
+      : "Get a notification to log what you spent.";
+    return group("Daily reminder",
+      h("div", { class: "row" }, h("span", { class: "dot gold" }, icon("bell", "ico sm")), h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Remind me every day"), h("span", { class: "row-sub wrap" }, sub)), sw),
+      h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("cal", "ico sm")), h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Time")), timeIn),
+      on ? h("button", { type: "button", class: "row-btn", disabled: PUSH.busy, on: { click: testPush } }, PUSH.busy ? "Sending…" : "Send a test notification") : null);
   }
 
   function exportCsv() {
@@ -1856,6 +1942,7 @@
     }
     render();
     if (S.session) sync();
+    if (S.session && location.hash === "#add") { history.replaceState(null, "", location.pathname); txnSheet(null); }
   }
 
   window.addEventListener("online", () => { if (S.offline || !S.session) recover(); else sync(); renderStatus(); });
@@ -1864,7 +1951,8 @@
   setInterval(() => { if (document.visibilityState === "visible" && S.session) sync(); }, 120000);
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => { });
 
-  window.addEventListener("hashchange", () => location.reload());
+  window.addEventListener("hashchange", () => { if (location.hash !== "#add" && location.hash !== "") location.reload(); });
+  if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", e => { if (e.data && e.data.type === "open-add" && S.session) txnSheet(null); });
   window.addEventListener("scroll", () => { if (shell) shell.top.classList.toggle("scrolled", window.scrollY > 4); }, { passive: true });
   (() => {
     let y0 = null, dy = 0;

@@ -1,4 +1,4 @@
-const CACHE = "wallet-shell-v11";
+const CACHE = "wallet-shell-v12";
 const ASSETS = [
   "./",
   "./index.html",
@@ -39,4 +39,31 @@ self.addEventListener("fetch", event => {
       .catch(() => caches.match(event.request, { ignoreSearch: true })
         .then(hit => hit || (event.request.mode === "navigate" ? caches.match("./index.html") : Response.error())))
   );
+});
+
+self.addEventListener("push", event => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { data = {}; }
+  const title = typeof data.title === "string" ? data.title.slice(0, 80) : "My Wallet";
+  const body = typeof data.body === "string" ? data.body.slice(0, 200) : "Tap to log what you spent today.";
+  event.waitUntil(self.registration.showNotification(title, {
+    body,
+    icon: "icons/icon-192.png",
+    badge: "icons/icon-192.png",
+    tag: "daily-reminder",
+    renotify: true,
+    data: { url: self.registration.scope }
+  }));
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  const target = self.registration.scope;
+  event.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const w of wins) {
+      if (w.url.startsWith(target)) { await w.focus(); w.postMessage({ type: "open-add" }); return; }
+    }
+    await self.clients.openWindow(target + "#add");
+  })());
 });
