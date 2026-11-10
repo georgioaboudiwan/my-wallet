@@ -38,3 +38,7 @@ language sql stable security definer set search_path = '' as $fn$
 $fn$;
 revoke all on function public.push_public_key() from public;
 grant execute on function public.push_public_key() to authenticated;
+
+grant select, update on public.push_keys to service_role;
+grant select, update, delete on public.push_subs to service_role;
+grant select on public.transactions to service_role;
