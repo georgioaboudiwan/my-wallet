@@ -62,6 +62,19 @@
     link: "M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1",
     people: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8",
     chat: "M21 11.5a8.4 8.4 0 0 1-12.3 7.4L3 21l2.1-5.6A8.4 8.4 0 1 1 21 11.5z",
+    cart: "M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L20 8H6.2M9 20h.01M17 20h.01",
+    wifi: "M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M2 9a15 15 0 0 1 20 0M12 19.5h.01",
+    bolt: "M13 2 4 14h7l-1 8 9-12h-7z",
+    car: "M5 17h14M6 17v2.5M18 17v2.5M4 13l2-6h12l2 6v4H4zM7.5 14h.01M16.5 14h.01",
+    heart: "M20.8 5.6a5 5 0 0 0-7.6.6L12 7.4l-1.2-1.2a5 5 0 0 0-7.6 6.5L12 21l8.8-8.3a5 5 0 0 0 0-7.1z",
+    cup: "M17 8h1a3 3 0 0 1 0 6h-1M3 8h14v6a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5zM7 2v3M11 2v3",
+    bag: "M6 7h12l1 13H5zM9 7a3 3 0 0 1 6 0",
+    star: "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z",
+    gift: "M3 9h18v4H3zM5 13v8h14v-8M12 9v12M12 9S10 4 7.5 4a2.5 2.5 0 0 0 0 5M12 9s2-5 4.5-5a2.5 2.5 0 0 1 0 5",
+    bank: "M3 21h18M5 21V10M19 21V10M9 21v-6M15 21v-6M2 10l10-6 10 6z",
+    work: "M3 8h18v12H3zM8 8V5h8v3M3 13h18",
+    laptop: "M4 5h16v11H4zM2 19h20",
+    coin: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v10M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .8-3 2s1.3 1.7 3 2 3 .9 3 2-1.3 2-3 2c-1.4 0-2.6-.6-3-1.6",
     trash: "M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3",
     del: "M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zM17 9l-5 6M12 9l5 6",
     check: "M5 12.5l4.5 4.5L19 7.5",
@@ -205,6 +218,16 @@
   const rows = t => [...S.data[t].values()];
   const acc = id => S.data.accounts.get(id);
   const cat = id => S.data.categories.get(id);
+  const CAT_ICON_KEYS = { groceries: "cart", home: "home", bills: "wifi", generator: "bolt", transport: "car", health: "heart", eating: "cup", shopping: "bag", fun: "star", subs: "repeat", gifts: "gift", debt: "bank", salary: "work", freelance: "laptop", giftsin: "gift", otherin: "coin" };
+  const CAT_ICON_WORDS = [[/grocer|food|super|market/i, "cart"], [/rent|home|house|apart/i, "home"], [/bill|internet|phone|mobile|wifi/i, "wifi"], [/generat|electric|power|ampere/i, "bolt"], [/fuel|petrol|car|transport|taxi|uber|bus/i, "car"], [/health|doctor|pharm|medic|hospital|gym/i, "heart"], [/eat|coffee|restaurant|lunch|dinner|cafe|drink/i, "cup"], [/shop|cloth|amazon/i, "bag"], [/fun|going out|movie|party|travel|trip/i, "star"], [/subscri|netflix|spotify|apple|icloud/i, "repeat"], [/gift|family/i, "gift"], [/loan|debt|bank|repay/i, "bank"], [/salary|work|job|wage/i, "work"], [/freelance|side|client/i, "laptop"]];
+  const catIconName = c => {
+    if (!c) return null;
+    const m = String(c.id).match(/:cat:([a-z]+)$/);
+    if (m && CAT_ICON_KEYS[m[1]]) return CAT_ICON_KEYS[m[1]];
+    const w = CAT_ICON_WORDS.find(([re]) => re.test(c.name));
+    return w ? w[1] : (c.kind === "income" ? "coin" : null);
+  };
+  const catGlyph = (c, cls = "ico") => { const n = catIconName(c); return n ? icon(n, cls) : (c ? c.name.charAt(0).toUpperCase() : "?"); };
   const settingsId = () => "settings:" + S.uid;
   const storedSettings = () => (S.data.settings.get(settingsId()) || {}).data || {};
   const settings = () => {
@@ -618,7 +641,7 @@
       dot = h("span", { class: "dot neutral" }, icon("swap", "ico sm"));
     } else {
       title = c ? c.name : (x.kind === "income" ? "Income" : "Uncategorized");
-      dot = h("span", { class: "dot", style: { background: c ? c.color : "#5b7083" } }, title.charAt(0).toUpperCase());
+      dot = h("span", { class: "dot", style: { background: c ? c.color : "#5b7083" } }, c ? catGlyph(c, "ico sm") : title.charAt(0).toUpperCase());
       sign = x.kind === "income" ? "+" : "−";
       if (x.kind === "income") cls += " pos";
     }
@@ -686,7 +709,7 @@
     for (const a of accounts) {
       const v = bal.get(a.id) || 0;
       accCard.append(h("button", { type: "button", class: "row", on: { click: () => { S.filter = { q: "", kind: "all", account: a.id }; go("activity"); } } },
-        h("span", { class: "dot neutral" }, a.currency === "LBP" ? "ل" : "$"),
+        h("span", { class: "dot neutral" }, a.currency === "LBP" ? "LL" : "$"),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, a.name), h("span", { class: "row-sub" }, KIND_LABEL[a.kind] || "")),
         h("span", { class: "row-end" + (v < 0 ? " neg" : "") }, fmt(v, a.currency), a.currency === "LBP" ? h("small", null, "≈ " + usd(v / st.rate, { whole: true })) : null)));
     }
@@ -962,13 +985,13 @@
       h("div", { class: "row" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, "LBP for $1"), h("span", { class: "row-sub" }, "Used for new entries and totals")), h("span", { style: { width: "130px" } }, rate))));
 
     const accRows = rows("accounts").sort((a, b) => (a.archived - b.archived) || bySort(a, b)).map(a => h("button", { type: "button", class: "row", on: { click: () => accountSheet(a) } },
-      h("span", { class: "dot neutral" }, a.currency === "LBP" ? "ل" : "$"),
+      h("span", { class: "dot neutral" }, a.currency === "LBP" ? "LL" : "$"),
       h("span", { class: "row-main" }, h("span", { class: "row-title" }, a.name), h("span", { class: "row-sub" }, [KIND_LABEL[a.kind], a.currency, a.archived ? "Hidden" : null].filter(Boolean).join(" · "))),
       h("span", { class: "row-end" }, fmt(bal.get(a.id) || 0, a.currency))));
     out.append(group("Accounts", ...accRows, h("button", { type: "button", class: "row-btn", on: { click: () => accountSheet(null) } }, "Add account")));
 
     const catRows = kind => rows("categories").filter(c => c.kind === kind).sort(bySort).map(c => h("button", { type: "button", class: "row", on: { click: () => categorySheet(c) } },
-      h("span", { class: "dot", style: { background: c.color } }, c.name.charAt(0).toUpperCase()),
+      h("span", { class: "dot", style: { background: c.color } }, catGlyph(c, "ico sm")),
       h("span", { class: "row-main" }, h("span", { class: "row-title" }, c.name), h("span", { class: "row-sub" }, kind === "expense" ? [BUCKETS[c.bucket || "wants"].name, Number(c.budget) ? `${usd(Number(c.budget), { whole: true })} a month` : null].filter(Boolean).join(" · ") : "Income"))));
     out.append(group("Spending categories", ...catRows("expense"), h("button", { type: "button", class: "row-btn", on: { click: () => categorySheet(null, "expense") } }, "Add category")));
     out.append(group("Income categories", ...catRows("income"), h("button", { type: "button", class: "row-btn", on: { click: () => categorySheet(null, "income") } }, "Add category")));
@@ -1457,14 +1480,17 @@
         if (v && cross && !f.toTouched) { f.toAmount = String(convert(v, cur, to.currency)); toInput.value = f.toAmount; }
         const needCat = f.kind !== "transfer" && !f.category;
         const conv = !v ? "" : cur === "LBP" ? `≈ ${usd(v / st.rate, { show: true })}` : `≈ ${fmt(v * st.rate, "LBP", { show: true })}`;
-        preview.replaceChildren(...(v && needCat ? [h("span", { class: "nudge" }, "Now pick a category"), conv ? ` · ${conv}` : ""] : [conv || "\u00a0"]));
+        const chosen = f.kind !== "transfer" && f.category ? cat(f.category) : null;
+        preview.replaceChildren(...(chosen
+          ? [h("span", { class: "picked" }, h("span", { class: "picked-ico", style: { background: chosen.color } }, catGlyph(chosen, "ico")), chosen.name), conv ? h("span", { class: "conv" }, conv) : null]
+          : v && needCat ? [h("span", { class: "nudge" }, "Now pick a category"), conv ? ` · ${conv}` : ""] : [conv || "\u00a0"]).filter(Boolean));
         const verb = { expense: "Save expense", income: "Save income", transfer: "Move money" }[f.kind];
         saveBtn.textContent = !v ? "Type an amount" : needCat ? "Pick a category" : `${verb} · ${fmt(v, cur, { show: true })}`;
         saveBtn.className = "btn " + f.kind + (!v || needCat ? " waiting" : "");
       };
       const pad = amountPad(cur, () => f.amount, v => { f.amount = v; }, refresh);
       const accChips = (value, onPick, exclude) => h("div", { class: "chips" }, accounts.filter(o => o.id !== exclude).map(o =>
-        h("button", { type: "button", class: "chip", "aria-pressed": String(o.id === value), on: { click: () => onPick(o.id) } }, h("span", { class: "cur-tag" }, o.currency === "LBP" ? "ل" : "$"), o.name)));
+        h("button", { type: "button", class: "chip", "aria-pressed": String(o.id === value), on: { click: () => onPick(o.id) } }, h("span", { class: "cur-tag" }, o.currency === "LBP" ? "LL" : "$"), o.name)));
 
       const kids = [
         seg([["expense", "Expense"], ["income", "Income"], ["transfer", "Move", accounts.length < 2]], f.kind, k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; draw(); }, "Entry type"),
@@ -1478,7 +1504,7 @@
         const cats = rows("categories").filter(c => c.kind === f.kind).sort((p, q) => (usage.get(q.id) || 0) - (usage.get(p.id) || 0) || bySort(p, q));
         kids.push(cats.length
           ? h("div", { class: "cat-grid", role: "group", "aria-label": "Category" }, cats.map(c => h("button", { type: "button", class: "cat-btn", "aria-pressed": String(c.id === f.category), on: { click: () => { f.category = c.id; draw(); } } },
-            h("span", { class: "cat-ico", style: { background: c.color } }, c.name.charAt(0).toUpperCase()), h("span", { class: "cat-name" }, c.name))))
+            h("span", { class: "cat-ico", style: { background: c.color } }, catGlyph(c)), h("span", { class: "cat-name" }, c.name))))
           : h("p", { class: "hint" }, "No categories yet. Add some in Settings."));
         kids.push(accChips(f.account, id => { f.account = id; draw(); }));
       }

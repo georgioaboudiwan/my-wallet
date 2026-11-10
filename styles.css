@@ -624,3 +624,15 @@ main.view { padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px)); }
 .sheet { background: color-mix(in srgb, var(--bg) 97%, transparent); }
 .add-btn .bubble::after { left: 22%; right: 22%; top: 7%; height: 32%; background: linear-gradient(rgb(255 255 255 / .28), rgb(255 255 255 / 0)); }
 html { background: var(--bg); min-height: 100%; }
+.cat-grid { grid-auto-columns: 86px; }
+.cat-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; text-overflow: clip; max-width: 84px; min-height: 2.4em; font-size: 12px; line-height: 1.2; }
+.cat-ico .ico { width: 23px; height: 23px; stroke-width: 2.1; }
+.dot .ico.sm { width: 19px; height: 19px; stroke-width: 2.2; }
+.preview { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.picked { display: inline-flex; align-items: center; gap: 7px; padding: 4px 12px 4px 4px; border-radius: 999px; background: var(--glass-strong); box-shadow: var(--glass-hi), 0 1px 4px rgb(12 44 34 / .06); color: var(--ink); font-weight: 700; font-size: 14px; animation: rise .3s var(--ease) both; }
+.picked-ico { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; color: #fff; }
+.picked-ico .ico { width: 14px; height: 14px; stroke-width: 2.4; }
+.conv { color: var(--muted); }
+.sheet.fill .cat-grid { gap: 0 4px; }
+.sheet.fill .cat-btn { gap: 4px; }
+.cur-tag { width: auto; min-width: 22px; padding: 0 4px; font-size: 11px; } .dot.neutral { font-size: 14px; }
