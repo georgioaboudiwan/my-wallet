@@ -482,12 +482,13 @@
     const main = h("main", { class: "view" });
     const tab = (view, label, ic) => h("button", { type: "button", class: "tab", "data-view": view, on: { click: () => go(view) } }, icon(ic), h("span", null, label));
     const tabs = [tab("home", "Home", "home"), tab("activity", "Activity", "list"), tab("insights", "Insights", "chart"), tab("people", "People", "people")];
-    const add = h("button", { type: "button", class: "tab add", "aria-label": "Add an entry", on: { click: () => txnSheet(null) } }, h("span", { class: "bubble" }, icon("plus")));
-    const nav = h("nav", { class: "tabs", "aria-label": "Sections" }, tabs[0], tabs[1], add, tabs[2], tabs[3]);
-    const top = h("header", { class: "top" }, title, status, eye, gear);
+    const add = h("button", { type: "button", class: "add-btn", "aria-label": "Add an entry", on: { click: () => txnSheet(null) } }, h("span", { class: "bubble" }, icon("plus")));
+    const lens = h("span", { class: "lens", "aria-hidden": "true" });
+    const nav = h("nav", { class: "dock", "aria-label": "Sections" }, h("div", { class: "tabs glass" }, lens, ...tabs), add);
+    const top = h("header", { class: "top" }, title, h("div", { class: "tool glass" }, status, eye, gear));
     const ptr = h("div", { class: "ptr", "aria-hidden": "true" }, icon("sync"));
     root.replaceChildren(h("div", { class: "shell" }, top, ptr, main, nav));
-    shell = { title, status, eye, main, tabs, top, ptr, lastView: null };
+    shell = { title, status, eye, main, tabs, top, ptr, lens, lastView: null };
   }
 
   function renderStatus() {
@@ -534,6 +535,9 @@
       shell.lastView = S.view;
     }
     for (const t of shell.tabs) t.setAttribute("aria-current", t.dataset.view === S.view ? "page" : "false");
+    const tabIndex = ["home", "activity", "insights", "people"].indexOf(S.view === "plan" ? "insights" : S.view);
+    shell.lens.style.opacity = tabIndex < 0 ? "0" : "1";
+    if (tabIndex >= 0) shell.lens.style.transform = `translateX(${tabIndex * 100}%)`;
     renderStatus();
   }
 
