@@ -1102,3 +1102,17 @@ main.view:not(.enter) > * { animation: none; }
 .remind-pill:active { transform: scale(.98); }
 .remind-pill > .ico { color: var(--faint); }
 .pill-cta { flex: none; padding: 8px 14px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 14px; font-weight: 700; }
+@media (max-width: 899px) {
+  .dock { display: flex; align-items: center; gap: 10px; }
+  .dock .tabs.glass { flex: 1 1 auto; width: auto; min-width: 0; }
+  .dock .add-btn, .dock .add-btn:active { position: static; flex: none; inset: auto; width: 64px; height: 64px; padding: 0; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(155deg, color-mix(in srgb, var(--accent) 78%, #fff), var(--accent) 62%); border: 1px solid rgb(255 255 255 / .38); box-shadow: 0 12px 28px color-mix(in srgb, var(--accent) 42%, transparent), 0 3px 8px rgb(0 0 0 / .16), inset 0 1px 0 rgb(255 255 255 / .45); color: var(--on-accent); transition: transform .14s var(--ease); }
+  .dock .add-btn:active { transform: scale(.92); }
+  .dock .add-btn .ico { width: 30px; height: 30px; stroke-width: 2.6; color: var(--on-accent); }
+  .dock .tab span { font-size: 11px; }
+  main.view { padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 380px) {
+  .dock { gap: 8px; }
+  .dock .add-btn, .dock .add-btn:active { width: 58px; height: 58px; }
+  .dock .tab span { font-size: 10px; }
+}

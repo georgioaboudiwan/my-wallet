@@ -1,4 +1,4 @@
-const CACHE = "wallet-shell-v49";
+const CACHE = "wallet-shell-v50";
 const ASSETS = [
   "./",
   "./index.html",
