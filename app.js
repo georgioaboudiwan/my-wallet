@@ -1008,6 +1008,12 @@
 
     const nameIn = h("input", { id: "s-name", class: "input", maxlength: "40", autocomplete: "name", placeholder: "e.g. Georgio", value: st.name, "aria-label": "Your name",
       on: { change: e => { const v = e.target.value.trim().replace(/\s+/g, " ").slice(0, 40); saveSettings({ name: v }); toast("Name saved."); } } });
+    const remindTime = h("input", { id: "s-remind", class: "input time-input", type: "time", value: store.get("remindAt", "21:00"), "aria-label": "Reminder time", on: { change: e => { if (/^\d{2}:\d{2}$/.test(e.target.value)) store.set("remindAt", e.target.value); } } });
+    out.append(group("Daily reminder",
+      h("div", { class: "row" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Remind me to log my spending"), h("span", { class: "row-sub" }, "Every day at this time")), remindTime),
+      h("button", { type: "button", class: "row-btn", on: { click: () => addDailyReminder(remindTime.value) } }, "Add to my Calendar"),
+      h("p", { class: "row-sub", style: { padding: "0 16px 14px", whiteSpace: "normal" } }, "Opens your iPhone Calendar with a daily alert. Tap Add All to save it. To change the time later, delete the old one in Calendar and add a new one.")));
+
     out.append(group("Your name", h("div", { class: "row" }, h("span", { class: "row-main" }, nameIn, h("span", { class: "row-sub", style: { marginTop: "6px" } }, "Shown on the private pages you share")))));
 
     const fileInput = h("input", { id: "s-restore", type: "file", accept: "application/json,.json", class: "vh", on: { change: onRestoreFile } });
@@ -1702,6 +1708,39 @@
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  function addDailyReminder(time) {
+    if (!/^\d{2}:\d{2}$/.test(time)) return toast("Pick a time first.", "error");
+    store.set("remindAt", time);
+    const d = new Date();
+    const [hh, mm] = time.split(":");
+    const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+    const start = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${hh}${mm}00`;
+    const endD = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Number(hh), Number(mm) + 5);
+    const end = `${endD.getFullYear()}${pad(endD.getMonth() + 1)}${pad(endD.getDate())}T${pad(endD.getHours())}${pad(endD.getMinutes())}00`;
+    const app = location.origin + location.pathname;
+    const ics = [
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//My Wallet//Daily reminder//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      `UID:wallet-daily-${S.uid || "me"}@my-wallet`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART:${start}`, `DTEND:${end}`,
+      "RRULE:FREQ=DAILY",
+      "SUMMARY:Log today's spending",
+      `DESCRIPTION:Open My Wallet and add what you spent today: ${app}`,
+      `URL:${app}`,
+      "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:Log today's spending in My Wallet", "TRIGGER:PT0M", "END:VALARM",
+      "END:VEVENT", "END:VCALENDAR"
+    ].join("\r\n");
+    const file = new File([ics], "wallet-reminder.ics", { type: "text/calendar" });
+    const url = URL.createObjectURL(file);
+    const a = h("a", { href: url, download: "wallet-reminder.ics" });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    toast(`Reminder for ${time} every day. Tap Add All in Calendar.`);
   }
 
   function exportCsv() {

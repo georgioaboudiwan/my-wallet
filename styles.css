@@ -636,3 +636,4 @@ html { background: var(--bg); min-height: 100%; }
 .sheet.fill .cat-grid { gap: 0 4px; }
 .sheet.fill .cat-btn { gap: 4px; }
 .cur-tag { width: auto; min-width: 22px; padding: 0 4px; font-size: 11px; } .dot.neutral { font-size: 14px; }
+.time-input { width: 116px; flex: none; text-align: center; font: 700 17px var(--nums); padding: 10px 8px; min-height: 44px; border-radius: 999px; }
