@@ -1745,8 +1745,14 @@
     try {
       const perm = await Notification.requestPermission();
       if (perm !== "granted") { PUSH.state = perm === "denied" ? "denied" : "off"; return toast("Notifications weren't allowed. Turn them on in iPhone Settings → Notifications → Wallet.", "error"); }
-      const { data: key, error } = await sb.rpc("push_public_key");
-      if (error || !key) return toast("Reminders aren't ready on the server yet. Finish the Supabase steps, then try again.", "error");
+      let { data: key, error } = await sb.rpc("push_public_key");
+      if (error) return toast("The reminders database isn't set up. Run step 1 (the first SQL) in Supabase.", "error");
+      if (!key) {
+        const init = await sb.functions.invoke("send-reminders", { body: { init: true } });
+        if (init.error) return toast("Can't reach the send-reminders function. Check step 2: it's deployed with that exact name and Verify JWT is off.", "error");
+        ({ data: key } = await sb.rpc("push_public_key"));
+        if (!key) return toast("The function ran but couldn't create its keys. Send me a screenshot of its Logs in Supabase.", "error");
+      }
       const reg = await navigator.serviceWorker.ready;
       let sub = await reg.pushManager.getSubscription();
       const appKey = b64uToBytes(key);
