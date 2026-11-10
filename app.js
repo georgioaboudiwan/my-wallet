@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "2.2.0";
+  const VERSION = "2.3.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -3255,7 +3255,21 @@
     if (S.offline) recover(); else sync();
   });
   setInterval(() => { if (document.visibilityState === "visible" && S.session) sync(); }, 120000);
-  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => { });
+  if ("serviceWorker" in navigator && location.protocol === "https:") {
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false, wantsReload = false;
+    const busy = () => !!document.querySelector(".overlay, .viewer") || (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
+    const applyUpdate = () => {
+      if (reloaded || !wantsReload) return;
+      if (busy()) return void setTimeout(applyUpdate, 4000);
+      reloaded = true;
+      location.reload();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController) { wantsReload = true; applyUpdate(); } });
+    navigator.serviceWorker.register("sw.js").then(reg => {
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reg.update().catch(() => { }); });
+    }).catch(() => { });
+  }
 
   const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
   const syncThemeColor = () => {
