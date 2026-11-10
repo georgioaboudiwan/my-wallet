@@ -1749,7 +1749,11 @@
       if (error) return toast("The reminders database isn't set up. Run step 1 (the first SQL) in Supabase.", "error");
       if (!key) {
         const init = await sb.functions.invoke("send-reminder", { body: { init: true } });
-        if (init.error) return toast("Can't reach the send-reminder function. Check step 2: it's deployed with that exact name and Verify JWT is off.", "error");
+        if (init.error) {
+          let detail = "";
+          try { const r = init.error.context; if (r && typeof r.json === "function") { const j = await r.json(); detail = [r.status, j.error, j.detail].filter(Boolean).join(" · "); } } catch { detail = ""; }
+          return toast(detail ? `Reminder server error: ${detail}` : "Can't reach the send-reminder function. Check it's deployed with that exact name.", "error");
+        }
         ({ data: key } = await sb.rpc("push_public_key"));
         if (!key) return toast("The function ran but couldn't create its keys. Send me a screenshot of its Logs in Supabase.", "error");
       }

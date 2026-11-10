@@ -2,7 +2,9 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const APP_URL = "https://georgioaboudiwan.github.io/my-wallet/";
 const APP_ORIGIN = "https://georgioaboudiwan.github.io";
-const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+const secretKeys = (() => { try { return JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}"); } catch { return {}; } })();
+const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || secretKeys.default || Object.values(secretKeys)[0];
+const sb = createClient(Deno.env.get("SUPABASE_URL")!, String(serviceKey || ""), { auth: { persistSession: false, autoRefreshToken: false } });
 const enc = new TextEncoder();
 
 const cors = {
@@ -67,7 +69,7 @@ type Sub = { id: string; user_id: string; endpoint: string; p256dh: string; auth
 
 async function loadKeys(): Promise<Keys> {
   const { data, error } = await sb.from("push_keys").select("public_key, private_jwk, cron_secret").eq("id", 1).single();
-  if (error || !data) throw new Error("push_keys row missing");
+  if (error || !data) throw new Error(error ? `push_keys: ${error.message}` : "push_keys row missing");
   if (data.public_key && data.private_jwk) return data as Keys;
   const pair = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
   const public_key = b64u(await crypto.subtle.exportKey("raw", pair.publicKey));
@@ -113,7 +115,8 @@ Deno.serve(async req => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST") return json({ error: "method" }, 405);
   let keys: Keys;
-  try { keys = await loadKeys(); } catch { return json({ error: "setup" }, 500); }
+  if (!serviceKey) return json({ error: "setup", detail: "No service key in the function environment" }, 500);
+  try { keys = await loadKeys(); } catch (e) { console.error("loadKeys", e); return json({ error: "setup", detail: String((e as Error)?.message || e).slice(0, 200) }, 500); }
 
   const secret = req.headers.get("x-cron-secret");
   if (secret && secret === keys.cron_secret) {
@@ -133,8 +136,8 @@ Deno.serve(async req => {
 
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (!token) return json({ error: "unauthorized" }, 401);
-  const { data: who } = await sb.auth.getUser(token);
-  if (!who?.user) return json({ error: "unauthorized" }, 401);
+  const { data: who, error: whoErr } = await sb.auth.getUser(token);
+  if (!who?.user) return json({ error: "unauthorized", detail: whoErr?.message || "no user" }, 401);
   const { data: mine } = await sb.from("push_subs").select("id, user_id, endpoint, p256dh, auth, remind_at, tz, last_sent").eq("user_id", who.user.id).eq("enabled", true);
   const results: number[] = [];
   for (const sub of (mine ?? []) as Sub[]) {
