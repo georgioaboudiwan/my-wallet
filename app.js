@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "1.5.1";
+  const VERSION = "1.6.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -680,6 +680,7 @@
     shell = null;
     let mode = "signin";
     let busy = false;
+    const notice = S.notice; S.notice = null;
     let showPass = false;
     let email = "";
     let password = "";
@@ -690,6 +691,7 @@
 
     const draw = () => {
       const create = mode === "create";
+      const forgot = mode === "forgot";
       const emailIn = h("input", { id: "a-email", type: "email", autocomplete: "username", inputmode: "email", autocapitalize: "none", spellcheck: "false", enterkeyhint: "next", placeholder: "Email", value: email, "aria-label": "Email",
         on: { input: e => { email = e.target.value; } } });
       const passIn = h("input", { id: "a-pass", type: showPass ? "text" : "password", autocomplete: create ? "new-password" : "current-password", enterkeyhint: "go", placeholder: create ? "New password (10+ characters)" : "Password", maxlength: "72", value: password, "aria-label": "Password",
@@ -705,13 +707,17 @@
         meterText.textContent = !p ? "Use at least 10 characters." : score === 1 ? `${10 - p.length} more character${10 - p.length === 1 ? "" : "s"} needed.` : score === 2 ? "Okay. Add numbers or symbols to make it stronger." : "Strong password.";
       };
       panel.replaceChildren(...[
-        seg([["signin", "Sign in"], ["create", "Create account"]], mode, k => { mode = k; err.textContent = ""; draw(); }, "Sign in or create an account"),
+        forgot
+          ? h("div", { class: "login-title" }, h("h2", null, "Reset your password"), h("p", null, "Enter your email and we'll send you a link to choose a new password."))
+          : seg([["signin", "Sign in"], ["create", "Create account"]], mode, k => { mode = k; err.textContent = ""; draw(); }, "Sign in or create an account"),
         h("div", { class: "login-fields" },
           field("a-email", "mail", emailIn),
-          field("a-pass", "lock", passIn, eye)),
+          forgot ? null : field("a-pass", "lock", passIn, eye)),
+        mode === "signin" ? h("button", { type: "button", class: "link-btn login-link", on: { click: () => { mode = "forgot"; err.textContent = ""; draw(); } } }, "Forgot password?") : null,
         create ? h("div", { class: "login-strength" }, strength, meterText) : null,
         err,
-        h("button", { class: "btn login-go", type: "submit", disabled: busy }, busy ? h("span", { class: "spinner", "aria-hidden": "true" }) : null, busy ? "One moment…" : create ? "Create account" : "Sign in"),
+        h("button", { class: "btn login-go", type: "submit", disabled: busy }, busy ? h("span", { class: "spinner", "aria-hidden": "true" }) : null, busy ? "One moment…" : forgot ? "Send reset link" : create ? "Create account" : "Sign in"),
+        forgot ? h("button", { type: "button", class: "link-btn login-link center", on: { click: () => { mode = "signin"; err.textContent = ""; draw(); } } }, "Back to sign in") : null,
         h("p", { class: "login-note" }, icon("shield", "ico sm"), h("span", null, "Your data is private and encrypted in transit."))].filter(Boolean));
       meter();
     };
@@ -723,6 +729,14 @@
       const target = email.trim().toLowerCase();
       if (!navigator.onLine) return fail(err, "You're offline. Connect to the internet to sign in.");
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target) || target.length > 254) return fail(err, "Enter a valid email address.", panel.querySelector(".login-field"));
+      if (mode === "forgot") {
+        busy = true; draw();
+        const { error } = await sb.auth.resetPasswordForEmail(target, { redirectTo: location.origin + location.pathname });
+        busy = false;
+        if (error && error.status === 429) { draw(); return fail(err, "Too many attempts. Wait a few minutes and try again."); }
+        mode = "signin"; draw();
+        return toast("If that email has an account, a reset link is on its way.");
+      }
       if (!password) return fail(err, "Enter your password.", panel.querySelectorAll(".login-field")[1]);
       if (mode === "create" && (password.length < 10 || password.length > 72)) return fail(err, "Use a password of at least 10 characters.", panel.querySelectorAll(".login-field")[1]);
       busy = true; draw();
@@ -749,6 +763,7 @@
     });
 
     draw();
+    if (notice) err.textContent = notice;
     root.replaceChildren(h("div", { class: "login" },
       h("header", { class: "login-hero" },
         h("div", { class: "login-brand" },
@@ -1319,8 +1334,17 @@
     out.append(group("Your data", ...dataKids));
 
     const armed = S.armed === "signout";
+    const locked = !!lockCfg();
+    const nav = (title, sub, fn, ic) => h("button", { type: "button", class: "row", on: { click: fn } }, h("span", { class: "dot neutral" }, icon(ic, "ico sm")), h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), sub ? h("span", { class: "row-sub" }, sub) : null), icon("fwd"));
+    out.append(group("Security",
+      h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("shield", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "App lock"), h("span", { class: "row-sub" }, lockSupported() ? "Ask for Face ID or your passcode when the app opens" : "Not available in this browser")),
+        h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(locked), "aria-label": "App lock", disabled: !lockSupported(), on: { click: () => (locked ? disableLock() : enableLock()) } }, h("span", { class: "knob" }))),
+      nav("Change password", null, passwordSheet, "lock"),
+      nav("Privacy and your data", "What is stored and who can see it", privacySheet, "eye")));
     out.append(group("Account",
       h("div", { class: "row" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, S.email || "Signed in"), h("span", { class: "row-sub" }, "Your data syncs to every device you sign in on"))),
+      h("button", { type: "button", class: "row-btn danger", on: { click: deleteAccountSheet } }, "Delete account"),
       h("button", { type: "button", class: "row-btn danger", on: { click: () => { if (armed) signOut(); else { S.armed = "signout"; render(); } } } },
         armed ? (pending ? `Sign out and lose ${pending} unsynced changes?` : "Tap again to sign out") : "Sign out")));
     out.append(h("p", { class: "about" }, `My Wallet · Version ${VERSION}`));
@@ -2350,6 +2374,168 @@
     }
   }
 
+  const passField = (id, placeholder, auto) => {
+    const input = h("input", { id, class: "input", type: "password", autocomplete: auto, maxlength: "72", placeholder, "aria-label": placeholder });
+    return input;
+  };
+
+  function renderNewPassword() {
+    shell = null;
+    const err = h("p", { class: "form-err", role: "alert" });
+    const input = passField("np-pass", "New password (10+ characters)", "new-password");
+    const btn = h("button", { class: "btn login-go", type: "submit" }, "Save new password");
+    const panel = h("form", { class: "login-panel solo", novalidate: true },
+      h("div", { class: "login-title" }, h("img", { class: "login-logo", src: "icons/icon-192.png", alt: "" }), h("h2", null, "Choose a new password"), h("p", null, S.email)),
+      h("div", { class: "login-fields" }, h("label", { class: "login-field", for: "np-pass" }, icon("lock", "ico"), input)),
+      err, btn);
+    panel.addEventListener("submit", async ev => {
+      ev.preventDefault();
+      const v = input.value;
+      if (v.length < 10) return fail(err, "Use a password of at least 10 characters.", panel.querySelector(".login-field"));
+      btn.disabled = true;
+      const { error } = await sb.auth.updateUser({ password: v });
+      btn.disabled = false;
+      if (error) return fail(err, /same|different/i.test(error.message || "") ? "Choose a password you haven't used here before." : /weak|pwned/i.test(error.message || "") ? "That password is too weak. Try a longer one." : "Couldn't save the password. Request a new link and try again.");
+      toast("Password changed. You're signed in.");
+      render();
+      sync();
+    });
+    root.replaceChildren(h("div", { class: "login" }, panel));
+    input.focus();
+  }
+
+  function passwordSheet() {
+    const err = h("p", { class: "form-err", role: "alert" });
+    const cur = passField("cp-cur", "Current password", "current-password");
+    const next = passField("cp-new", "New password (10+ characters)", "new-password");
+    const btn = h("button", { type: "submit", class: "btn", form: "cp-form" }, "Change password");
+    const body = h("form", { class: "form", id: "cp-form", novalidate: true },
+      h("label", { class: "field" }, h("span", null, "Current password"), cur),
+      h("label", { class: "field" }, h("span", null, "New password"), next),
+      err);
+    body.addEventListener("submit", async ev => {
+      ev.preventDefault();
+      if (!navigator.onLine) return fail(err, "Connect to the internet to change your password.");
+      if (!cur.value) return fail(err, "Enter your current password.", cur);
+      if (next.value.length < 10) return fail(err, "Use a new password of at least 10 characters.", next);
+      if (next.value === cur.value) return fail(err, "Choose a password different from the current one.", next);
+      btn.disabled = true;
+      const check = await sb.auth.signInWithPassword({ email: S.email, password: cur.value });
+      if (check.error || !check.data.session) { btn.disabled = false; return fail(err, check.error && check.error.status === 429 ? "Too many attempts. Wait a minute and try again." : "The current password isn't correct.", cur); }
+      setSession(check.data.session);
+      const { error } = await sb.auth.updateUser({ password: next.value });
+      btn.disabled = false;
+      if (error) return fail(err, /weak|pwned/i.test(error.message || "") ? "That password is too weak. Try a longer one." : "Couldn't change the password. Try again.");
+      closeSheet();
+      toast("Password changed.");
+    });
+    openSheet("Change password", body, btn);
+  }
+
+  const LOCK = { el: null, hiddenAt: 0, busy: false };
+  const lockSupported = () => !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext);
+  const lockCfg = () => { const c = store.get("lock", null); return c && typeof c.id === "string" ? c : null; };
+  const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const unb64 = str => Uint8Array.from(atob(str), c => c.charCodeAt(0));
+
+  async function verifyDevice() {
+    const cfg = lockCfg();
+    if (!cfg) return true;
+    try {
+      const got = await navigator.credentials.get({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), rpId: location.hostname, allowCredentials: [{ type: "public-key", id: unb64(cfg.id), transports: ["internal"] }], userVerification: "required", timeout: 60000 } });
+      return !!got;
+    } catch { return false; }
+  }
+
+  async function enableLock() {
+    if (!lockSupported()) return toast("This device can't lock the app with Face ID or a passcode.", "error");
+    try {
+      const cred = await navigator.credentials.create({ publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        rp: { name: "My Wallet", id: location.hostname },
+        user: { id: new TextEncoder().encode(S.uid).slice(0, 64), name: S.email || "My Wallet", displayName: "My Wallet" },
+        pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", residentKey: "discouraged" },
+        timeout: 60000, attestation: "none" } });
+      if (!cred) throw new Error("none");
+      store.set("lock", { id: b64(cred.rawId) });
+      toast("App lock is on. You'll be asked to unlock when you open the app.");
+    } catch {
+      toast("App lock wasn't turned on.", "error");
+    }
+    render();
+  }
+
+  async function disableLock() {
+    if (!(await verifyDevice())) return toast("Unlock first to turn off the app lock.", "error");
+    try { localStorage.removeItem(lsKey("lock")); } catch { }
+    toast("App lock turned off.");
+    render();
+  }
+
+  function showLock() {
+    if (LOCK.el || !lockSupported()) return;
+    const tryUnlock = async () => {
+      if (LOCK.busy) return;
+      LOCK.busy = true;
+      const ok = await verifyDevice();
+      LOCK.busy = false;
+      if (!ok) return;
+      LOCK.el.remove(); LOCK.el = null; LOCK.hiddenAt = 0;
+    };
+    LOCK.el = h("div", { class: "lock", role: "dialog", "aria-modal": "true", "aria-label": "My Wallet is locked" },
+      h("img", { class: "login-logo", src: "icons/icon-192.png", alt: "" }),
+      h("h2", null, "My Wallet is locked"),
+      h("p", null, "Unlock with Face ID, Touch ID or your device passcode."),
+      h("button", { type: "button", class: "btn", on: { click: tryUnlock } }, icon("lock", "ico"), "Unlock"),
+      h("button", { type: "button", class: "link-btn", on: { click: () => { LOCK.el.remove(); LOCK.el = null; signOut(); } } }, "Sign out instead"));
+    document.querySelectorAll(".overlay").forEach(o => o.remove());
+    document.body.classList.remove("locked");
+    document.body.append(LOCK.el);
+    tryUnlock();
+  }
+
+  function privacySheet() {
+    const part = (t, d) => h("div", { class: "prose-part" }, h("h3", null, t), h("p", null, d));
+    openSheet("Privacy and your data", h("div", { class: "prose" },
+      part("What is stored", "Your accounts, entries, categories, plan, the people you track and their balances, your settings, and your email address for signing in. Nothing else is collected. There are no ads and no tracking."),
+      part("Where it lives", "Your data is kept in the app's database and a copy stays on this device so the app works offline. It travels encrypted between your device and the server."),
+      part("Who can see it", "Only you, when signed in. Database rules limit every record to the account that owns it. The administrator who runs this app manages its database, and sees your email, sign-in dates and record counts in the admin dashboard."),
+      part("Private pages", "A private page you create for a person shows only that person's balance and history, to anyone who has the link. Turn the link off at any time and it stops working."),
+      part("Notifications", "If you turn on the daily reminder, this device's notification address is stored so the reminder can be delivered. Turning it off removes it."),
+      part("Your control", "Export your entries or a full backup at any time from Settings. Deleting your account removes it and all of its data permanently.")));
+  }
+
+  function deleteAccountSheet() {
+    const err = h("p", { class: "form-err", role: "alert" });
+    const pass = passField("da-pass", "Your password", "current-password");
+    const word = h("input", { id: "da-word", class: "input", autocomplete: "off", autocapitalize: "characters", spellcheck: "false", placeholder: "DELETE", "aria-label": "Type DELETE to confirm" });
+    const btn = h("button", { type: "submit", class: "btn danger sure", form: "da-form", disabled: true }, "Delete my account and all data");
+    word.addEventListener("input", () => { btn.disabled = word.value.trim().toUpperCase() !== "DELETE"; });
+    const body = h("form", { class: "form", id: "da-form", novalidate: true },
+      h("p", { class: "hint" }, "This permanently removes your account and every entry, account, person, private page and reminder in it. It can't be undone. Download a backup first if you want to keep a copy."),
+      h("label", { class: "field" }, h("span", null, "Password"), pass),
+      h("label", { class: "field" }, h("span", null, "Type DELETE to confirm"), word),
+      err);
+    body.addEventListener("submit", async ev => {
+      ev.preventDefault();
+      if (!navigator.onLine) return fail(err, "Connect to the internet to delete your account.");
+      if (!pass.value) return fail(err, "Enter your password.", pass);
+      btn.disabled = true;
+      const res = await sb.functions.invoke("account", { body: { action: "delete", confirm: "DELETE", password: pass.value } });
+      if (res.error) {
+        btn.disabled = false;
+        let msg = "Couldn't delete the account. Check your connection and try again.";
+        try { const r = res.error.context; if (r && typeof r.json === "function") { const j = await r.json(); if (j && j.error) msg = j.error; } } catch { }
+        return fail(err, msg);
+      }
+      closeSheet();
+      await signOut();
+      toast("Your account and all its data were deleted.");
+    });
+    openSheet("Delete account", body, btn);
+  }
+
   async function signOut() {
     S.armed = null;
     try { await sb.auth.signOut({ scope: "local" }); } catch { }
@@ -2395,6 +2581,17 @@
     });
     const shared = location.hash.match(/^#share=(.+)$/);
     if (shared) return renderShared(shared[1]);
+    const hp = new URLSearchParams(location.hash.slice(1));
+    if (hp.get("type") === "recovery" && hp.get("access_token") && hp.get("refresh_token")) {
+      history.replaceState(null, "", location.pathname);
+      let res = null;
+      try { res = await sb.auth.setSession({ access_token: hp.get("access_token"), refresh_token: hp.get("refresh_token") }); } catch { res = null; }
+      if (res && !res.error && res.data.session) { setSession(res.data.session); return renderNewPassword(); }
+      S.notice = "That reset link has expired. Request a new one.";
+    } else if (hp.get("error_code") || hp.get("error")) {
+      history.replaceState(null, "", location.pathname);
+      S.notice = "That reset link has expired or was already used. Request a new one.";
+    }
     sb.auth.onAuthStateChange((event, session) => {
       if (session && (event === "TOKEN_REFRESHED" || event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
         if (S.uid === session.user.id) S.session = session;
@@ -2415,13 +2612,18 @@
     else if (last && !navigator.onLine) { S.offline = true; }
     else if (last) { S.uid = null; shell = null; }
     render();
+    if (S.session && lockCfg()) showLock();
     if (S.session) sync();
     if (S.session && location.hash === "#add") { history.replaceState(null, "", location.pathname); txnSheet(null); }
   }
 
   window.addEventListener("online", () => { if (S.offline || !S.session) recover(); else sync(); renderStatus(); });
   window.addEventListener("offline", renderStatus);
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { if (S.offline) recover(); else sync(); } });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") { LOCK.hiddenAt = Date.now(); return; }
+    if (S.uid && lockCfg() && LOCK.hiddenAt && Date.now() - LOCK.hiddenAt > 60000) showLock();
+    if (S.offline) recover(); else sync();
+  });
   setInterval(() => { if (document.visibilityState === "visible" && S.session) sync(); }, 120000);
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => { });
 
