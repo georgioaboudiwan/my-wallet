@@ -45,10 +45,13 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
+  const VERSION = "1.4.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
     chart: "M3 3v18h18M7 15l4-4 3 3 6-6",
+    up: "M12 19V5M5 12l7-7 7 7",
+    down: "M12 5v14M5 12l7 7 7-7",
     plan: "M12 3a9 9 0 1 0 9 9h-9zM15 2.6A9 9 0 0 1 21.4 9H15z",
     plus: "M12 5v14M5 12h14",
     gear: "M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4",
@@ -700,8 +703,8 @@
           field("a-pass", "lock", passIn, eye)),
         create ? h("div", { class: "login-strength" }, strength, meterText) : null,
         err,
-        h("button", { class: "btn login-go", type: "submit", disabled: busy }, busy ? h("span", { class: "spinner", "aria-hidden": "true" }) : null, busy ? "One moment…" : create ? "Create my wallet" : "Sign in"),
-        h("p", { class: "login-note" }, icon("shield", "ico sm"), h("span", null, "Private to you. Everything is sent encrypted."))].filter(Boolean));
+        h("button", { class: "btn login-go", type: "submit", disabled: busy }, busy ? h("span", { class: "spinner", "aria-hidden": "true" }) : null, busy ? "One moment…" : create ? "Create account" : "Sign in"),
+        h("p", { class: "login-note" }, icon("shield", "ico sm"), h("span", null, "Your data is private and encrypted in transit."))].filter(Boolean));
       meter();
     };
 
@@ -722,13 +725,13 @@
       if (res.error) {
         draw();
         const m = String(res.error.message || "");
-        return fail(err, res.error.status === 429 ? "Too many tries. Wait a minute and try again."
+        return fail(err, res.error.status === 429 ? "Too many attempts. Wait a minute and try again."
           : /banned/i.test(m) ? "This account is blocked."
           : /not allowed|disabled/i.test(m) ? "New accounts are turned off for this wallet."
           : /registered|exists/i.test(m) ? "That email already has an account. Sign in instead."
           : /confirm/i.test(m) ? "Confirm your email first, using the link we sent you."
           : /weak|pwned|password/i.test(m) && mode === "create" ? "That password is too weak. Try a longer one."
-          : mode === "create" ? "We couldn't create the account. Try again." : "Wrong email or password.");
+          : mode === "create" ? "We couldn't create the account. Try again." : "Incorrect email or password.");
       }
       if (!res.data.session) { mode = "signin"; draw(); return fail(err, "Account created. Check your email to confirm it, then sign in."); }
       password = "";
@@ -745,7 +748,7 @@
           h("h1", null, "My Wallet"),
           h("p", null, "All your money, in any currency.")),
         h("div", { class: "login-card", "aria-hidden": "true" },
-          h("span", { class: "lc-label" }, "Everything you have"),
+          h("span", { class: "lc-label" }, "Total balance"),
           h("span", { class: "lc-total num" }, "$2,450"),
           h("span", { class: "lc-row" }, h("i", { class: "lc-bar a" }), h("i", { class: "lc-bar b" }), h("i", { class: "lc-bar c" }))),
         h("ul", { class: "login-perks" },
@@ -798,17 +801,46 @@
     const out = h("div", { class: "stack home-grid" });
 
     out.append(h("section", { class: "hero" },
-      h("p", { class: "hero-label" }, "Everything you have"),
+      h("p", { class: "hero-label" }, "Total balance"),
       h("p", { class: "hero-total num" }, money(total)),
       h("div", { class: "hero-hold" },
         [...holds].sort((p, q) => (q[0] === mainCur()) - (p[0] === mainCur()) || toMain(q[1], q[0]) - toMain(p[1], p[0])).map(([c, v]) => h("span", { class: "num", title: curInfo(c).name }, fmt(v, c, { compact: true }))))));
 
+    const act = (label, ic, tone, fn) => h("button", { type: "button", class: "act " + tone, on: { click: fn } }, h("span", { class: "act-ico" }, icon(ic)), h("span", null, label));
+    out.append(h("div", { class: "acts" },
+      act("Expense", "down", "neg", () => txnSheet(null, { kind: "expense" })),
+      act("Income", "up", "pos", () => txnSheet(null, { kind: "income" })),
+      act("Transfer", "swap", "gold", () => txnSheet(null, { kind: "transfer" })),
+      act("Plan", "plan", "plain", () => { S.month = m; go("plan"); })));
+
+    const spentToday = s.days.get(today()) || 0;
     out.append(h("div", { class: "tiles" },
-      h("button", { type: "button", class: "tile", on: { click: () => { S.month = m; go("insights"); } } }, h("small", null, `Spent in ${monthName(m)}`), h("strong", null, money(s.spent, { whole: true }))),
-      h("button", { type: "button", class: "tile", on: { click: () => { S.month = m; go("insights"); } } }, h("small", null, "Came in"), h("strong", null, money(s.income, { whole: true }))),
+      h("button", { type: "button", class: "tile", on: { click: () => { S.filter = { q: "", kind: "all", account: null }; go("activity"); } } }, h("small", null, "Spent today"), h("strong", null, money(spentToday, { whole: true }))),
+      h("button", { type: "button", class: "tile", on: { click: () => { S.month = m; go("insights"); } } }, h("small", null, `Spent in ${monthShort(m)}`), h("strong", null, money(s.spent, { whole: true }))),
       safe
         ? h("button", { type: "button", class: "tile " + (safe.left >= 0 ? "good" : "bad"), on: { click: () => { S.month = m; go("plan"); } } }, h("small", null, "Safe to spend"), h("strong", null, money(safe.perDay, { whole: true })), h("span", null, "per day"))
         : h("button", { type: "button", class: "tile", on: { click: () => go("plan") } }, h("small", null, "Safe to spend"), h("strong", null, "—"), h("span", null, "Set a plan"))));
+
+    const plan = planFor(m);
+    if (plan.base > 0) {
+      const left = plan.base - s.spent;
+      const pct = Math.min(100, Math.round(s.spent / plan.base * 100));
+      out.append(h("button", { type: "button", class: "card month-card", on: { click: () => { S.month = m; go("plan"); } } },
+        h("span", { class: "month-top" }, h("strong", null, `${monthName(m)} plan`), h("span", { class: left < 0 ? "neg" : "" }, left >= 0 ? `${money(left, { whole: true })} left` : `${money(-left, { whole: true })} over`)),
+        h("span", { class: "bar" }, h("span", { class: left < 0 ? "over" : "", style: { width: pct + "%" } })),
+        h("span", { class: "month-sub" }, `${money(s.spent, { whole: true })} of ${money(plan.base, { whole: true })} spent · ${safe ? safe.daysLeft : 0} days left`)));
+    }
+
+    const usage = new Map();
+    const cutoff = ymd(new Date(Date.now() - 90 * 864e5));
+    for (const t of txns) if (t.kind === "expense" && t.category_id && t.occurred_on >= cutoff) usage.set(t.category_id, (usage.get(t.category_id) || 0) + 1);
+    const favs = rows("categories").filter(c => c.kind === "expense").sort((p, q) => (usage.get(q.id) || 0) - (usage.get(p.id) || 0) || bySort(p, q)).slice(0, 6);
+    if (favs.length && accounts.length) {
+      out.append(h("section", { class: "quick" },
+        h("h2", null, "Quick add"),
+        h("div", { class: "chips" }, favs.map(c => h("button", { type: "button", class: "chip fav", on: { click: () => txnSheet(null, { kind: "expense", category: c.id }) } },
+          h("span", { class: "fav-dot", style: { background: c.color } }, catGlyph(c, "ico sm")), c.name)))));
+    }
 
     const alerts = rows("categories").filter(c => c.kind === "expense" && Number(c.budget) > 0)
       .map(c => ({ c, spent: s.byCat.get(c.id) || 0, budget: Number(c.budget) }))
@@ -823,11 +855,16 @@
     }
 
     if (!txns.length) {
-      out.append(h("section", { class: "card" },
+      out.append(h("section", { class: "card flush" },
         h("div", { class: "card-head" }, h("h2", null, "Get started")),
-        h("p", null, "1. Set how much is in each account now. 2. Add what you spend as you go. 3. Set your monthly plan."),
-        h("button", { type: "button", class: "btn", on: { click: () => txnSheet(null) } }, "Add your first expense"),
-        h("button", { type: "button", class: "btn alt", on: { click: () => go("settings") } }, "Set account balances")));
+        ...[
+          ["Set your opening balances", "Enter what each account holds today.", () => go("settings")],
+          ["Record your first expense", "It takes a few seconds.", () => txnSheet(null, { kind: "expense" })],
+          ["Set up your monthly plan", "Decide how your income is divided.", () => { S.month = m; go("plan"); }]
+        ].map(([t, d, fn], i) => h("button", { type: "button", class: "row step", on: { click: fn } },
+          h("span", { class: "dot neutral" }, String(i + 1)),
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, t), h("span", { class: "row-sub" }, d)),
+          icon("fwd")))));
     }
 
     const accCard = h("section", { class: "card flush col-a" }, h("div", { class: "card-head" }, h("h2", null, "Accounts"), h("button", { type: "button", class: "link-btn", on: { click: () => accountSheet(null) } }, "Add")));
@@ -852,10 +889,16 @@
     if (people.length) {
       let owed = 0, owe = 0;
       for (const p of people) { const v = toMain(lb.get(p.id) || 0, p.currency); if (owesMe(p)) owed += v; else owe += v; }
-      out.append(h("section", { class: "card flush" }, h("button", { type: "button", class: "row", on: { click: () => go("people") } },
-        h("span", { class: "dot neutral" }, icon("people", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "People"), h("span", { class: "row-sub" }, [owed ? `Owed to you ${money(owed, { whole: true })}` : null, owe ? `You owe ${money(owe, { whole: true })}` : null].filter(Boolean).join(" · ") || "All settled")),
-        icon("fwd"))));
+      const card = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "People"), h("button", { type: "button", class: "link-btn", on: { click: () => go("people") } }, "See all")));
+      card.append(h("p", { class: "row-note" }, [owed ? `Owed to you ${money(owed, { whole: true })}` : null, owe ? `You owe ${money(owe, { whole: true })}` : null].filter(Boolean).join(" · ") || "All settled"));
+      for (const p of people.slice().sort((x, y) => toMain(lb.get(y.id) || 0, y.currency) - toMain(lb.get(x.id) || 0, x.currency)).slice(0, 3)) {
+        const v = lb.get(p.id) || 0;
+        card.append(h("button", { type: "button", class: "row", on: { click: () => personSheet(p) } },
+          h("span", { class: "dot", style: { background: COLORS[(p.sort || 0) % COLORS.length] } }, p.name.charAt(0).toUpperCase()),
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" }, statusText(p, v))),
+          h("span", { class: "row-end" + (v > 0 && owesMe(p) ? " pos" : v > 0 ? " neg" : "") }, fmt(v, p.currency))));
+      }
+      out.append(card);
     }
     return out;
   }
@@ -882,7 +925,7 @@
         return [x.note, c && c.name, a && a.name, b && b.name, String(x.amount)].some(v => v && String(v).toLowerCase().includes(q));
       }).sort(byRecent);
       if (!matches.length) {
-        list.replaceChildren(h("p", { class: "empty" }, q || S.filter.kind !== "all" || S.filter.account ? "Nothing matches." : "No entries yet. Tap + to add one."));
+        list.replaceChildren(h("p", { class: "empty" }, q || S.filter.kind !== "all" || S.filter.account ? "No entries match your search." : "No entries yet. Tap + to add one."));
         return;
       }
       const shown = matches.slice(0, S.limit);
@@ -1244,6 +1287,7 @@
       h("div", { class: "row" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, S.email || "Signed in"), h("span", { class: "row-sub" }, "Your data syncs to every device you sign in on"))),
       h("button", { type: "button", class: "row-btn danger", on: { click: () => { if (armed) signOut(); else { S.armed = "signout"; render(); } } } },
         armed ? (pending ? `Sign out and lose ${pending} unsynced changes?` : "Tap again to sign out") : "Sign out")));
+    out.append(h("p", { class: "about" }, `My Wallet · Version ${VERSION}`));
     return out;
   }
 
@@ -1373,7 +1417,7 @@
           h("input", { id: "f-plink", class: "input", readOnly: true, value: url, hidden: true, style: { margin: "0 16px", width: "calc(100% - 32px)" } }),
           h("button", { type: "button", class: "row-btn", on: { click: () => copyText(url, "f-plink") } }, "Copy link"),
           p.phone ? h("a", { class: "row-btn", style: { display: "block", textDecoration: "none" }, href: waUrl(p.phone, linkMessage(p, p.share_token)), target: "_blank", rel: "noopener noreferrer" }, "Send link on WhatsApp") : null,
-          h("button", { type: "button", class: "row-btn danger", on: { click: () => { if (armed !== "unshare") { armed = "unshare"; draw(); return; } armed = null; put("people", { ...p, share_token: null }); toast("Link turned off."); draw(); } } }, armed === "unshare" ? "Tap again: the old link stops working" : "Turn off link"));
+          h("button", { type: "button", class: "row-btn danger", on: { click: () => { if (armed !== "unshare") { armed = "unshare"; draw(); return; } armed = null; put("people", { ...p, share_token: null }); toast("Link turned off."); draw(); } } }, armed === "unshare" ? "Tap again to turn off the link" : "Turn off link"));
       } else {
         share.append(h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `Make a link that shows ${p.name} only their own balance and history.`),
           h("button", { type: "button", class: "row-btn", on: { click: () => { put("people", { ...p, share_token: newToken() }); draw(); } } }, "Create private link"));
@@ -1406,7 +1450,7 @@
           if (phone && !PHONE_RE.test(phone)) return toast("Enter a number like 70 123 456, or +33 6 12 34 56 78 outside Lebanon.");
           put("people", { ...p, name, phone });
           f.phone = phone || "";
-          toast("Saved.");
+          toast("Changes saved.");
           draw();
         } } }, "Save details"),
         h("button", { type: "button", class: "btn danger" + (armed === "delete" ? " sure" : ""), on: { click: () => {
@@ -1480,7 +1524,7 @@
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, typeof e.note === "string" && e.note ? e.note : kind), h("span", { class: "row-sub" }, `${kind} · ${DATE_RE.test(String(e.date)) ? dayLabel(e.date) : ""}`)),
         h("span", { class: "row-end" + (v < 0 ? " neg" : " pos") }, (v > 0 ? "+" : "−") + fmt(Math.abs(v), cur, { show: true }))));
     }
-    if (!history.length) list.append(h("p", { class: "empty" }, "Nothing here yet."));
+    if (!history.length) list.append(h("p", { class: "empty" }, "No history yet."));
     box.className = "auth-box";
     box.replaceChildren(
       h("section", { class: "hero" },
@@ -1761,7 +1805,7 @@
     openSheet(title, body, save, { fill: true });
   }
 
-  function txnSheet(x) {
+  function txnSheet(x, preset) {
     const st = settings();
     const accounts = rows("accounts").filter(a => !a.archived || (x && (a.id === x.account_id || a.id === x.to_account_id))).sort(bySort);
     if (!accounts.length) { toast("Add an account first."); go("settings"); return; }
@@ -1769,6 +1813,7 @@
     const f = x
       ? { kind: x.kind, amount: String(Number(x.amount)), account: x.account_id, to: x.to_account_id, toAmount: x.to_amount != null ? String(Number(x.to_amount)) : "", toTouched: true, category: x.category_id, date: x.occurred_on, note: x.note || "", repeat: false }
       : { kind: "expense", amount: "", account: null, to: null, toAmount: "", toTouched: false, category: null, date: today(), note: "", repeat: false };
+    if (!x && preset) Object.assign(f, preset);
     if (x && curDec(x.currency) === 0) f.amount = String(Math.round(Number(x.amount)));
     const usage = new Map();
     const cutoff = ymd(new Date(Date.now() - 90 * 864e5));
@@ -1818,7 +1863,7 @@
         h("button", { type: "button", class: "chip", "aria-pressed": String(o.id === value), on: { click: () => onPick(o.id) } }, h("span", { class: "cur-tag" }, curTag(o.currency)), o.name)));
 
       const kids = [
-        seg([["expense", "Expense"], ["income", "Income"], ["transfer", "Move", accounts.length < 2]], f.kind, k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; draw(); }, "Entry type"),
+        seg([["expense", "Expense"], ["income", "Income"], ["transfer", "Transfer", accounts.length < 2]], f.kind, k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; draw(); }, "Entry type"),
         display, preview
       ];
       if (f.kind === "transfer") {
@@ -1996,7 +2041,7 @@
         h("label", { class: "check" }, h("input", { id: "f-ractive", type: "checkbox", checked: f.active, on: { change: e => { f.active = e.target.checked; } } }), "Add it automatically every month"),
         err,
         h("button", { type: "submit", class: "btn" }, "Save"),
-        h("button", { type: "button", class: "btn danger" + (armedDelete ? " sure" : ""), on: { click: () => { if (!armedDelete) { armedDelete = true; draw(); return; } removeRow("rules", r); closeSheet(); toast("Stopped. Past entries stay."); } } }, armedDelete ? "Tap again to stop it for good" : "Stop repeating")
+        h("button", { type: "button", class: "btn danger" + (armedDelete ? " sure" : ""), on: { click: () => { if (!armedDelete) { armedDelete = true; draw(); return; } removeRow("rules", r); closeSheet(); toast("Repeat stopped. Past entries are kept."); } } }, armedDelete ? "Tap again to stop it for good" : "Stop repeating")
       ];
       keepFocus(() => body.replaceChildren(...kids));
     };
@@ -2014,7 +2059,7 @@
       }
       put("rules", { ...r, amount: roundCur(amount, r.currency), day, note: f.note.trim().slice(0, 200) || null, active: f.active, next_on: next });
       closeSheet();
-      toast("Saved.");
+      toast("Changes saved.");
     });
     draw();
     openSheet("Monthly entry", body);
@@ -2073,16 +2118,14 @@
       const perm = await Notification.requestPermission();
       if (perm !== "granted") { PUSH.state = perm === "denied" ? "denied" : "off"; return toast("Notifications weren't allowed. Turn them on in iPhone Settings → Notifications → Wallet.", "error"); }
       let { data: key, error } = await sb.rpc("push_public_key");
-      if (error) return toast("The reminders database isn't set up. Run step 1 (the first SQL) in Supabase.", "error");
+      if (error) return toast("Reminders are unavailable right now. Try again later.", "error");
       if (!key) {
         const init = await sb.functions.invoke("send-reminder", { body: { init: true } });
         if (init.error) {
-          let detail = "";
-          try { const r = init.error.context; if (r && typeof r.json === "function") { const j = await r.json(); detail = [r.status, j.error, j.detail].filter(Boolean).join(" · "); } } catch { detail = ""; }
-          return toast(detail ? `Reminder server error: ${detail}` : "Can't reach the send-reminder function. Check it's deployed with that exact name.", "error");
+          return toast("Reminders are unavailable right now. Try again later.", "error");
         }
         ({ data: key } = await sb.rpc("push_public_key"));
-        if (!key) return toast("The function ran but couldn't create its keys. Send me a screenshot of its Logs in Supabase.", "error");
+        if (!key) return toast("Reminders are unavailable right now. Try again later.", "error");
       }
       const reg = await navigator.serviceWorker.ready;
       let sub = await reg.pushManager.getSubscription();
@@ -2137,10 +2180,10 @@
     PUSH.busy = true; render();
     try {
       const { data, error } = await sb.functions.invoke("send-reminder", { body: { test: true } });
-      if (error || !data || !data.sent) toast("The test didn't go through. Check the Supabase function is deployed.", "error");
+      if (error || !data || !data.sent) toast("The test notification couldn't be sent. Try again in a moment.", "error");
       else toast("Test sent. It should arrive in a few seconds.");
     } catch {
-      toast("The test didn't go through. Check your connection.", "error");
+      toast("The test notification couldn't be sent. Check your connection.", "error");
     } finally {
       PUSH.busy = false; render();
     }
@@ -2169,7 +2212,7 @@
     const st = settings();
     items.push({ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), main: next, rates: st.rates, income: st.income ? roundCur(st.income * factor, next) : 0, incomeByMonth: Object.fromEntries(Object.entries(st.incomeByMonth).map(([k, v]) => [k, roundCur(v * factor, next)])) } } });
     putMany(items);
-    toast(`Totals are now in ${curInfo(next).name}s. Budgets and income were converted.`);
+    toast(`Totals are now shown in ${next}. Budgets and income were converted.`);
   }
 
   function curSelect(id, value, onPick, disabled) {

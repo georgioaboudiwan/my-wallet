@@ -867,3 +867,28 @@ main.view:not(.enter) > * { animation: none; }
 .grp-bottom { padding-left: 40px; }
 @media (max-width: 380px) { .stepper button { width: 30px; height: 30px; } .grp-pct { width: 34px; } }
 .income-big { font: 750 38px/1.1 var(--nums); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.acts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.act { border: 0; background: var(--card); color: var(--ink); border-radius: var(--r); padding: 12px 4px 11px; display: grid; justify-items: center; gap: 7px; font-size: 13px; font-weight: 650; box-shadow: var(--shadow); min-height: 84px; transition: transform .12s var(--ease); }
+.act:active { transform: scale(.94); }
+.act-ico { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.act.neg .act-ico { background: var(--neg-soft); color: var(--neg); }
+.act.pos .act-ico { background: var(--accent-soft); color: var(--pos); }
+.act.gold .act-ico { background: var(--gold-soft); color: var(--gold); }
+.month-card { border: 0; text-align: left; color: var(--ink); gap: 10px; font: inherit; width: 100%; transition: transform .12s var(--ease); }
+.month-card:active { transform: scale(.98); }
+.month-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.month-top strong { font-size: 16px; font-weight: 700; }
+.month-top > span { font: 700 16px/1.2 var(--nums); font-variant-numeric: tabular-nums; color: var(--pos); }
+.month-top > span.neg { color: var(--neg); }
+.month-card > .bar { display: block; }
+.month-sub { font-size: 13px; color: var(--muted); }
+.quick { display: grid; gap: 8px; min-width: 0; }
+.quick h2 { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; padding-left: 4px; }
+.quick .chips { margin: -2px -16px; padding: 2px 16px; scroll-padding: 0 16px; }
+.chip.fav { padding: 6px 14px 6px 6px; gap: 8px; border-color: transparent; box-shadow: var(--shadow); }
+.fav-dot { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 13px; font-weight: 700; }
+.row-note { padding: 0 16px 6px; font-size: 13px; color: var(--muted); }
+@media (min-width: 900px) { .quick .chips { margin: -2px; padding: 2px; flex-wrap: wrap; overflow: visible; } }
+.about { text-align: center; font-size: 12px; color: var(--faint); padding: 6px 0 2px; letter-spacing: .02em; }
+.noscript { padding: 40px 24px; text-align: center; color: var(--muted); }
+.row.step > .ico { color: var(--faint); }
