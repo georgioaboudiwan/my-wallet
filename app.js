@@ -280,6 +280,8 @@
         ? d.buckets.filter(b => b && BUCKET_ID.test(b.id)).slice(0, 8).map((b, i) => ({ id: b.id, name: String(b.name || "Group").slice(0, 24), pct: Math.max(0, Math.min(100, Math.round(Number(b.pct) || 0))), color: /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : BUCKET_COLORS[i % BUCKET_COLORS.length], save: !!b.save }))
         : DEFAULT_BUCKETS.map(b => ({ ...b, pct: d.plan && Number.isFinite(d.plan[b.id]) ? d.plan[b.id] : b.pct })),
       income: Number(d.income) > 0 ? Number(d.income) : 0,
+      incomeMode: d.incomeMode === "fixed" || d.incomeMode === "auto" ? d.incomeMode : (Number(d.income) > 0 ? "fixed" : "auto"),
+      incomeByMonth: d.incomeByMonth && typeof d.incomeByMonth === "object" ? Object.fromEntries(Object.entries(d.incomeByMonth).filter(([k, v]) => /^\d{4}-\d{2}$/.test(k) && Number(v) > 0).map(([k, v]) => [k, Number(v)])) : {},
       seeded: !!d.seeded,
       name: typeof d.name === "string" ? d.name : ""
     };
@@ -494,12 +496,24 @@
     return s;
   }
 
+  function incomeBase(m) {
+    const st = settings();
+    const s = monthStats(m);
+    const own = st.incomeByMonth[m];
+    if (own > 0) return { base: own, source: "month" };
+    if (st.incomeMode === "fixed" && st.income > 0) return { base: st.income, source: "fixed" };
+    if (s.income > 0) return { base: s.income, source: "actual" };
+    const prev = [1, 2, 3].map(k => monthStats(shiftMonth(m, -k)).income).filter(v => v > 0);
+    if (prev.length) return { base: prev.reduce((a, b) => a + b, 0) / prev.length, source: "estimate" };
+    return { base: 0, source: "none" };
+  }
+
   function planFor(m) {
     const st = settings();
     const s = monthStats(m);
-    const base = st.income > 0 ? st.income : s.income;
+    const { base, source } = incomeBase(m);
     return {
-      base, fromActual: !(st.income > 0), s,
+      base, source, s,
       buckets: st.buckets.map(g => ({ k: g.id, g, planned: base * g.pct / 100, actual: s.buckets[g.id] || 0 }))
     };
   }
@@ -980,14 +994,7 @@
     const s = p.s;
     const out = h("div", { class: "stack" }, monthSwitcher());
 
-    const incomeInput = h("input", { id: "p-income", class: "input num", inputmode: "decimal", placeholder: s.income ? String(Math.round(s.income)) : "e.g. 1500", value: st.income ? String(st.income) : "", autocomplete: "off",
-      on: { change: e => { const raw = e.target.value.trim(); if (!raw) return saveSettings({ income: 0 }); const v = parseAmt(raw); if (!v) { toast(`Enter your monthly income in ${curInfo(mainCur()).name}s, like 1500.`); e.target.value = st.income ? String(st.income) : ""; return; } saveSettings({ income: v }); toast("Monthly income saved."); } } });
-    out.append(h("section", { class: "card" },
-      h("div", { class: "card-head" }, h("h2", null, "Money to divide")),
-      h("label", { class: "field" }, h("span", null, `Monthly income (${curSymbol(mainCur())})`), incomeInput),
-      h("p", { class: "hint" }, st.income
-        ? `You received ${money(s.income, { whole: true })} in ${monthName(m)}.`
-        : s.income ? `Empty, so the plan uses the ${money(s.income, { whole: true })} you received in ${monthName(m)}.` : "Enter what you usually earn, or log your income and the plan will use it.")));
+    out.append(incomeCard(m, p));
 
     out.append(planEditor());
 
@@ -1031,6 +1038,59 @@
       armed ? "Tap again to replace your budgets" : "Suggest budgets from my last 3 months"));
     out.append(budgets);
     return out;
+  }
+
+  function incomeCard(m, p) {
+    const st = settings();
+    const s = p.s;
+    const name = monthName(m);
+    const without = () => Object.fromEntries(Object.entries(st.incomeByMonth).filter(([k]) => k !== m));
+    const derived = st.incomeByMonth[m] > 0 ? "month" : st.incomeMode === "fixed" && st.income > 0 ? "fixed" : "auto";
+    const tab = S.incomePick && S.incomePick.m === m ? S.incomePick.k : derived;
+    const pick = k => {
+      S.incomePick = { m, k };
+      if (k === "auto") return saveSettings({ incomeMode: "auto", incomeByMonth: without() });
+      if (k === "fixed" && st.income > 0) return saveSettings({ incomeMode: "fixed", incomeByMonth: without() });
+      render();
+      const el = document.getElementById("p-income");
+      if (el) el.focus();
+    };
+    const kids = [
+      h("div", { class: "card-head" }, h("h2", null, `Money to divide in ${name}`)),
+      h("p", { class: "income-big num" }, p.base > 0 ? money(p.base, { whole: true }) : "—"),
+      seg([["auto", "As received"], ["fixed", "Every month"], ["month", `Only ${monthShort(m)}`]], tab, pick, "Where the amount comes from")
+    ];
+    if (tab !== "auto") {
+      const current = tab === "month" ? st.incomeByMonth[m] : st.income;
+      kids.push(h("label", { class: "field" }, h("span", null, tab === "month" ? `Income for ${name} (${curSymbol(mainCur())})` : `Usual monthly income (${curSymbol(mainCur())})`),
+        h("input", { id: "p-income", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: p.base > 0 ? String(Math.round(p.base)) : "e.g. 1500", value: current ? String(current) : "",
+          on: { change: e => {
+            const raw = e.target.value.trim();
+            const v = raw ? parseAmt(raw) : 0;
+            if (raw && !v) { toast("Enter the amount as a number, like 1500.", "error"); e.target.value = current ? String(current) : ""; return; }
+            if (tab === "month") {
+              const next = without();
+              if (v) next[m] = v;
+              saveSettings({ incomeByMonth: Object.fromEntries(Object.entries(next).sort().slice(-36)) });
+              if (!v) S.incomePick = null;
+              toast(v ? `${name} now uses ${money(v, { show: true })}.` : `${name} is back to its usual setting.`);
+            } else {
+              if (!v) S.incomePick = null;
+              saveSettings({ income: v, incomeMode: v ? "fixed" : "auto", incomeByMonth: without() });
+              toast(v ? `Every month now uses ${money(v, { show: true })}.` : "The plan now follows the income you log.");
+            }
+          } } })));
+    }
+    const logged = s.income > 0 ? `You logged ${money(s.income, { whole: true })} of income in ${name}.` : `No income logged in ${name} yet.`;
+    kids.push(h("p", { class: "hint" },
+      tab === "auto"
+        ? (p.source === "actual" ? `Follows the income you log. ${name} has ${money(s.income, { whole: true })} so far and updates as more comes in.`
+          : p.source === "estimate" ? `No income logged in ${name} yet, so this is the average of your last 3 months. It switches to the real amount once you log income.`
+          : p.source === "month" ? `${name} has its own amount. Clear it under “Only ${monthShort(m)}” to follow your logged income.`
+          : "Log your income with + and the plan follows it, month by month.")
+        : tab === "fixed" ? `The same amount is used every month. ${logged}`
+        : `Only ${name} uses this amount. Other months keep their usual setting. ${logged}`));
+    return h("section", { class: "card" }, ...kids);
   }
 
   function planEditor() {
@@ -2107,7 +2167,7 @@
     const factor = rateOf(next) / rateOf(old);
     const items = rows("categories").filter(c => Number(c.budget) > 0).map(c => ({ t: "categories", r: { ...c, budget: roundCur(Number(c.budget) * factor, next) } }));
     const st = settings();
-    items.push({ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), main: next, rates: st.rates, income: st.income ? roundCur(st.income * factor, next) : 0 } } });
+    items.push({ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), main: next, rates: st.rates, income: st.income ? roundCur(st.income * factor, next) : 0, incomeByMonth: Object.fromEntries(Object.entries(st.incomeByMonth).map(([k, v]) => [k, roundCur(v * factor, next)])) } } });
     putMany(items);
     toast(`Totals are now in ${curInfo(next).name}s. Budgets and income were converted.`);
   }

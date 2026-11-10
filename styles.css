@@ -866,3 +866,4 @@ main.view:not(.enter) > * { animation: none; }
 .grp-name { width: 0; }
 .grp-bottom { padding-left: 40px; }
 @media (max-width: 380px) { .stepper button { width: 30px; height: 30px; } .grp-pct { width: 34px; } }
+.income-big { font: 750 38px/1.1 var(--nums); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
