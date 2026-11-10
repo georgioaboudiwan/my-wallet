@@ -484,3 +484,4 @@ input[type="date"].input { -webkit-appearance: none; appearance: none; }
   .sheet.fill .amount-display { min-height: 50px; }
   .sheet.fill .keypad { gap: 6px; min-height: 172px; }
 }
+.date-chip[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }

@@ -1481,9 +1481,10 @@
       const yest = ymd(new Date(Date.now() - 864e5));
       const dateText = f.date === today() ? "Today" : f.date === yest ? "Yesterday" : dayLabel(f.date);
       kids.push(h("div", { class: "chips meta" },
-        h("label", { class: "chip date-chip" }, icon("cal", "ico sm"), dateText,
-          h("input", { id: "f-date", type: "date", value: f.date, max: ymd(new Date(Date.now() + 366 * 864e5)), "aria-label": "Date", on: { change: e => { if (DATE_RE.test(e.target.value)) { f.date = e.target.value; draw(); } } } })),
-        f.date !== today() ? h("button", { type: "button", class: "chip", on: { click: () => { f.date = today(); draw(); } } }, "Today") : h("button", { type: "button", class: "chip", on: { click: () => { f.date = yest; draw(); } } }, "Yesterday"),
+        h("button", { type: "button", class: "chip", "aria-pressed": String(f.date === today()), on: { click: () => { f.date = today(); draw(); } } }, "Today"),
+        h("button", { type: "button", class: "chip", "aria-pressed": String(f.date === yest), on: { click: () => { f.date = yest; draw(); } } }, "Yesterday"),
+        h("label", { class: "chip date-chip", "aria-pressed": String(f.date !== today() && f.date !== yest) }, icon("cal", "ico sm"), f.date !== today() && f.date !== yest ? dateText : "Other day",
+          h("input", { id: "f-date", type: "date", value: f.date, max: ymd(new Date(Date.now() + 366 * 864e5)), "aria-label": "Pick another date", on: { change: e => { if (DATE_RE.test(e.target.value)) { f.date = e.target.value; draw(); } } } })),
         h("button", { type: "button", class: "chip", "aria-pressed": String(showNote), on: { click: () => { showNote = !showNote; draw(); if (showNote) document.getElementById("f-note").focus(); } } }, icon("note", "ico sm"), f.note ? f.note.slice(0, 18) + (f.note.length > 18 ? "…" : "") : "Note"),
         !x && f.kind !== "transfer" ? h("button", { type: "button", class: "chip", "aria-pressed": String(f.repeat), on: { click: () => { f.repeat = !f.repeat; draw(); } } }, icon("repeat", "ico sm"), "Monthly") : null));
       if (showNote) kids.push(h("input", { id: "f-note", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: f.kind === "expense" ? "What was it?" : "Note", value: f.note, "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }));
