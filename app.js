@@ -169,25 +169,53 @@
     return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   };
 
+  const CURRENCIES = {
+    USD: { name: "US dollar", symbol: "$", rate: 1 },
+    LBP: { name: "Lebanese lira", symbol: "LBP", tag: "LL", dec: 0, big: true, rate: 89500 },
+    EUR: { name: "Euro", symbol: "€", rate: 0.86 },
+    GBP: { name: "British pound", symbol: "£", rate: 0.76 },
+    AED: { name: "UAE dirham", symbol: "AED", rate: 3.6725 },
+    SAR: { name: "Saudi riyal", symbol: "SAR", rate: 3.75 },
+    QAR: { name: "Qatari riyal", symbol: "QAR", rate: 3.64 },
+    KWD: { name: "Kuwaiti dinar", symbol: "KWD", rate: 0.307 },
+    BHD: { name: "Bahraini dinar", symbol: "BHD", rate: 0.376 },
+    OMR: { name: "Omani rial", symbol: "OMR", rate: 0.385 },
+    JOD: { name: "Jordanian dinar", symbol: "JOD", rate: 0.709 },
+    EGP: { name: "Egyptian pound", symbol: "EGP", rate: 48 },
+    TRY: { name: "Turkish lira", symbol: "TRY", rate: 41 },
+    IQD: { name: "Iraqi dinar", symbol: "IQD", dec: 0, big: true, rate: 1310 },
+    CAD: { name: "Canadian dollar", symbol: "CA$", rate: 1.39 },
+    AUD: { name: "Australian dollar", symbol: "A$", rate: 1.53 },
+    CHF: { name: "Swiss franc", symbol: "CHF", rate: 0.8 },
+    JPY: { name: "Japanese yen", symbol: "¥", dec: 0, rate: 150 },
+    CNY: { name: "Chinese yuan", symbol: "CNY", rate: 7.1 },
+    INR: { name: "Indian rupee", symbol: "₹", rate: 88 },
+    BRL: { name: "Brazilian real", symbol: "R$", rate: 5.4 }
+  };
+  const CUR_RE = /^[A-Z]{3}$/;
+  const curInfo = c => CURRENCIES[c] || { name: c, symbol: c };
+  const curDec = c => curInfo(c).dec ?? 2;
+  const isBig = c => !!curInfo(c).big;
+  const curTag = c => curInfo(c).tag || curInfo(c).symbol;
+  const curSymbol = c => curInfo(c).symbol;
+  const roundCur = (v, c) => curDec(c) === 0 ? Math.round(v) : Math.round(v * 100) / 100;
+  const withSymbol = (c, num) => { const sym = curSymbol(c); return sym.length === 1 || /^[A-Z]{1,2}\$$/.test(sym) ? sym + num : `${sym} ${num}`; };
+
   const fmt = (n, cur, opts = {}) => {
-    if (S.hidden && !opts.show) return cur === "LBP" ? "LBP •••" : "$•••";
+    if (S.hidden && !opts.show) return withSymbol(cur, "•••");
     const neg = n < 0;
     const a = Math.abs(Number(n) || 0);
-    let s;
-    if (cur === "LBP") {
-      if (opts.compact && a >= 1e6) s = "LBP " + (a / 1e6).toLocaleString("en-US", { maximumFractionDigits: 1 }) + "M";
-      else s = "LBP " + Math.round(a).toLocaleString("en-US");
-    } else {
-      const r = Math.round(a * 100) / 100;
-      if (opts.compact && r >= 1e4) s = "$" + (r / 1e3).toLocaleString("en-US", { maximumFractionDigits: 1 }) + "k";
-      else if (opts.whole) s = "$" + Math.round(r).toLocaleString("en-US");
-      else s = "$" + r.toLocaleString("en-US", { minimumFractionDigits: r % 1 ? 2 : 0, maximumFractionDigits: 2 });
-    }
-    return (neg ? "−" : "") + s;
+    const dec = curDec(cur);
+    let num;
+    if (opts.compact && a >= 1e6) num = (a / 1e6).toLocaleString("en-US", { maximumFractionDigits: 1 }) + "M";
+    else if (opts.compact && a >= 1e4 && !isBig(cur)) num = (a / 1e3).toLocaleString("en-US", { maximumFractionDigits: 1 }) + "k";
+    else if (dec === 0 || opts.whole) num = Math.round(a).toLocaleString("en-US");
+    else { const r = Math.round(a * 100) / 100; num = r.toLocaleString("en-US", { minimumFractionDigits: r % 1 ? 2 : 0, maximumFractionDigits: 2 }); }
+    return (neg ? "−" : "") + withSymbol(cur, num);
   };
-  const usd = (n, opts) => fmt(n, "USD", opts);
+  const money = (n, opts) => fmt(n, mainCur(), opts);
   const parseAmt = raw => {
-    const s = String(raw || "").replace(/[,\s$]/g, "");
+    const s = String(raw || "").replace(/[,\s]/g, "").replace(/^[^\d.]+/, "");
     if (!/^\d+(\.\d{1,2})?$/.test(s)) return null;
     const v = Number(s);
     return v > 0 && v < 1e13 ? v : null;
@@ -244,7 +272,8 @@
   const settings = () => {
     const d = storedSettings();
     return {
-      rate: Number(d.rate) > 0 ? Number(d.rate) : 89500,
+      main: CUR_RE.test(d.main || "") ? d.main : "USD",
+      rates: { LBP: Number(d.rate) > 0 ? Number(d.rate) : 89500, ...(d.rates && typeof d.rates === "object" ? Object.fromEntries(Object.entries(d.rates).filter(([k, v]) => CUR_RE.test(k) && Number(v) > 0).map(([k, v]) => [k, Number(v)])) : {}) },
       plan: d.plan && [d.plan.needs, d.plan.wants, d.plan.savings].every(Number.isFinite) ? d.plan : { needs: 50, wants: 30, savings: 20 },
       income: Number(d.income) > 0 ? Number(d.income) : 0,
       seeded: !!d.seeded,
@@ -253,8 +282,17 @@
   };
   const bySort = (a, b) => (a.sort || 0) - (b.sort || 0) || a.name.localeCompare(b.name);
   const byRecent = (a, b) => b.occurred_on.localeCompare(a.occurred_on) || String(b.created_at || "").localeCompare(String(a.created_at || ""));
-  const toUsd = (amount, currency, rate) => currency === "LBP" ? Number(amount) / (Number(rate) || settings().rate) : Number(amount);
-  const txUsd = x => toUsd(x.amount, x.currency, x.rate);
+  const mainCur = () => settings().main;
+  const rateOf = c => c === "USD" ? 1 : (settings().rates[c] || curInfo(c).rate || 1);
+  const convert = (amount, from, to) => from === to ? Number(amount) : Number(amount) / rateOf(from) * rateOf(to);
+  const toMain = (amount, currency) => convert(amount, currency, mainCur());
+  const txMain = x => {
+    const m = mainCur();
+    if (x.currency === m) return Number(x.amount);
+    const perUsd = x.currency === "USD" ? 1 : (Number(x.rate) > 0 ? Number(x.rate) : rateOf(x.currency));
+    return Number(x.amount) / perUsd * rateOf(m);
+  };
+  const usedCurrencies = () => [...new Set([mainCur(), ...rows("accounts").map(a => a.currency), ...rows("people").map(p => p.currency)].filter(c => CUR_RE.test(c)))];
 
   const putMany = items => {
     for (const { t, r } of items) {
@@ -387,7 +425,7 @@
       while (next <= t && n < 24) {
         const id = `${r.id}@${next}`;
         if (!S.data.transactions.has(id)) {
-          items.push({ t: "transactions", r: { id, kind: r.kind, amount: Number(r.amount), currency: r.currency, rate: settings().rate, account_id: r.account_id, to_account_id: null, to_amount: null, category_id: r.category_id, note: r.note, occurred_on: next, rule_id: r.id, created_at: new Date().toISOString() } });
+          items.push({ t: "transactions", r: { id, kind: r.kind, amount: Number(r.amount), currency: r.currency, rate: rateOf(r.currency), account_id: r.account_id, to_account_id: null, to_amount: null, category_id: r.category_id, note: r.note, occurred_on: next, rule_id: r.id, created_at: new Date().toISOString() } });
         }
         next = nextMonthDay(next, r.day);
         n++;
@@ -421,7 +459,7 @@
     const s = { spent: 0, income: 0, byCat: new Map(), buckets: { needs: 0, wants: 0, savings: 0 }, days: new Map(), biggest: null, count: 0 };
     for (const x of rows("transactions")) {
       if (monthOf(x.occurred_on) !== m) continue;
-      const u = txUsd(x);
+      const u = txMain(x);
       if (x.kind === "expense") {
         s.spent += u;
         s.count++;
@@ -429,7 +467,7 @@
         const c = cat(x.category_id);
         s.buckets[c && BUCKETS[c.bucket] ? c.bucket : "wants"] += u;
         s.days.set(x.occurred_on, (s.days.get(x.occurred_on) || 0) + u);
-        if (!s.biggest || u > txUsd(s.biggest)) s.biggest = x;
+        if (!s.biggest || u > txMain(s.biggest)) s.biggest = x;
       } else if (x.kind === "income") {
         s.income += u;
       } else {
@@ -678,7 +716,7 @@
         h("div", { class: "login-brand" },
           h("img", { class: "login-logo", src: "icons/icon-192.png", alt: "" }),
           h("h1", null, "My Wallet"),
-          h("p", null, "Your dollars and lira, all in one place.")),
+          h("p", null, "All your money, in any currency.")),
         h("div", { class: "login-card", "aria-hidden": "true" },
           h("span", { class: "lc-label" }, "Everything you have"),
           h("span", { class: "lc-total num" }, "$2,450"),
@@ -708,7 +746,7 @@
     const toAcc = acc(x.to_account_id);
     const other = x.kind === "transfer" && toAcc && toAcc.currency !== x.currency && x.to_amount
       ? h("small", null, "→ " + fmt(Number(x.to_amount), toAcc.currency))
-      : (x.currency === "LBP" ? h("small", null, "≈ " + usd(txUsd(x))) : null);
+      : (x.currency !== mainCur() ? h("small", null, "≈ " + money(txMain(x))) : null);
     return h("button", { type: "button", class: "row", on: { click: () => txnSheet(x) } },
       dot,
       h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), sub ? h("span", { class: "row-sub" }, sub) : null),
@@ -721,10 +759,12 @@
     const m = thisMonth();
     const s = monthStats(m);
     const safe = safeToSpend();
-    let total = 0, usdHold = 0, lbpHold = 0;
+    let total = 0;
+    const holds = new Map();
     for (const a of rows("accounts")) {
       const v = bal.get(a.id) || 0;
-      if (a.currency === "LBP") { lbpHold += v; total += v / st.rate; } else { usdHold += v; total += v; }
+      holds.set(a.currency, (holds.get(a.currency) || 0) + v);
+      total += toMain(v, a.currency);
     }
     const txns = rows("transactions").sort(byRecent);
     const accounts = rows("accounts").filter(a => !a.archived).sort(bySort);
@@ -732,16 +772,15 @@
 
     out.append(h("section", { class: "hero" },
       h("p", { class: "hero-label" }, "Everything you have"),
-      h("p", { class: "hero-total num" }, usd(total)),
+      h("p", { class: "hero-total num" }, money(total)),
       h("div", { class: "hero-hold" },
-        h("span", { class: "num" }, usd(usdHold) + " in dollars"),
-        h("span", { class: "num" }, fmt(lbpHold, "LBP", { compact: true }) + " in lira"))));
+        [...holds].sort((p, q) => (q[0] === mainCur()) - (p[0] === mainCur()) || toMain(q[1], q[0]) - toMain(p[1], p[0])).map(([c, v]) => h("span", { class: "num", title: curInfo(c).name }, fmt(v, c, { compact: true }))))));
 
     out.append(h("div", { class: "tiles" },
-      h("button", { type: "button", class: "tile", on: { click: () => { S.month = m; go("insights"); } } }, h("small", null, `Spent in ${monthName(m)}`), h("strong", null, usd(s.spent, { whole: true }))),
-      h("button", { type: "button", class: "tile", on: { click: () => { S.month = m; go("insights"); } } }, h("small", null, "Came in"), h("strong", null, usd(s.income, { whole: true }))),
+      h("button", { type: "button", class: "tile", on: { click: () => { S.month = m; go("insights"); } } }, h("small", null, `Spent in ${monthName(m)}`), h("strong", null, money(s.spent, { whole: true }))),
+      h("button", { type: "button", class: "tile", on: { click: () => { S.month = m; go("insights"); } } }, h("small", null, "Came in"), h("strong", null, money(s.income, { whole: true }))),
       safe
-        ? h("button", { type: "button", class: "tile " + (safe.left >= 0 ? "good" : "bad"), on: { click: () => { S.month = m; go("plan"); } } }, h("small", null, "Safe to spend"), h("strong", null, usd(safe.perDay, { whole: true })), h("span", null, "per day"))
+        ? h("button", { type: "button", class: "tile " + (safe.left >= 0 ? "good" : "bad"), on: { click: () => { S.month = m; go("plan"); } } }, h("small", null, "Safe to spend"), h("strong", null, money(safe.perDay, { whole: true })), h("span", null, "per day"))
         : h("button", { type: "button", class: "tile", on: { click: () => go("plan") } }, h("small", null, "Safe to spend"), h("strong", null, "—"), h("span", null, "Set a plan"))));
 
     const alerts = rows("categories").filter(c => c.kind === "expense" && Number(c.budget) > 0)
@@ -752,8 +791,8 @@
       const over = a.spent > a.budget;
       out.append(h("div", { class: "alert" + (over ? " bad" : "") }, icon("warn"),
         h("span", null, over
-          ? `${a.c.name} is ${usd(a.spent - a.budget, { whole: true })} over its ${usd(a.budget, { whole: true })} budget.`
-          : `${a.c.name}: ${usd(a.spent, { whole: true })} of ${usd(a.budget, { whole: true })} used.`)));
+          ? `${a.c.name} is ${money(a.spent - a.budget, { whole: true })} over its ${money(a.budget, { whole: true })} budget.`
+          : `${a.c.name}: ${money(a.spent, { whole: true })} of ${money(a.budget, { whole: true })} used.`)));
     }
 
     if (!txns.length) {
@@ -768,9 +807,9 @@
     for (const a of accounts) {
       const v = bal.get(a.id) || 0;
       accCard.append(h("button", { type: "button", class: "row", on: { click: () => { S.filter = { q: "", kind: "all", account: a.id }; go("activity"); } } },
-        h("span", { class: "dot neutral" }, a.currency === "LBP" ? "LL" : "$"),
+        h("span", { class: "dot neutral" }, curTag(a.currency)),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, a.name), h("span", { class: "row-sub" }, KIND_LABEL[a.kind] || "")),
-        h("span", { class: "row-end" + (v < 0 ? " neg" : "") }, fmt(v, a.currency), a.currency === "LBP" ? h("small", null, "≈ " + usd(v / st.rate, { whole: true })) : null)));
+        h("span", { class: "row-end" + (v < 0 ? " neg" : "") }, fmt(v, a.currency), a.currency !== mainCur() ? h("small", null, "≈ " + money(toMain(v, a.currency), { whole: true })) : null)));
     }
     if (!accounts.length) accCard.append(h("p", { class: "empty" }, "No accounts yet."));
     out.append(accCard);
@@ -785,10 +824,10 @@
     const people = rows("people");
     if (people.length) {
       let owed = 0, owe = 0;
-      for (const p of people) { const v = toUsd(lb.get(p.id) || 0, p.currency, st.rate); if (owesMe(p)) owed += v; else owe += v; }
+      for (const p of people) { const v = toMain(lb.get(p.id) || 0, p.currency); if (owesMe(p)) owed += v; else owe += v; }
       out.append(h("section", { class: "card flush" }, h("button", { type: "button", class: "row", on: { click: () => go("people") } },
         h("span", { class: "dot neutral" }, icon("people", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "People"), h("span", { class: "row-sub" }, [owed ? `Owed to you ${usd(owed, { whole: true })}` : null, owe ? `You owe ${usd(owe, { whole: true })}` : null].filter(Boolean).join(" · ") || "All settled")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "People"), h("span", { class: "row-sub" }, [owed ? `Owed to you ${money(owed, { whole: true })}` : null, owe ? `You owe ${money(owe, { whole: true })}` : null].filter(Boolean).join(" · ") || "All settled")),
         icon("fwd"))));
     }
     return out;
@@ -823,9 +862,9 @@
       const groups = new Map();
       for (const x of shown) { if (!groups.has(x.occurred_on)) groups.set(x.occurred_on, []); groups.get(x.occurred_on).push(x); }
       const cards = [...groups].map(([d, xs]) => {
-        const spent = xs.filter(x => x.kind === "expense").reduce((a, x) => a + txUsd(x), 0);
+        const spent = xs.filter(x => x.kind === "expense").reduce((a, x) => a + txMain(x), 0);
         return h("section", { class: "card flush day" },
-          h("div", { class: "day-head" }, h("span", null, dayLabel(d)), spent ? h("span", { class: "num neg-text" }, "−" + usd(spent)) : null),
+          h("div", { class: "day-head" }, h("span", null, dayLabel(d)), spent ? h("span", { class: "num neg-text" }, "−" + money(spent)) : null),
           xs.map(txnRow));
       });
       if (matches.length > shown.length) cards.push(h("button", { type: "button", class: "btn alt", on: { click: () => { S.limit += 300; fill(); } } }, `Show more (${matches.length - shown.length})`));
@@ -861,9 +900,9 @@
       changeText = pct === 0 ? `Same as ${monthName(prevM)}` : `${Math.abs(pct)}% ${pct > 0 ? "more" : "less"} than ${monthName(prevM)}`;
     }
     out.append(h("div", { class: "tiles" },
-      h("div", { class: "tile" }, h("small", null, "Spent"), h("strong", null, usd(s.spent, { whole: true })), changeText ? h("span", null, changeText) : null),
-      h("div", { class: "tile" }, h("small", null, "Came in"), h("strong", null, usd(s.income, { whole: true }))),
-      h("div", { class: "tile " + (left >= 0 ? "good" : "bad") }, h("small", null, left >= 0 ? "Left over" : "Overspent"), h("strong", null, usd(Math.abs(left), { whole: true })))));
+      h("div", { class: "tile" }, h("small", null, "Spent"), h("strong", null, money(s.spent, { whole: true })), changeText ? h("span", null, changeText) : null),
+      h("div", { class: "tile" }, h("small", null, "Came in"), h("strong", null, money(s.income, { whole: true }))),
+      h("div", { class: "tile " + (left >= 0 ? "good" : "bad") }, h("small", null, left >= 0 ? "Left over" : "Overspent"), h("strong", null, money(Math.abs(left), { whole: true })))));
 
     const where = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Where it went")));
     const cats = [...s.byCat].sort((a, b) => b[1] - a[1]);
@@ -873,7 +912,7 @@
       const c = cat(id);
       const color = c ? c.color : "#5b7083";
       where.append(h("button", { type: "button", class: "cat-row", on: { click: () => { S.filter = { q: c ? c.name : "", kind: "expense", account: null }; go("activity"); } } },
-        h("div", { class: "cat-line" }, h("span", { class: "swatch", style: { background: color } }), h("span", { class: "name" }, c ? c.name : "Uncategorized"), h("span", { class: "val" }, usd(v, { whole: true })), h("span", { class: "pct" }, Math.round(v / s.spent * 100) + "%")),
+        h("div", { class: "cat-line" }, h("span", { class: "swatch", style: { background: color } }), h("span", { class: "name" }, c ? c.name : "Uncategorized"), h("span", { class: "val" }, money(v, { whole: true })), h("span", { class: "pct" }, Math.round(v / s.spent * 100) + "%")),
         h("div", { class: "bar" }, h("span", { style: { width: (v / maxCat * 100) + "%", background: color } }))));
     }
     out.append(where);
@@ -884,8 +923,8 @@
     const withData = stats.filter(([, x]) => x.spent > 0);
     const avg = withData.length ? withData.reduce((a, [, x]) => a + x.spent, 0) / withData.length : 0;
     out.append(h("section", { class: "card" },
-      h("div", { class: "card-head" }, h("h2", null, "Last 6 months"), avg ? h("span", { class: "hint num" }, `Avg spent ${usd(avg, { whole: true })}`) : null),
-      h("div", { class: "cols", role: "img", "aria-label": stats.map(([mm, x]) => `${monthName(mm)}: spent ${usd(x.spent, { whole: true, show: true })}, came in ${usd(x.income, { whole: true, show: true })}`).join(". ") },
+      h("div", { class: "card-head" }, h("h2", null, "Last 6 months"), avg ? h("span", { class: "hint num" }, `Avg spent ${money(avg, { whole: true })}`) : null),
+      h("div", { class: "cols", role: "img", "aria-label": stats.map(([mm, x]) => `${monthName(mm)}: spent ${money(x.spent, { whole: true, show: true })}, came in ${money(x.income, { whole: true, show: true })}`).join(". ") },
         stats.map(([mm, x]) => h("div", { class: "col" + (mm === m ? " cur" : "") },
           h("div", { class: "col-bars" }, h("span", { class: "b-in", style: { height: (x.income / max * 100) + "%" } }), h("span", { class: "b-out", style: { height: (x.spent / max * 100) + "%" } })),
           h("span", { class: "col-label" }, monthShort(mm))))),
@@ -900,10 +939,10 @@
     out.append(h("section", { class: "card" },
       h("div", { class: "card-head" }, h("h2", null, "Habits")),
       h("div", { class: "facts" },
-        h("div", { class: "fact" }, h("small", null, "Per day"), h("strong", null, usd(s.spent / daysSoFar, { whole: true })), h("span", null, isCur ? "so far this month" : "on average")),
+        h("div", { class: "fact" }, h("small", null, "Per day"), h("strong", null, money(s.spent / daysSoFar, { whole: true })), h("span", null, isCur ? "so far this month" : "on average")),
         h("div", { class: "fact" }, h("small", null, "Days with no spending"), h("strong", { class: "num" }, String(noSpend)), h("span", null, `of ${daysSoFar}`)),
-        h("div", { class: "fact" }, h("small", null, "Biggest expense"), h("strong", null, big ? usd(txUsd(big), { whole: true }) : "—"), big ? h("span", null, [bigCat ? bigCat.name : "Uncategorized", big.note].filter(Boolean).join(" · ")) : null),
-        h("div", { class: "fact" }, h("small", null, "Expenses logged"), h("strong", { class: "num" }, String(s.count)), h("span", null, s.count ? `avg ${usd(s.spent / s.count, { whole: true })}` : "")))));
+        h("div", { class: "fact" }, h("small", null, "Biggest expense"), h("strong", null, big ? money(txMain(big), { whole: true }) : "—"), big ? h("span", null, [bigCat ? bigCat.name : "Uncategorized", big.note].filter(Boolean).join(" · ")) : null),
+        h("div", { class: "fact" }, h("small", null, "Expenses logged"), h("strong", { class: "num" }, String(s.count)), h("span", null, s.count ? `avg ${money(s.spent / s.count, { whole: true })}` : "")))));
 
     const total = s.buckets.needs + s.buckets.wants + s.buckets.savings;
     if (total > 0) {
@@ -914,7 +953,7 @@
         ["needs", "wants", "savings"].map(k => h("div", { class: "cat-line" },
           h("span", { class: "swatch", style: { background: BUCKETS[k].color } }),
           h("span", { class: "name" }, BUCKETS[k].name),
-          h("span", { class: "val" }, usd(s.buckets[k], { whole: true })),
+          h("span", { class: "val" }, money(s.buckets[k], { whole: true })),
           h("span", { class: "pct" }, `${Math.round(s.buckets[k] / total * 100)}%`),
           h("span", { class: "pct" }, `plan ${plan[k]}%`)))));
     }
@@ -929,13 +968,13 @@
     const out = h("div", { class: "stack" }, monthSwitcher());
 
     const incomeInput = h("input", { id: "p-income", class: "input num", inputmode: "decimal", placeholder: s.income ? String(Math.round(s.income)) : "e.g. 1500", value: st.income ? String(st.income) : "", autocomplete: "off",
-      on: { change: e => { const raw = e.target.value.trim(); if (!raw) return saveSettings({ income: 0 }); const v = parseAmt(raw); if (!v) { toast("Enter your monthly income in dollars, like 1500."); e.target.value = st.income ? String(st.income) : ""; return; } saveSettings({ income: v }); toast("Monthly income saved."); } } });
+      on: { change: e => { const raw = e.target.value.trim(); if (!raw) return saveSettings({ income: 0 }); const v = parseAmt(raw); if (!v) { toast(`Enter your monthly income in ${curInfo(mainCur()).name}s, like 1500.`); e.target.value = st.income ? String(st.income) : ""; return; } saveSettings({ income: v }); toast("Monthly income saved."); } } });
     out.append(h("section", { class: "card" },
       h("div", { class: "card-head" }, h("h2", null, "Money to divide")),
-      h("label", { class: "field" }, h("span", null, "Monthly income in dollars"), incomeInput),
+      h("label", { class: "field" }, h("span", null, `Monthly income (${curSymbol(mainCur())})`), incomeInput),
       h("p", { class: "hint" }, st.income
-        ? `You received ${usd(s.income, { whole: true })} in ${monthName(m)}.`
-        : s.income ? `Empty, so the plan uses the ${usd(s.income, { whole: true })} you received in ${monthName(m)}.` : "Enter what you usually earn, or log your income and the plan will use it.")));
+        ? `You received ${money(s.income, { whole: true })} in ${monthName(m)}.`
+        : s.income ? `Empty, so the plan uses the ${money(s.income, { whole: true })} you received in ${monthName(m)}.` : "Enter what you usually earn, or log your income and the plan will use it.")));
 
     const pctIds = { needs: "p-needs", wants: "p-wants", savings: "p-savings" };
     const sumEl = h("p", { class: "hint" });
@@ -966,8 +1005,8 @@
       const safe = safeToSpend();
       if (safe) out.append(h("section", { class: "safe" },
         h("small", null, "Safe to spend on needs and wants"),
-        h("strong", null, usd(safe.perDay, { whole: true }) + " a day"),
-        h("small", null, safe.left >= 0 ? `${usd(safe.left, { whole: true })} left for the next ${safe.daysLeft} days` : `You're ${usd(-safe.left, { whole: true })} over plan this month`)));
+        h("strong", null, money(safe.perDay, { whole: true }) + " a day"),
+        h("small", null, safe.left >= 0 ? `${money(safe.left, { whole: true })} left for the next ${safe.daysLeft} days` : `You're ${money(-safe.left, { whole: true })} over plan this month`)));
     }
 
     for (const b of p.buckets) {
@@ -976,12 +1015,12 @@
       const pct = b.planned > 0 ? b.actual / b.planned * 100 : 0;
       const isSave = b.k === "savings";
       out.append(h("section", { class: "card bucket" },
-        h("div", { class: "bucket-head" }, h("h3", null, h("span", { class: "swatch", style: { background: info.color } }), info.name), h("span", { class: "val" }, `${usd(b.actual, { whole: true })} of ${usd(b.planned, { whole: true })}`)),
+        h("div", { class: "bucket-head" }, h("h3", null, h("span", { class: "swatch", style: { background: info.color } }), info.name), h("span", { class: "val" }, `${money(b.actual, { whole: true })} of ${money(b.planned, { whole: true })}`)),
         h("div", { class: "bar" }, h("span", { class: !isSave && pct > 100 ? "over" : "", style: { width: Math.min(100, pct) + "%", background: info.color } })),
         h("p", null, info.about),
         p.base > 0 ? h("p", { class: "left" + (!isSave && leftover < 0 ? " bad" : "") }, isSave
-          ? (leftover > 0 ? `Put aside ${usd(leftover, { whole: true })} more to hit your goal` : "Goal reached")
-          : (leftover >= 0 ? `${usd(leftover, { whole: true })} left` : `${usd(-leftover, { whole: true })} over`)) : null));
+          ? (leftover > 0 ? `Put aside ${money(leftover, { whole: true })} more to hit your goal` : "Goal reached")
+          : (leftover >= 0 ? `${money(leftover, { whole: true })} left` : `${money(-leftover, { whole: true })} over`)) : null));
     }
 
     const budgets = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Category budgets")));
@@ -992,7 +1031,7 @@
         const budget = Number(c.budget) || 0;
         budgets.append(h("button", { type: "button", class: "cat-row", on: { click: () => categorySheet(c) } },
           h("div", { class: "cat-line" }, h("span", { class: "swatch", style: { background: c.color } }), h("span", { class: "name" }, c.name),
-            h("span", { class: "val" }, budget ? `${usd(spent, { whole: true })} / ${usd(budget, { whole: true })}` : usd(spent, { whole: true }))),
+            h("span", { class: "val" }, budget ? `${money(spent, { whole: true })} / ${money(budget, { whole: true })}` : money(spent, { whole: true }))),
           budget ? h("div", { class: "bar" }, h("span", { class: spent > budget ? "over" : "", style: { width: Math.min(100, spent / budget * 100) + "%", background: c.color } })) : h("small", null, "No budget · tap to set one")));
       }
     }
@@ -1038,20 +1077,17 @@
         h("span", { class: "row-sub" }, S.syncedAt ? `Last synced ${ago(S.syncedAt)}` : "Not synced yet"))),
       h("button", { type: "button", class: "row-btn", on: { click: () => sync() } }, "Sync now")));
 
-    const rate = h("input", { id: "s-rate", class: "input num", inputmode: "numeric", value: st.rate.toLocaleString("en-US"), autocomplete: "off", "aria-label": "Lira for one dollar",
-      on: { change: e => { const v = parseAmt(e.target.value); if (!v || v < 1000 || v > 1e7) { toast("Enter a rate like 89,500."); e.target.value = st.rate.toLocaleString("en-US"); return; } saveSettings({ rate: Math.round(v) }); toast("Rate saved."); } } });
-    out.append(group("Exchange rate",
-      h("div", { class: "row" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, "LBP for $1"), h("span", { class: "row-sub" }, "Used for new entries and totals")), h("span", { style: { width: "130px" } }, rate))));
+    out.append(currencyGroup(group));
 
     const accRows = rows("accounts").sort((a, b) => (a.archived - b.archived) || bySort(a, b)).map(a => h("button", { type: "button", class: "row", on: { click: () => accountSheet(a) } },
-      h("span", { class: "dot neutral" }, a.currency === "LBP" ? "LL" : "$"),
+      h("span", { class: "dot neutral" }, curTag(a.currency)),
       h("span", { class: "row-main" }, h("span", { class: "row-title" }, a.name), h("span", { class: "row-sub" }, [KIND_LABEL[a.kind], a.currency, a.archived ? "Hidden" : null].filter(Boolean).join(" · "))),
       h("span", { class: "row-end" }, fmt(bal.get(a.id) || 0, a.currency))));
     out.append(group("Accounts", ...accRows, h("button", { type: "button", class: "row-btn", on: { click: () => accountSheet(null) } }, "Add account")));
 
     const catRows = kind => rows("categories").filter(c => c.kind === kind).sort(bySort).map(c => h("button", { type: "button", class: "row", on: { click: () => categorySheet(c) } },
       h("span", { class: "dot", style: { background: c.color } }, catGlyph(c, "ico sm")),
-      h("span", { class: "row-main" }, h("span", { class: "row-title" }, c.name), h("span", { class: "row-sub" }, kind === "expense" ? [BUCKETS[c.bucket || "wants"].name, Number(c.budget) ? `${usd(Number(c.budget), { whole: true })} a month` : null].filter(Boolean).join(" · ") : "Income"))));
+      h("span", { class: "row-main" }, h("span", { class: "row-title" }, c.name), h("span", { class: "row-sub" }, kind === "expense" ? [BUCKETS[c.bucket || "wants"].name, Number(c.budget) ? `${money(Number(c.budget), { whole: true })} a month` : null].filter(Boolean).join(" · ") : "Income"))));
     out.append(group("Spending categories", ...catRows("expense"), h("button", { type: "button", class: "row-btn", on: { click: () => categorySheet(null, "expense") } }, "Add category")));
     out.append(group("Income categories", ...catRows("income"), h("button", { type: "button", class: "row-btn", on: { click: () => categorySheet(null, "income") } }, "Add category")));
 
@@ -1147,13 +1183,13 @@
     const people = rows("people").sort(bySort);
     let owed = 0, owe = 0;
     for (const p of people) {
-      const v = toUsd(bal.get(p.id) || 0, p.currency, st.rate);
+      const v = toMain(bal.get(p.id) || 0, p.currency);
       if (owesMe(p)) owed += v; else owe += v;
     }
     const out = h("div", { class: "stack" });
     out.append(h("div", { class: "tiles two" },
-      h("div", { class: "tile good" }, h("small", null, "Owed to you"), h("strong", null, usd(owed))),
-      h("div", { class: "tile" + (owe > 0 ? " bad" : "") }, h("small", null, "You owe"), h("strong", null, usd(owe)))));
+      h("div", { class: "tile good" }, h("small", null, "Owed to you"), h("strong", null, money(owed))),
+      h("div", { class: "tile" + (owe > 0 ? " bad" : "") }, h("small", null, "You owe"), h("strong", null, money(owe)))));
     const list = h("section", { class: "card flush" });
     for (const p of people) {
       const v = bal.get(p.id) || 0;
@@ -1180,11 +1216,11 @@
       amountSheet({
         title: back ? (owesMe(p) ? `${p.name} paid you back` : `You paid ${p.name} back`) : (owesMe(p) ? `You lent ${p.name} more` : `You borrowed more from ${p.name}`),
         cur, max: back ? balance : null,
-        quick: cur === "LBP" ? [1e6, 5e6, 10e6] : [50, 100, 500, 1000],
+        quick: isBig(cur) ? [1e6, 5e6, 10e6] : [50, 100, 500, 1000],
         verbFor: v => !v ? "Enter an amount" : back ? `Record ${fmt(v, cur, { show: true })} paid back` : `Add ${fmt(v, cur, { show: true })}`,
         previewFor: v => `New balance: ${fmt(balance + (back ? -v : v), cur, { show: true })}`,
         onSave: (v, note) => {
-          const amount = (cur === "LBP" ? Math.round(v) : v) * (back ? -1 : 1);
+          const amount = roundCur(v, cur) * (back ? -1 : 1);
           put("loan_entries", { id: newId(), person_id: p.id, amount, note, occurred_on: today(), created_at: new Date().toISOString() });
           const next = balance + amount;
           personSheet(S.data.people.get(p.id) || p, { title: next === 0 ? "Saved. All settled." : `Saved. Balance is now ${fmt(next, cur, { show: true })}.`, message: loanMessage(p, amount, next, note) });
@@ -1273,15 +1309,15 @@
   }
 
   function newPersonSheet() {
-    const f = { name: "", direction: "owes_me", currency: "USD", amount: "", phone: "" };
+    const f = { name: "", direction: "owes_me", currency: mainCur(), amount: "", phone: "" };
     const body = h("form", { class: "form", novalidate: true });
     const err = h("p", { class: "form-err", role: "alert" });
     const draw = () => {
       keepFocus(() => body.replaceChildren(
         h("label", { class: "field" }, h("span", null, "Name"), h("input", { id: "f-nname", class: "input", maxlength: "40", autocomplete: "off", value: f.name, on: { input: e => { f.name = e.target.value; } } })),
         h("div", { class: "field" }, h("span", { class: "label" }, "Who owes who"), seg([["owes_me", "They owe me"], ["i_owe", "I owe them"]], f.direction, k => { f.direction = k; draw(); }, "Direction")),
-        h("div", { class: "field" }, h("span", { class: "label" }, "Currency"), seg([["USD", "Dollars"], ["LBP", "Lira"]], f.currency, k => { f.currency = k; draw(); }, "Currency")),
-        h("label", { class: "field" }, h("span", null, `Amount owed now (${f.currency === "LBP" ? "LBP" : "$"})`), h("input", { id: "f-namt", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.amount, on: { input: e => { f.amount = e.target.value; } } })),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Currency"), curSelect("f-ncur", f.currency, k => { f.currency = k; draw(); })),
+        h("label", { class: "field" }, h("span", null, `Amount owed now (${curSymbol(f.currency)})`), h("input", { id: "f-namt", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.amount, on: { input: e => { f.amount = e.target.value; } } })),
         h("label", { class: "field" }, h("span", null, "WhatsApp number (optional)"), h("input", { id: "f-nphone", class: "input", type: "tel", autocomplete: "off", placeholder: "70 123 456", value: f.phone, on: { input: e => { f.phone = e.target.value; } } })),
         err,
         h("button", { type: "submit", class: "btn" }, "Add person")));
@@ -1297,7 +1333,7 @@
       if (phone && !PHONE_RE.test(phone)) { fail(err, "Enter a number like 70 123 456, or +33 6 12 34 56 78 outside Lebanon."); return; }
       const person = { id: newId(), name, direction: f.direction, currency: f.currency, phone, share_token: null, sort: Math.max(-1, ...rows("people").map(r => r.sort || 0)) + 1 };
       const items = [{ t: "people", r: person }];
-      if (start) items.push({ t: "loan_entries", r: { id: newId(), person_id: person.id, amount: f.currency === "LBP" ? Math.round(start) : start, note: "Starting balance", occurred_on: today(), created_at: new Date().toISOString() } });
+      if (start) items.push({ t: "loan_entries", r: { id: newId(), person_id: person.id, amount: roundCur(start, f.currency), note: "Starting balance", occurred_on: today(), created_at: new Date().toISOString() } });
       putMany(items);
       personSheet(S.data.people.get(person.id));
     });
@@ -1318,7 +1354,7 @@
       data = res.data;
     } catch { return fail("Couldn't load your balance. Check your connection and reload."); }
     if (!data || typeof data !== "object") return fail("This link doesn't work anymore. Ask for a new one.");
-    const cur = data.currency === "LBP" ? "LBP" : "USD";
+    const cur = CUR_RE.test(String(data.currency)) ? data.currency : "USD";
     const balance = Number(data.balance) || 0;
     const from = typeof data.from === "string" && data.from.trim() ? data.from.trim().slice(0, 40) : "";
     const label = balance === 0 ? "You're all settled" : data.direction === "owes_me" ? (from ? `You owe ${from}` : "You owe") : (from ? `${from} owes you` : "You're owed");
@@ -1536,11 +1572,12 @@
   };
 
   function amountPad(cur, getV, setV, onChange) {
-    const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", cur === "LBP" ? "000" : ".", "0", "del"];
+    const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", isBig(cur) ? "000" : curDec(cur) === 0 ? "00" : ".", "0", "del"];
     const press = k => {
       let v = getV();
       if (k === "del") v = v.slice(0, -1);
-      else if (k === ".") { if (cur === "LBP" || v.includes(".")) return; v = (v || "0") + "."; }
+      else if (k === ".") { if (curDec(cur) === 0 || v.includes(".")) return; v = (v || "0") + "."; }
+      else if (k === "00") { if (!v || v === "0" || v.length > 12) return; v += "00"; }
       else if (k === "000") { if (!v || v === "0" || v.length > 11) return; v += "000"; }
       else {
         const [i, d] = v.split(".");
@@ -1572,7 +1609,7 @@
 
   function amountDisplay(cur, kind) {
     const val = h("span", { class: "val" });
-    const el = h("div", { class: "amount-display " + (kind || ""), "aria-live": "polite" }, h("span", { class: "cur" }, cur === "LBP" ? "LBP" : "$"), val);
+    const el = h("div", { class: "amount-display " + (kind || ""), "aria-live": "polite" }, h("span", { class: "cur" }, curSymbol(cur)), val);
     el.set = v => { val.textContent = fmtTyped(v); el.classList.toggle("empty", !v); el.classList.toggle("long", fmtTyped(v).length > 9); };
     return el;
   }
@@ -1619,7 +1656,7 @@
     const f = x
       ? { kind: x.kind, amount: String(Number(x.amount)), account: x.account_id, to: x.to_account_id, toAmount: x.to_amount != null ? String(Number(x.to_amount)) : "", toTouched: true, category: x.category_id, date: x.occurred_on, note: x.note || "", repeat: false }
       : { kind: "expense", amount: "", account: null, to: null, toAmount: "", toTouched: false, category: null, date: today(), note: "", repeat: false };
-    if (x && x.currency === "LBP") f.amount = String(Math.round(Number(x.amount)));
+    if (x && curDec(x.currency) === 0) f.amount = String(Math.round(Number(x.amount)));
     const usage = new Map();
     const cutoff = ymd(new Date(Date.now() - 90 * 864e5));
     for (const t of rows("transactions")) if (t.category_id && t.occurred_on >= cutoff) usage.set(t.category_id, (usage.get(t.category_id) || 0) + 1);
@@ -1637,13 +1674,13 @@
       }
       if (f.kind !== "transfer" && f.category && (!cat(f.category) || cat(f.category).kind !== f.kind)) f.category = null;
     };
-    const convert = (amount, from, to) => from === to ? amount : from === "LBP" ? Math.round(amount / st.rate * 100) / 100 : Math.round(amount * st.rate);
+    const convertFor = (amount, from, to) => roundCur(convert(amount, from, to), to);
 
     const draw = () => {
       pick();
       const a = acc(f.account);
       const cur = a.currency;
-      if (cur === "LBP" && f.amount.includes(".")) f.amount = f.amount.split(".")[0];
+      if (curDec(cur) === 0 && f.amount.includes(".")) f.amount = f.amount.split(".")[0];
       const to = f.kind === "transfer" ? acc(f.to) : null;
       const cross = to && to.currency !== cur;
       const display = amountDisplay(cur, f.kind);
@@ -1652,9 +1689,9 @@
       const refresh = () => {
         display.set(f.amount);
         const v = parseAmt(f.amount);
-        if (v && cross && !f.toTouched) { f.toAmount = String(convert(v, cur, to.currency)); toInput.value = f.toAmount; }
+        if (v && cross && !f.toTouched) { f.toAmount = String(convertFor(v, cur, to.currency)); toInput.value = f.toAmount; }
         const needCat = f.kind !== "transfer" && !f.category;
-        const conv = !v ? "" : cur === "LBP" ? `≈ ${usd(v / st.rate, { show: true })}` : `≈ ${fmt(v * st.rate, "LBP", { show: true })}`;
+        const conv = !v || cur === mainCur() ? "" : `≈ ${money(toMain(v, cur), { show: true })}`;
         const chosen = f.kind !== "transfer" && f.category ? cat(f.category) : null;
         preview.replaceChildren(...(chosen
           ? [h("span", { class: "picked" }, h("span", { class: "picked-ico", style: { background: chosen.color } }, catGlyph(chosen, "ico")), chosen.name), conv ? h("span", { class: "conv" }, conv) : null]
@@ -1665,7 +1702,7 @@
       };
       const pad = amountPad(cur, () => f.amount, v => { f.amount = v; }, refresh);
       const accChips = (value, onPick, exclude) => h("div", { class: "chips" }, accounts.filter(o => o.id !== exclude).map(o =>
-        h("button", { type: "button", class: "chip", "aria-pressed": String(o.id === value), on: { click: () => onPick(o.id) } }, h("span", { class: "cur-tag" }, o.currency === "LBP" ? "LL" : "$"), o.name)));
+        h("button", { type: "button", class: "chip", "aria-pressed": String(o.id === value), on: { click: () => onPick(o.id) } }, h("span", { class: "cur-tag" }, curTag(o.currency)), o.name)));
 
       const kids = [
         seg([["expense", "Expense"], ["income", "Income"], ["transfer", "Move", accounts.length < 2]], f.kind, k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; draw(); }, "Entry type"),
@@ -1674,7 +1711,7 @@
       if (f.kind === "transfer") {
         kids.push(h("div", { class: "field" }, h("span", { class: "label" }, "From"), accChips(f.account, id => { f.account = id; f.toTouched = false; draw(); })));
         kids.push(h("div", { class: "field" }, h("span", { class: "label" }, "To"), accChips(f.to, id => { f.to = id; f.toTouched = false; draw(); }, f.account)));
-        if (cross) kids.push(h("label", { class: "field" }, h("span", null, `${to.name} receives (${to.currency === "LBP" ? "LBP" : "$"})`), toInput, h("span", { class: "hint" }, `At LBP ${st.rate.toLocaleString("en-US")} for $1. Change it if you got a different rate.`)));
+        if (cross) kids.push(h("label", { class: "field" }, h("span", null, `${to.name} receives (${curSymbol(to.currency)})`), toInput, h("span", { class: "hint" }, `At ${fmt(1, cur, { show: true })} = ${fmt(convert(1, cur, to.currency), to.currency, { show: true })}. Change it if you got a different rate.`)));
       } else {
         const cats = rows("categories").filter(c => c.kind === f.kind).sort((p, q) => (usage.get(q.id) || 0) - (usage.get(p.id) || 0) || bySort(p, q));
         kids.push(cats.length
@@ -1716,11 +1753,11 @@
       const sameRate = x && x.currency === a.currency && Number(x.rate) > 0;
       const row = {
         id: x ? x.id : newId(),
-        kind: f.kind, amount: a.currency === "LBP" ? Math.round(amount) : amount, currency: a.currency,
-        rate: sameRate ? Number(x.rate) : st.rate,
+        kind: f.kind, amount: roundCur(amount, a.currency), currency: a.currency,
+        rate: sameRate ? Number(x.rate) : rateOf(a.currency),
         account_id: a.id,
         to_account_id: f.kind === "transfer" ? f.to : null,
-        to_amount: f.kind === "transfer" ? (acc(f.to).currency === "LBP" ? Math.round(toAmount) : toAmount) : null,
+        to_amount: f.kind === "transfer" ? roundCur(toAmount, acc(f.to).currency) : null,
         category_id: f.kind === "transfer" ? null : f.category,
         note: f.note.trim().slice(0, 200) || null,
         occurred_on: f.date,
@@ -1756,17 +1793,18 @@
     const bal = balances();
     const used = a ? rows("transactions").some(x => x.account_id === a.id || x.to_account_id === a.id) : false;
     const current = a ? bal.get(a.id) || 0 : 0;
-    const f = { name: a ? a.name : "", currency: a ? a.currency : "USD", kind: a ? a.kind : "bank", balance: a ? String(Math.round(current * 100) / 100) : "" };
+    const f = { name: a ? a.name : "", currency: a ? a.currency : mainCur(), kind: a ? a.kind : "bank", balance: a ? String(Math.round(current * 100) / 100) : "", rate: "" };
     const body = h("form", { class: "form", novalidate: true });
     const err = h("p", { class: "form-err", role: "alert" });
     let armedDelete = false;
     const draw = () => {
       const kids = [
         h("label", { class: "field" }, h("span", null, "Name"), h("input", { id: "f-aname", class: "input", maxlength: "60", autocomplete: "off", placeholder: "e.g. Cash, Bank Audi, Visa", value: f.name, on: { input: e => { f.name = e.target.value; } } })),
-        h("div", { class: "field" }, h("span", { class: "label" }, "Currency"), seg([["USD", "Dollars", used], ["LBP", "Lira", used]], f.currency, k => { f.currency = k; draw(); }, "Currency")),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Currency"), curSelect("f-acur", f.currency, k => { f.currency = k; f.rate = ""; draw(); }, used), used ? h("p", { class: "hint" }, "The currency can't change once the account has entries.") : null),
+        f.currency !== mainCur() ? h("label", { class: "field" }, h("span", null, `Exchange rate: 1 ${mainCur()} = ? ${f.currency}`), h("input", { id: "f-arate", class: "input num", inputmode: "decimal", autocomplete: "off", value: f.rate || String(+(rateOf(f.currency) / rateOf(mainCur())).toPrecision(6)), on: { input: e => { f.rate = e.target.value; } } }), h("p", { class: "hint" }, "Check this matches today's rate. You can change it later in Settings.")) : null,
         h("div", { class: "field" }, h("span", { class: "label" }, "Type"), h("div", { class: "chips wrap" }, Object.entries(KIND_LABEL).map(([k, l]) => h("button", { type: "button", class: "chip", "aria-pressed": String(f.kind === k), on: { click: () => { f.kind = k; draw(); } } }, l)))),
         h("p", { class: "hint" }, "Money moved into a Savings account counts toward your savings goal."),
-        h("label", { class: "field" }, h("span", null, `Balance now (${f.currency === "LBP" ? "LBP" : "$"})`), h("input", { id: "f-abal", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.balance, on: { input: e => { f.balance = e.target.value; } } })),
+        h("label", { class: "field" }, h("span", null, `Balance now (${curSymbol(f.currency)})`), h("input", { id: "f-abal", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.balance, on: { input: e => { f.balance = e.target.value; } } })),
         err,
         h("button", { type: "submit", class: "btn" }, a ? "Save account" : "Add account")
       ];
@@ -1784,6 +1822,11 @@
       if (wanted === null) { fail(err, "Enter the balance as a number, like 250 or -40."); return; }
       const effect = a ? current - (Number(a.opening_balance) || 0) : 0;
       const opening = Math.round((wanted - effect) * 100) / 100;
+      if (f.currency !== mainCur() && f.rate.trim()) {
+        const x = parseRate(f.rate);
+        if (!x) return fail(err, "Enter the exchange rate as a number, like 0.92 or 89500.");
+        setRate(f.currency, x);
+      }
       const maxSort = Math.max(-1, ...rows("accounts").map(r => r.sort || 0));
       put("accounts", a ? { ...a, name, currency: used ? a.currency : f.currency, kind: f.kind, opening_balance: opening } : { id: newId(), name, currency: f.currency, kind: f.kind, opening_balance: opening, sort: maxSort + 1, archived: false });
       closeSheet();
@@ -1804,7 +1847,7 @@
       if (f.kind === "expense") {
         kids.push(
           h("div", { class: "field" }, h("span", { class: "label" }, "Part of your plan"), seg(Object.entries(BUCKETS).map(([k, b]) => [k, b.name]), f.bucket, k => { f.bucket = k; draw(); }, "Plan group"), h("span", { class: "hint" }, BUCKETS[f.bucket].about)),
-          h("label", { class: "field" }, h("span", null, "Monthly budget in dollars (optional)"), h("input", { id: "f-cbudget", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "No budget", value: f.budget, on: { input: e => { f.budget = e.target.value; } } })));
+          h("label", { class: "field" }, h("span", null, `Monthly budget in ${curSymbol(mainCur())} (optional)`), h("input", { id: "f-cbudget", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "No budget", value: f.budget, on: { input: e => { f.budget = e.target.value; } } })));
       }
       kids.push(h("div", { class: "field" }, h("span", { class: "label" }, "Color"), h("div", { class: "swatches" }, COLORS.map(col => h("button", { type: "button", "aria-label": `Color ${col}`, "aria-pressed": String(f.color === col), style: { background: col }, on: { click: () => { f.color = col; draw(); } } })))), err, h("button", { type: "submit", class: "btn" }, c ? "Save category" : "Add category"));
       if (c) kids.push(h("button", { type: "button", class: "btn danger" + (armedDelete ? " sure" : ""), on: { click: () => { if (!armedDelete) { armedDelete = true; draw(); return; } removeRow("categories", c); closeSheet(); toast("Category deleted. Its entries show as Uncategorized."); } } }, armedDelete ? "Tap again to delete" : "Delete category"));
@@ -1834,7 +1877,7 @@
     const draw = () => {
       const kids = [
         h("p", { class: "hint" }, `${c ? c.name : "Entry"} from ${(acc(r.account_id) || {}).name || "an account"}. Next on ${dayLabel(r.next_on)}.`),
-        h("label", { class: "field" }, h("span", null, `Amount (${r.currency === "LBP" ? "LBP" : "$"})`), h("input", { id: "f-ramt", class: "input num", inputmode: "decimal", autocomplete: "off", value: f.amount, on: { input: e => { f.amount = e.target.value; } } })),
+        h("label", { class: "field" }, h("span", null, `Amount (${curSymbol(r.currency)})`), h("input", { id: "f-ramt", class: "input num", inputmode: "decimal", autocomplete: "off", value: f.amount, on: { input: e => { f.amount = e.target.value; } } })),
         h("label", { class: "field" }, h("span", null, "Day of the month (1 to 28)"), h("input", { id: "f-rday", class: "input num", inputmode: "numeric", autocomplete: "off", value: f.day, on: { input: e => { f.day = e.target.value; } } })),
         h("label", { class: "field" }, h("span", null, "Note"), h("input", { id: "f-rnote", class: "input", maxlength: "200", autocomplete: "off", value: f.note, on: { input: e => { f.note = e.target.value; } } })),
         h("label", { class: "check" }, h("input", { id: "f-ractive", type: "checkbox", checked: f.active, on: { change: e => { f.active = e.target.checked; } } }), "Add it automatically every month"),
@@ -1856,7 +1899,7 @@
         const candidate = `${t.slice(0, 7)}-${pad(day)}`;
         next = candidate > t ? candidate : nextMonthDay(candidate, day);
       }
-      put("rules", { ...r, amount: r.currency === "LBP" ? Math.round(amount) : amount, day, note: f.note.trim().slice(0, 200) || null, active: f.active, next_on: next });
+      put("rules", { ...r, amount: roundCur(amount, r.currency), day, note: f.note.trim().slice(0, 200) || null, active: f.active, next_on: next });
       closeSheet();
       toast("Saved.");
     });
@@ -1990,6 +2033,57 @@
     }
   }
 
+  const parseRate = raw => {
+    const t = String(raw || "").replace(/[,\s]/g, "");
+    if (!/^\d+(\.\d{1,8})?$/.test(t)) return null;
+    const v = Number(t);
+    return v > 0 && v < 1e9 ? v : null;
+  };
+
+  const setRate = (cur, x) => {
+    const m = mainCur();
+    if (cur === m || !(x > 0)) return;
+    const rates = { ...settings().rates };
+    if (cur === "USD") rates[m] = 1 / x; else rates[cur] = x * rateOf(m);
+    saveSettings({ rates });
+  };
+
+  function setMainCurrency(next) {
+    const old = mainCur();
+    if (!CUR_RE.test(next) || next === old) return;
+    const factor = rateOf(next) / rateOf(old);
+    const items = rows("categories").filter(c => Number(c.budget) > 0).map(c => ({ t: "categories", r: { ...c, budget: roundCur(Number(c.budget) * factor, next) } }));
+    const st = settings();
+    items.push({ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), main: next, rates: st.rates, income: st.income ? roundCur(st.income * factor, next) : 0 } } });
+    putMany(items);
+    toast(`Totals are now in ${curInfo(next).name}s. Budgets and income were converted.`);
+  }
+
+  function curSelect(id, value, onPick, disabled) {
+    const used = usedCurrencies();
+    const opt = c => h("option", { value: c, selected: c === value }, `${c} · ${curInfo(c).name}`);
+    const others = Object.keys(CURRENCIES).filter(c => !used.includes(c));
+    const sel = h("select", { id, class: "input cur-select", disabled: !!disabled, "aria-label": "Currency", on: { change: e => onPick(e.target.value) } },
+      h("optgroup", { label: "Your currencies" }, used.map(opt)),
+      others.length ? h("optgroup", { label: "All currencies" }, others.map(opt)) : null);
+    sel.value = value;
+    return sel;
+  }
+
+  function currencyGroup(group) {
+    const m = mainCur();
+    const rateRows = usedCurrencies().filter(c => c !== m).map(c => {
+      const shown = +(rateOf(c) / rateOf(m)).toPrecision(6);
+      const input = h("input", { id: `s-rate-${c}`, class: "input num rate-input", inputmode: "decimal", autocomplete: "off", value: shown.toLocaleString("en-US", { maximumFractionDigits: 6 }), "aria-label": `${c} for 1 ${m}`,
+        on: { change: e => { const x = parseRate(e.target.value); if (!x) { toast("Enter a rate like 0.92 or 89,500.", "error"); e.target.value = shown.toLocaleString("en-US", { maximumFractionDigits: 6 }); return; } setRate(c, x); toast(`Rate saved: 1 ${m} = ${x.toLocaleString("en-US", { maximumFractionDigits: 6 })} ${c}.`); } } });
+      return h("div", { class: "row" }, h("span", { class: "dot neutral" }, curTag(c)), h("span", { class: "row-main" }, h("span", { class: "row-title" }, `1 ${m} =`), h("span", { class: "row-sub" }, curInfo(c).name)), input, h("span", { class: "rate-code" }, c));
+    });
+    return group("Currency",
+      h("div", { class: "row" }, h("span", { class: "dot gold" }, curTag(m)), h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Main currency"), h("span", { class: "row-sub wrap" }, "Totals, budgets and insights are shown in it")), curSelect("s-main", m, setMainCurrency)),
+      ...rateRows,
+      h("p", { class: "row-sub", style: { padding: "4px 16px 14px", whiteSpace: "normal" } }, "Add an account in any currency from Accounts below. Rates are set by you, so update them when the market moves."));
+  }
+
   function reminderGroup(group) {
     if (PUSH.state === null) loadPushState();
     const st = PUSH.state;
@@ -2016,10 +2110,10 @@
       if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
       return `"${s.replace(/"/g, '""')}"`;
     };
-    const lines = [["Date", "Type", "Amount", "Currency", "In dollars", "Account", "To account", "Received", "Category", "Plan group", "Note"].map(cell).join(",")];
+    const lines = [["Date", "Type", "Amount", "Currency", `In ${mainCur()}`, "Account", "To account", "Received", "Category", "Plan group", "Note"].map(cell).join(",")];
     for (const x of rows("transactions").sort(byRecent)) {
       const c = cat(x.category_id), a = acc(x.account_id), b = acc(x.to_account_id);
-      lines.push([x.occurred_on, x.kind, x.amount, x.currency, Math.round(txUsd(x) * 100) / 100, a && a.name, b && b.name, x.to_amount, c && c.name, c && c.bucket, x.note].map(cell).join(","));
+      lines.push([x.occurred_on, x.kind, x.amount, x.currency, Math.round(txMain(x) * 100) / 100, a && a.name, b && b.name, x.to_amount, c && c.name, c && c.bucket, x.note].map(cell).join(","));
     }
     shareFile(`wallet-${today()}.csv`, "﻿" + lines.join("\r\n"), "text/csv");
   }
@@ -2031,12 +2125,12 @@
   }
 
   const VALID = {
-    accounts: r => typeof r.name === "string" && r.name.length > 0 && r.name.length <= 60 && ["USD", "LBP"].includes(r.currency) && Object.keys(KIND_LABEL).includes(r.kind),
+    accounts: r => typeof r.name === "string" && r.name.length > 0 && r.name.length <= 60 && CUR_RE.test(String(r.currency)) && Object.keys(KIND_LABEL).includes(r.kind),
     categories: r => typeof r.name === "string" && r.name.length > 0 && r.name.length <= 40 && ["expense", "income"].includes(r.kind),
-    transactions: r => ["expense", "income", "transfer"].includes(r.kind) && Number(r.amount) > 0 && ["USD", "LBP"].includes(r.currency) && Number(r.rate) > 0 && DATE_RE.test(String(r.occurred_on)) && typeof r.account_id === "string",
-    rules: r => ["expense", "income"].includes(r.kind) && Number(r.amount) > 0 && ["USD", "LBP"].includes(r.currency) && Number.isInteger(r.day) && r.day >= 1 && r.day <= 28 && DATE_RE.test(String(r.next_on)),
+    transactions: r => ["expense", "income", "transfer"].includes(r.kind) && Number(r.amount) > 0 && CUR_RE.test(String(r.currency)) && Number(r.rate) > 0 && DATE_RE.test(String(r.occurred_on)) && typeof r.account_id === "string",
+    rules: r => ["expense", "income"].includes(r.kind) && Number(r.amount) > 0 && CUR_RE.test(String(r.currency)) && Number.isInteger(r.day) && r.day >= 1 && r.day <= 28 && DATE_RE.test(String(r.next_on)),
     settings: r => !!r.data && typeof r.data === "object" && !Array.isArray(r.data),
-    people: r => typeof r.name === "string" && r.name.length > 0 && r.name.length <= 40 && ["owes_me", "i_owe"].includes(r.direction) && ["USD", "LBP"].includes(r.currency) && (r.phone == null || PHONE_RE.test(r.phone)) && (r.share_token == null || TOKEN_RE.test(r.share_token)),
+    people: r => typeof r.name === "string" && r.name.length > 0 && r.name.length <= 40 && ["owes_me", "i_owe"].includes(r.direction) && CUR_RE.test(String(r.currency)) && (r.phone == null || PHONE_RE.test(r.phone)) && (r.share_token == null || TOKEN_RE.test(r.share_token)),
     loan_entries: r => typeof r.person_id === "string" && Number(r.amount) !== 0 && Number.isFinite(Number(r.amount)) && DATE_RE.test(String(r.occurred_on))
   };
 

@@ -831,3 +831,9 @@ main.view:not(.enter) > * { animation: none; }
 .tabs, .tool, .add-btn .bubble { will-change: transform; transform: translateZ(0); }
 .card, .tile, .hero { contain: layout paint; }
 .sheet-body { contain: layout; }
+.cur-select { -webkit-appearance: none; appearance: none; padding-right: 36px; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%; background-size: 6px 6px; background-repeat: no-repeat; }
+.row .cur-select { width: auto; max-width: 52%; flex: none; min-height: 44px; padding-top: 9px; padding-bottom: 9px; border-radius: 999px; font-weight: 600; }
+.rate-input { width: 130px; flex: none; text-align: right; font: 700 16px var(--nums); min-height: 44px; padding: 9px 12px; border-radius: 999px; }
+.rate-code { font: 700 13px var(--nums); color: var(--muted); width: 34px; flex: none; }
+.row .cur-select { max-width: 44%; }
+.row .row-title { white-space: normal; }
