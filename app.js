@@ -1373,7 +1373,7 @@
       h("div", { class: "tile" }, h("small", null, "Entries"), h("strong", null, String(t.transactions ?? 0))),
       h("div", { class: "tile" }, h("small", null, "Reminders on"), h("strong", null, String(t.reminders_on ?? 0)))));
     out.append(h("div", { class: "tiles" },
-      h("div", { class: "tile" }, h("small", null, "People"), h("strong", null, String(t.people ?? 0))),
+      h("div", { class: "tile" }, h("small", null, "Loan contacts"), h("strong", null, String(t.people ?? 0))),
       h("div", { class: "tile" }, h("small", null, "Loan entries"), h("strong", null, String(t.loan_entries ?? 0))),
       h("div", { class: "tile" }, h("small", null, "Shared pages"), h("strong", null, String(t.shared_links ?? 0)))));
 
@@ -1415,7 +1415,7 @@
       const kids = [
         h("section", { class: "card" }, h("div", { class: "facts" },
           fact("Entries", st.transactions ?? 0), fact("Money accounts", st.accounts ?? 0),
-          fact("People", st.people ?? 0), fact("Reminders on", st.reminders ?? 0)),
+          fact("Loan contacts", st.people ?? 0), fact("Reminders on", st.reminders ?? 0)),
           h("p", { class: "hint" }, `Joined ${new Date(u.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} · last sign-in ${whenText(u.last_sign_in_at)} · last entry ${whenText(st.last_entry)}`))
       ];
       if (u.is_me) {
