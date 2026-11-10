@@ -14,6 +14,14 @@ const cors = {
 };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
+async function removeReceipts(userId: string) {
+  for (let i = 0; i < 20; i++) {
+    const { data } = await sb.storage.from("receipts").list(userId, { limit: 1000 });
+    if (!data || !data.length) return;
+    await sb.storage.from("receipts").remove(data.map(f => `${userId}/${f.name}`));
+  }
+}
+
 Deno.serve(async req => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST") return json({ error: "method" }, 405);
@@ -56,6 +64,7 @@ Deno.serve(async req => {
   }
   if (action === "delete") {
     if (String(body.confirm || "") !== "DELETE") return json({ error: "Confirmation missing." }, 400);
+    await removeReceipts(id).catch(() => {});
     const { error } = await sb.auth.admin.deleteUser(id);
     return error ? json({ error: "Couldn't delete the account." }, 500) : json({ ok: true });
   }

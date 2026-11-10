@@ -107,3 +107,9 @@ begin
   end loop;
 end;
 $$;
+
+alter table public.transactions add column if not exists receipt text check (receipt is null or receipt ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}\.jpg$');
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values ('receipts', 'receipts', false, 2097152, array['image/jpeg']) on conflict (id) do nothing;
+create policy "receipts select own" on storage.objects for select to authenticated using (bucket_id = 'receipts' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy "receipts insert own" on storage.objects for insert to authenticated with check (bucket_id = 'receipts' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy "receipts delete own" on storage.objects for delete to authenticated using (bucket_id = 'receipts' and (storage.foldername(name))[1] = (select auth.uid())::text);

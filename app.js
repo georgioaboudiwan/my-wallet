@@ -9,7 +9,7 @@
   const COLS = {
     accounts: ["id", "user_id", "name", "currency", "kind", "opening_balance", "sort", "archived", "deleted_at"],
     categories: ["id", "user_id", "name", "kind", "bucket", "color", "budget", "sort", "deleted_at"],
-    transactions: ["id", "user_id", "kind", "amount", "currency", "rate", "account_id", "to_account_id", "to_amount", "category_id", "note", "occurred_on", "rule_id", "deleted_at"],
+    transactions: ["id", "user_id", "kind", "amount", "currency", "rate", "account_id", "to_account_id", "to_amount", "category_id", "note", "occurred_on", "rule_id", "receipt", "deleted_at"],
     rules: ["id", "user_id", "kind", "amount", "currency", "account_id", "category_id", "note", "day", "next_on", "active", "deleted_at"],
     settings: ["id", "user_id", "data", "deleted_at"],
     people: ["id", "user_id", "name", "direction", "currency", "phone", "share_token", "sort", "deleted_at"],
@@ -45,11 +45,12 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "1.7.0";
+  const VERSION = "1.8.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
     chart: "M3 3v18h18M7 15l4-4 3 3 6-6",
+    cam: "M4 8h3l2-3h6l2 3h3v11H4zM12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z",
     up: "M12 19V5M5 12l7-7 7 7",
     down: "M12 5v14M5 12l7 7 7-7",
     plan: "M12 3a9 9 0 1 0 9 9h-9zM15 2.6A9 9 0 0 1 21.4 9H15z",
@@ -279,6 +280,10 @@
     return {
       main: CUR_RE.test(d.main || "") ? d.main : "USD",
       rates: { LBP: Number(d.rate) > 0 ? Number(d.rate) : 89500, ...(d.rates && typeof d.rates === "object" ? Object.fromEntries(Object.entries(d.rates).filter(([k, v]) => CUR_RE.test(k) && Number(v) > 0).map(([k, v]) => [k, Number(v)])) : {}) },
+      loanDue: d.loanDue && typeof d.loanDue === "object" ? Object.fromEntries(Object.entries(d.loanDue).filter(([k, v]) => typeof k === "string" && DATE_RE.test(String(v)))) : {},
+      autoRates: d.autoRates !== false,
+      manualRates: Array.isArray(d.manualRates) ? d.manualRates.filter(c => CUR_RE.test(c)) : [],
+      ratesAt: DATE_RE.test(d.ratesAt || "") ? d.ratesAt : "",
       goals: Array.isArray(d.goals) ? d.goals.filter(g => g && typeof g.id === "string" && Number(g.target) > 0).slice(0, 12).map((g, i) => ({ id: g.id.slice(0, 40), name: String(g.name || "Goal").slice(0, 40), target: Number(g.target), saved: Math.max(0, Number(g.saved) || 0), by: /^\d{4}-\d{2}$/.test(g.by || "") ? g.by : "", color: /^#[0-9a-f]{6}$/i.test(g.color) ? g.color : COLORS[i % COLORS.length] })) : [],
       buckets: Array.isArray(d.buckets) && d.buckets.length
         ? d.buckets.filter(b => b && BUCKET_ID.test(b.id)).slice(0, 8).map((b, i) => ({ id: b.id, name: String(b.name || "Group").slice(0, 24), pct: Math.max(0, Math.min(100, Math.round(Number(b.pct) || 0))), color: /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : BUCKET_COLORS[i % BUCKET_COLORS.length], save: !!b.save }))
@@ -412,6 +417,7 @@
       S.syncError = false;
       ensureDefaults();
       runRules();
+      refreshRates();
       if (changed) { save(); scheduleRender(); }
     } catch {
       S.syncError = true;
@@ -607,7 +613,7 @@
     const sideAdd = h("button", { type: "button", class: "side-add", on: { click: () => txnSheet(null) } }, icon("plus", "ico"), "New entry");
     const sideSettings = h("button", { type: "button", class: "tab side-only", "data-view": "settings", on: { click: () => go("settings") } }, icon("gear"), h("span", null, "Settings"));
     tabs.push(sideSettings);
-    const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, h("div", { class: "tabs glass" }, lens, ...tabs), add);
+    const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, h("div", { class: "tabs glass" }, lens, tabs[0], tabs[1], add, ...tabs.slice(2)));
     const top = h("header", { class: "top" }, title, h("div", { class: "tool glass" }, status, eye, gear));
     const ptr = h("div", { class: "ptr", "aria-hidden": "true" }, icon("sync"));
     root.replaceChildren(h("div", { class: "shell" }, top, ptr, main, nav));
@@ -664,7 +670,7 @@
     for (const t of shell.tabs) t.setAttribute("aria-current", t.dataset.view === S.view ? "page" : "false");
     const tabIndex = ["home", "activity", "insights", "people"].indexOf(S.view === "plan" ? "insights" : S.view);
     shell.lens.style.opacity = tabIndex < 0 ? "0" : "1";
-    if (tabIndex >= 0) shell.lens.style.transform = `translateX(${tabIndex * 100}%)`;
+    if (tabIndex >= 0) shell.lens.style.transform = `translateX(calc(${tabIndex * 100}% + ${tabIndex >= 2 ? 68 : 0}px))`;
     renderStatus();
   }
 
@@ -796,7 +802,7 @@
       sign = x.kind === "income" ? "+" : "−";
       cls += x.kind === "income" ? " pos" : " neg";
     }
-    const sub = [x.note, x.kind !== "transfer" && a ? a.name : null, x.rule_id ? "Monthly" : null].filter(Boolean).join(" · ");
+    const sub = [x.note, x.kind !== "transfer" && a ? a.name : null, x.rule_id ? "Monthly" : null, x.receipt ? "Receipt" : null].filter(Boolean).join(" · ");
     const toAcc = acc(x.to_account_id);
     const other = x.kind === "transfer" && toAcc && toAcc.currency !== x.currency && x.to_amount
       ? h("small", null, "→ " + fmt(Number(x.to_amount), toAcc.currency))
@@ -1019,6 +1025,179 @@
       h("p", { class: "hint" }, last.owed !== 0 ? `Accounts ${money(last.cash, { whole: true })} ${last.owed > 0 ? "plus" : "minus"} ${money(Math.abs(last.owed), { whole: true })} ${last.owed > 0 ? "owed to you" : "you owe"}. Past months use today's exchange rates.` : "Your account balances at the end of each month, at today's exchange rates."));
   }
 
+  const dueOf = p => settings().loanDue[p.id] || null;
+  const dueInfo = p => {
+    const d = dueOf(p);
+    if (!d) return null;
+    const days = Math.round((new Date(d + "T12:00:00") - new Date(today() + "T12:00:00")) / 864e5);
+    return { late: days < 0, text: days < 0 ? `Overdue by ${-days} day${days === -1 ? "" : "s"}` : days === 0 ? "Due today" : days === 1 ? "Due tomorrow" : `Due ${dayLabel(d).toLowerCase()}` };
+  };
+
+  async function shrinkImage(file) {
+    if (!file || !/^image\//.test(file.type) || file.size > 25e6) return null;
+    try {
+      const bmp = await createImageBitmap(file);
+      const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(bmp.width * scale);
+      canvas.height = Math.round(bmp.height * scale);
+      canvas.getContext("2d").drawImage(bmp, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", 0.78));
+      return blob && blob.size <= 2e6 ? blob : null;
+    } catch { return null; }
+  }
+
+  const RECEIPT_RE = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.jpg$/;
+  function dropReceipt(path) {
+    if (!RECEIPT_RE.test(path) || !path.startsWith(S.uid + "/") || !navigator.onLine) return;
+    sb.storage.from("receipts").remove([path]).catch(() => { });
+  }
+
+  async function receiptViewer(path, onRemove) {
+    if (!RECEIPT_RE.test(path)) return;
+    if (!navigator.onLine) return toast("Connect to the internet to view the receipt.", "error");
+    const { data, error } = await sb.storage.from("receipts").createSignedUrl(path, 120);
+    if (error || !data || !data.signedUrl) return toast("The receipt couldn't be loaded.", "error");
+    const close = () => view.remove();
+    const view = h("div", { class: "viewer", role: "dialog", "aria-modal": "true", "aria-label": "Receipt" },
+      h("img", { src: data.signedUrl, alt: "Receipt photo" }),
+      h("div", { class: "viewer-bar" },
+        h("button", { type: "button", class: "btn alt", on: { click: close } }, "Close"),
+        h("button", { type: "button", class: "btn danger sure", on: { click: () => { close(); onRemove(); toast("Receipt removed. Save the entry to confirm."); } } }, "Remove")));
+    document.body.append(view);
+  }
+
+  const parseCsv = text => {
+    const rowsOut = [];
+    let row = [], cell = "", q = false;
+    const first = text.split("\n")[0];
+    const sep = (first.match(/;/g) || []).length > (first.match(/,/g) || []).length ? ";" : ",";
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (q) { if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; }
+      else if (ch === '"') q = true;
+      else if (ch === sep) { row.push(cell); cell = ""; }
+      else if (ch === "\n" || ch === "\r") { if (ch === "\r" && text[i + 1] === "\n") i++; row.push(cell); cell = ""; if (row.some(c => c.trim())) rowsOut.push(row); row = []; }
+      else cell += ch;
+    }
+    row.push(cell);
+    if (row.some(c => c.trim())) rowsOut.push(row);
+    return rowsOut;
+  };
+  const csvDate = raw => {
+    const v = String(raw || "").trim().replace(/^'/, "");
+    let m = v.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+    if (m) return `${m[1]}-${pad(m[2])}-${pad(m[3])}`;
+    m = v.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+    if (!m) return null;
+    let [, d, mo, y] = m;
+    if (Number(mo) > 12 && Number(d) <= 12) [d, mo] = [mo, d];
+    if (y.length === 2) y = "20" + y;
+    if (y.length !== 4 || Number(mo) < 1 || Number(mo) > 12 || Number(d) < 1 || Number(d) > 31) return null;
+    return `${y}-${pad(mo)}-${pad(d)}`;
+  };
+  const csvNum = raw => {
+    let v = String(raw || "").replace(/[^0-9.,()\-]/g, "");
+    if (!v) return 0;
+    const neg = /^\(.*\)$/.test(v) || v.includes("-");
+    v = v.replace(/[()\-]/g, "");
+    if (v.includes(",") && v.includes(".")) v = v.lastIndexOf(",") > v.lastIndexOf(".") ? v.replace(/\./g, "").replace(",", ".") : v.replace(/,/g, "");
+    else if (v.includes(",")) v = /,\d{1,2}$/.test(v) ? v.replace(",", ".") : v.replace(/,/g, "");
+    const n = Number(v);
+    return Number.isFinite(n) ? (neg ? -n : n) : 0;
+  };
+
+  async function onImportFile(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 2e6) return toast("That file is too big. Import up to 2 MB at a time.", "error");
+    let table;
+    try { table = parseCsv((await file.text()).replace(/^﻿/, "")); } catch { table = []; }
+    if (table.length < 2) return toast("No rows found in that file.", "error");
+    const head = table[0].map(c => c.trim().toLowerCase());
+    const find = (...names) => head.findIndex(c => names.some(n => c === n || c.includes(n)));
+    const col = { date: find("date"), amount: find("amount", "montant", "value"), debit: find("debit", "withdrawal", "paid out", "débit"), credit: find("credit", "deposit", "paid in", "crédit"), note: find("description", "note", "details", "memo", "narrative", "libell"), cat: find("category", "catégorie"), type: head.indexOf("type") };
+    if (col.date < 0 || (col.amount < 0 && col.debit < 0 && col.credit < 0)) return toast("The file needs a Date column and an Amount column (or Debit and Credit).", "error");
+    const byName = new Map(rows("categories").map(c => [c.kind + ":" + c.name.toLowerCase(), c]));
+    const learned = new Map();
+    for (const t of rows("transactions")) if (t.note && t.category_id) learned.set(t.kind + ":" + t.note.trim().toLowerCase(), t.category_id);
+    const seen = new Set(rows("transactions").map(t => `${t.occurred_on}|${t.kind}|${Number(t.amount)}|${(t.note || "").trim().toLowerCase()}`));
+    const out = [];
+    let skipped = 0, dupes = 0;
+    for (const r of table.slice(1, 2001)) {
+      const date = csvDate(r[col.date]);
+      const type = col.type >= 0 ? String(r[col.type] || "").trim().toLowerCase() : "";
+      let amt = col.amount >= 0 ? csvNum(r[col.amount]) : 0;
+      if (!amt && col.debit >= 0 && csvNum(r[col.debit])) amt = -Math.abs(csvNum(r[col.debit]));
+      if (!amt && col.credit >= 0 && csvNum(r[col.credit])) amt = Math.abs(csvNum(r[col.credit]));
+      if (!date || !amt || type === "transfer") { skipped++; continue; }
+      const kind = type === "income" ? "income" : type === "expense" ? "expense" : amt < 0 ? "expense" : "income";
+      const note = col.note >= 0 ? String(r[col.note] || "").trim().replace(/^'/, "").slice(0, 200) : "";
+      const named = col.cat >= 0 ? byName.get(kind + ":" + String(r[col.cat] || "").trim().toLowerCase()) : null;
+      const category = named ? named.id : learned.get(kind + ":" + note.toLowerCase()) || null;
+      const key = `${date}|${kind}|${Math.abs(amt)}|${note.toLowerCase()}`;
+      if (seen.has(key)) { dupes++; continue; }
+      seen.add(key);
+      out.push({ date, kind, amount: Math.abs(amt), note, category });
+    }
+    if (!out.length) return toast(dupes ? "Everything in that file is already in your wallet." : "No usable rows found in that file.", "error");
+    importSheet(out, skipped, dupes);
+  }
+
+  function importSheet(list, skipped, dupes) {
+    const accounts = rows("accounts").filter(a => !a.archived).sort(bySort);
+    if (!accounts.length) return toast("Add an account first.");
+    let account = accounts[0].id;
+    const body = h("div", { class: "form" });
+    const draw = () => {
+      const a = acc(account);
+      const exp = list.filter(x => x.kind === "expense"), inc = list.filter(x => x.kind === "income");
+      const sum = arr => arr.reduce((t, x) => t + x.amount, 0);
+      const loose = list.filter(x => !x.category).length;
+      body.replaceChildren(
+        h("div", { class: "tiles two" },
+          h("div", { class: "tile bad" }, h("small", null, `${exp.length} expenses`), h("strong", null, fmt(sum(exp), a.currency, { whole: true }))),
+          h("div", { class: "tile good" }, h("small", null, `${inc.length} income`), h("strong", null, fmt(sum(inc), a.currency, { whole: true })))),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Add them to"),
+          h("div", { class: "chips wrap" }, accounts.map(x => h("button", { type: "button", class: "chip", "aria-pressed": String(x.id === account), on: { click: () => { account = x.id; draw(); } } }, `${x.name} · ${x.currency}`)))),
+        h("section", { class: "card flush" }, list.slice(0, 5).map(x => h("div", { class: "row" },
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, x.note || (x.kind === "income" ? "Income" : "Expense")), h("span", { class: "row-sub" }, `${dayLabel(x.date)} · ${x.category && cat(x.category) ? cat(x.category).name : "Uncategorized"}`)),
+          h("span", { class: "row-end " + (x.kind === "income" ? "pos" : "neg") }, (x.kind === "income" ? "+" : "−") + fmt(x.amount, a.currency)))),
+          list.length > 5 ? h("p", { class: "row-note" }, `and ${list.length - 5} more`) : null),
+        h("p", { class: "hint" }, [`Amounts are read in ${a.currency}, the currency of the account you pick.`, loose ? `${loose} have no category yet; open them in Activity to set one.` : null, dupes ? `${dupes} already in your wallet were left out.` : null, skipped ? `${skipped} rows without a date or amount were skipped.` : null].filter(Boolean).join(" ")));
+    };
+    draw();
+    const btn = h("button", { type: "button", class: "btn", on: { click: () => {
+      const a = acc(account);
+      putMany(list.map(x => ({ t: "transactions", r: { id: newId(), kind: x.kind, amount: roundCur(x.amount, a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: x.category, note: x.note || null, occurred_on: x.date, rule_id: null, receipt: null, created_at: new Date().toISOString() } })));
+      closeSheet();
+      toast(`${list.length} entries imported.`);
+    } } }, `Import ${list.length} entries`);
+    openSheet("Import from a file", body, btn);
+  }
+
+  async function refreshRates(force) {
+    const st = settings();
+    if (!st.autoRates || !navigator.onLine || !S.session) return false;
+    if (!force && st.ratesAt === today()) return false;
+    const wanted = usedCurrencies().filter(c => c !== "USD" && !st.manualRates.includes(c));
+    if (!wanted.length) return false;
+    try {
+      const res = await fetch("https://open.er-api.com/v6/latest/USD", { cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer" });
+      if (!res.ok) return false;
+      const j = await res.json();
+      if (!j || j.result !== "success" || !j.rates) return false;
+      const rates = { ...settings().rates };
+      for (const c of wanted) {
+        const v = Number(j.rates[c]);
+        if (v > 0 && Number.isFinite(v)) rates[c] = v;
+      }
+      saveSettings({ rates, ratesAt: today() });
+      return true;
+    } catch { return false; }
+  }
+
   function viewHome() {
     const st = settings();
     const bal = balances();
@@ -1139,7 +1318,7 @@
         const v = lb.get(p.id) || 0;
         card.append(h("button", { type: "button", class: "row", on: { click: () => personSheet(p) } },
           h("span", { class: "dot", style: { background: COLORS[(p.sort || 0) % COLORS.length] } }, p.name.charAt(0).toUpperCase()),
-          h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" }, statusText(p, v))),
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" + (v > 0 && dueInfo(p) && dueInfo(p).late ? " late" : "") }, [statusText(p, v), v > 0 && dueInfo(p) ? dueInfo(p).text : null].filter(Boolean).join(" · "))),
           h("span", { class: "row-end" + (v > 0 && owesMe(p) ? " pos" : v > 0 ? " neg" : "") }, fmt(v, p.currency))));
       }
       out.append(card);
@@ -1546,11 +1725,13 @@
     out.append(group("Your name", h("div", { class: "row" }, h("span", { class: "row-main" }, nameIn, h("span", { class: "row-sub", style: { marginTop: "6px" } }, "Shown on the private pages you share")))));
 
     const fileInput = h("input", { id: "s-restore", type: "file", accept: "application/json,.json", class: "vh", on: { change: onRestoreFile } });
+    const importInput = h("input", { type: "file", accept: ".csv,text/csv", class: "vh", on: { change: onImportFile } });
     const dataKids = [
       h("button", { type: "button", class: "row-btn", on: { click: exportCsv } }, "Export spending (CSV)"),
       h("button", { type: "button", class: "row-btn", on: { click: exportBackup } }, "Download a backup"),
       h("button", { type: "button", class: "row-btn", on: { click: () => fileInput.click() } }, "Restore from a backup"),
-      fileInput
+      h("button", { type: "button", class: "row-btn", on: { click: () => importInput.click() } }, "Import entries from a CSV file"),
+      fileInput, importInput
     ];
     if (S.restore) {
       dataKids.push(h("div", { class: "row" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, `Restore ${S.restore.length} records?`), h("span", { class: "row-sub" }, "Records with the same ID are replaced."))),
@@ -1638,7 +1819,7 @@
       const v = bal.get(p.id) || 0;
       list.append(h("button", { type: "button", class: "row", on: { click: () => personSheet(p) } },
         h("span", { class: "dot", style: { background: COLORS[(p.sort || 0) % COLORS.length] } }, p.name.charAt(0).toUpperCase()),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" }, [statusText(p, v), p.share_token ? "Has their page" : null].filter(Boolean).join(" · "))),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" + (v > 0 && dueInfo(p) && dueInfo(p).late ? " late" : "") }, [statusText(p, v), v > 0 && dueInfo(p) ? dueInfo(p).text : null, p.share_token ? "Has their page" : null].filter(Boolean).join(" · "))),
         h("span", { class: "row-end" + (v > 0 && owesMe(p) ? " pos" : v > 0 ? " neg" : "") }, fmt(v, p.currency))));
     }
     if (!people.length) list.append(h("p", { class: "empty" }, "No one yet. Add the people you lend money to or borrow from."));
@@ -1650,7 +1831,7 @@
   function personSheet(p, notice) {
     if (!p) return newPersonSheet();
     const body = h("div", { class: "form" });
-    const f = { phone: p.phone || "", name: p.name };
+    const f = { phone: p.phone || "", name: p.name, due: dueOf(p) || "" };
     let armed = null;
     const openAmount = mode => {
       const balance = loanBalances().get(p.id) || 0;
@@ -1679,7 +1860,8 @@
       kids.push(h("div", { class: "hero person-hero" + (balance === 0 ? " settled" : owesMe(p) ? "" : " owe") },
         h("p", { class: "hero-label" }, balance === 0 ? "All settled" : owesMe(p) ? `${p.name} owes you` : `You owe ${p.name}`),
         h("p", { class: "hero-total num" }, fmt(balance, cur, { show: true })),
-        history.length ? h("p", { class: "hero-sub" }, `Last change ${dayLabel(history[0].occurred_on).toLowerCase()}`) : null));
+        history.length ? h("p", { class: "hero-sub" }, `Last change ${dayLabel(history[0].occurred_on).toLowerCase()}`) : null,
+        balance > 0 && dueInfo(p) ? h("p", { class: "hero-sub due" + (dueInfo(p).late ? " late" : "") }, dueInfo(p).text) : null));
 
       if (notice) {
         kids.push(h("div", { class: "notice" }, h("p", null, icon("check", "ico sm"), notice.title),
@@ -1694,6 +1876,7 @@
         h("button", { type: "button", class: "action", disabled: balance <= 0, on: { click: () => openAmount("back") } }, h("span", { class: "action-ico out" }, icon("minus")), owesMe(p) ? "Paid me back" : "I paid back")));
 
       if (p.phone) kids.push(waButton(p.phone, balanceMessage(p, balance), "Send balance on WhatsApp", "alt wa-alt"));
+      if (p.phone && balance > 0 && owesMe(p) && dueInfo(p)) kids.push(waButton(p.phone, `Hi ${p.name}, a friendly reminder that ${fmt(balance, cur, { show: true })} ${dueInfo(p).late ? "was due on" : "is due on"} ${dayLabel(dueOf(p)).toLowerCase()}. Thank you.`, "Send a payment reminder", "alt wa-alt"));
 
       const share = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Their private page")));
       if (p.share_token) {
@@ -1729,12 +1912,16 @@
         h("div", { class: "card-head" }, h("h2", null, "Details")),
         h("label", { class: "field" }, h("span", null, "Name"), nameIn),
         h("label", { class: "field" }, h("span", null, "WhatsApp number"), phoneIn),
+        h("label", { class: "field" }, h("span", null, "Due date (optional)"), h("input", { id: "f-pdue", class: "input", type: "date", value: f.due, on: { input: e => { f.due = e.target.value; } } })),
         h("button", { type: "button", class: "btn alt", on: { click: () => {
           const name = f.name.trim().replace(/\s+/g, " ");
           if (!name || name.length > 40) return toast("Enter a name.");
           const phone = f.phone.trim() ? cleanPhone(f.phone) : null;
           if (phone && !PHONE_RE.test(phone)) return toast("Enter a number like 70 123 456, or +33 6 12 34 56 78 outside Lebanon.");
           put("people", { ...p, name, phone });
+          const due = { ...settings().loanDue };
+          if (DATE_RE.test(f.due)) due[p.id] = f.due; else delete due[p.id];
+          saveSettings({ loanDue: due });
           f.phone = phone || "";
           toast("Changes saved.");
           draw();
@@ -2099,6 +2286,17 @@
     const f = x
       ? { kind: x.kind, amount: String(Number(x.amount)), account: x.account_id, to: x.to_account_id, toAmount: x.to_amount != null ? String(Number(x.to_amount)) : "", toTouched: true, category: x.category_id, date: x.occurred_on, note: x.note || "", repeat: false }
       : { kind: "expense", amount: "", account: null, to: null, toAmount: "", toTouched: false, category: null, date: today(), note: "", repeat: false };
+    f.receipt = x ? x.receipt || null : null;
+    f.blob = null;
+    const receiptInput = h("input", { type: "file", accept: "image/*", hidden: true, on: { change: async e => {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = "";
+      if (!file) return;
+      const blob = await shrinkImage(file);
+      if (!blob) return toast("That photo couldn't be read. Try another one.", "error");
+      f.blob = blob;
+      draw();
+    } } });
     if (!x && preset) Object.assign(f, preset);
     if (x && curDec(x.currency) === 0) f.amount = String(Math.round(Number(x.amount)));
     const usage = new Map();
@@ -2172,7 +2370,13 @@
         h("label", { class: "chip date-chip", "aria-pressed": String(f.date !== today() && f.date !== yest) }, icon("cal", "ico sm"), f.date !== today() && f.date !== yest ? dateText : "Other day",
           h("input", { id: "f-date", type: "date", value: f.date, max: ymd(new Date(Date.now() + 366 * 864e5)), "aria-label": "Pick another date", on: { change: e => { if (DATE_RE.test(e.target.value)) { f.date = e.target.value; draw(); } } } })),
         h("button", { type: "button", class: "chip", "aria-pressed": String(showNote), on: { click: () => { showNote = !showNote; draw(); if (showNote) document.getElementById("f-note").focus(); } } }, icon("note", "ico sm"), f.note ? f.note.slice(0, 18) + (f.note.length > 18 ? "…" : "") : "Note"),
-        !x && f.kind !== "transfer" ? h("button", { type: "button", class: "chip", "aria-pressed": String(f.repeat), on: { click: () => { f.repeat = !f.repeat; draw(); } } }, icon("repeat", "ico sm"), "Monthly") : null));
+        !x && f.kind !== "transfer" ? h("button", { type: "button", class: "chip", "aria-pressed": String(f.repeat), on: { click: () => { f.repeat = !f.repeat; draw(); } } }, icon("repeat", "ico sm"), "Monthly") : null,
+        f.kind !== "transfer" ? h("button", { type: "button", class: "chip", "aria-pressed": String(!!(f.blob || f.receipt)), on: { click: () => {
+          if (f.blob) { f.blob = null; return draw(); }
+          if (f.receipt) return receiptViewer(f.receipt, () => { f.receipt = null; draw(); });
+          receiptInput.click();
+        } } }, icon("cam", "ico sm"), f.blob ? "Photo added" : f.receipt ? "View receipt" : "Receipt") : null,
+        receiptInput));
       if (showNote) kids.push(h("input", { id: "f-note", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: f.kind === "expense" ? "What was it?" : "Note", value: f.note, "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }));
       if (f.repeat) kids.push(h("p", { class: "hint" }, `Adds this automatically on day ${Math.min(28, Number(f.date.slice(8)) || 1)} of every month.`));
       kids.push(pad);
@@ -2180,8 +2384,10 @@
       refresh();
     };
 
-    body.addEventListener("submit", ev => {
+    let saving = false;
+    body.addEventListener("submit", async ev => {
       ev.preventDefault();
+      if (saving) return;
       err.textContent = "";
       const a = acc(f.account);
       const amount = parseAmt(f.amount);
@@ -2194,6 +2400,20 @@
         toAmount = to.currency === a.currency ? amount : parseAmt(f.toAmount);
         if (!toAmount) { fail(err, `Enter how much ${to.name} receives.`); return; }
       } else if (!f.category) { fail(null, f.kind === "income" ? "Pick where the money came from." : "Pick a category for this expense.", body.querySelector(".cat-grid")); return; }
+      let receiptNote = null;
+      if (f.blob && f.kind !== "transfer") {
+        if (!navigator.onLine) receiptNote = "Saved without the photo. Connect to the internet to attach it.";
+        else {
+          saving = true; saveBtn.disabled = true;
+          const path = `${S.uid}/${crypto.randomUUID()}.jpg`;
+          let up = null;
+          try { up = await sb.storage.from("receipts").upload(path, f.blob, { contentType: "image/jpeg", cacheControl: "3600" }); } catch { up = { error: true }; }
+          saving = false; saveBtn.disabled = false;
+          if (up.error) receiptNote = "Saved, but the photo couldn't be uploaded. Open the entry to try again.";
+          else { if (x && x.receipt) dropReceipt(x.receipt); f.receipt = path; }
+        }
+      }
+      if (x && x.receipt && !f.receipt) dropReceipt(x.receipt);
       const sameRate = x && x.currency === a.currency && Number(x.rate) > 0;
       const row = {
         id: x ? x.id : newId(),
@@ -2205,6 +2425,7 @@
         category_id: f.kind === "transfer" ? null : f.category,
         note: f.note.trim().slice(0, 200) || null,
         occurred_on: f.date,
+        receipt: f.kind === "transfer" ? null : f.receipt,
         rule_id: x ? x.rule_id || null : null,
         created_at: x ? x.created_at : new Date().toISOString()
       };
@@ -2226,6 +2447,7 @@
           : after.ratio >= 0.8 && before.ratio < 0.8 ? `${after.c.name} has used ${Math.round(after.ratio * 100)}% of its budget.` : null)
         : null;
       const overPlan = after && after.left < 0 && before.left >= 0 ? "You're now over this month's plan." : null;
+      if (receiptNote) return toast(receiptNote, "error");
       if (crossed || overPlan) return toast(crossed || overPlan, "error");
       toast(x ? "Entry updated." : `${{ expense: "Expense", income: "Income", transfer: "Transfer" }[f.kind]} saved · ${fmt(row.amount, row.currency, { show: true })}`);
     });
@@ -2522,16 +2744,22 @@
 
   function currencyGroup(group) {
     const m = mainCur();
+    const st = settings();
+    const manual = st.manualRates.filter(c => usedCurrencies().includes(c));
     const rateRows = usedCurrencies().filter(c => c !== m).map(c => {
       const shown = +(rateOf(c) / rateOf(m)).toPrecision(6);
       const input = h("input", { id: `s-rate-${c}`, class: "input num rate-input", inputmode: "decimal", autocomplete: "off", value: shown.toLocaleString("en-US", { maximumFractionDigits: 6 }), "aria-label": `${c} for 1 ${m}`,
-        on: { change: e => { const x = parseRate(e.target.value); if (!x) { toast("Enter a rate like 0.92 or 89,500.", "error"); e.target.value = shown.toLocaleString("en-US", { maximumFractionDigits: 6 }); return; } setRate(c, x); toast(`Rate saved: 1 ${m} = ${x.toLocaleString("en-US", { maximumFractionDigits: 6 })} ${c}.`); } } });
-      return h("div", { class: "row" }, h("span", { class: "dot neutral" }, curTag(c)), h("span", { class: "row-main" }, h("span", { class: "row-title" }, `1 ${m} =`), h("span", { class: "row-sub" }, curInfo(c).name)), input, h("span", { class: "rate-code" }, c));
+        on: { change: e => { const x = parseRate(e.target.value); if (!x) { toast("Enter a rate like 0.92 or 89,500.", "error"); e.target.value = shown.toLocaleString("en-US", { maximumFractionDigits: 6 }); return; } setRate(c, x); saveSettings({ manualRates: [...new Set([...settings().manualRates, c])] }); toast(`Rate saved: 1 ${m} = ${x.toLocaleString("en-US", { maximumFractionDigits: 6 })} ${c}.`); } } });
+      return h("div", { class: "row" }, h("span", { class: "dot neutral" }, curTag(c)), h("span", { class: "row-main" }, h("span", { class: "row-title" }, `1 ${m} =`), h("span", { class: "row-sub" }, st.autoRates && !st.manualRates.includes(c) ? "Automatic" : "Set by you")), input, h("span", { class: "rate-code" }, c));
     });
     return group("Currency",
       h("div", { class: "row" }, h("span", { class: "dot gold" }, curTag(m)), h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Main currency"), h("span", { class: "row-sub wrap" }, "Totals, budgets and insights are shown in it")), curSelect("s-main", m, setMainCurrency)),
       ...rateRows,
-      h("p", { class: "row-sub", style: { padding: "4px 16px 14px", whiteSpace: "normal" } }, "Add an account in any currency from Accounts below. Rates are set by you, so update them when the market moves."));
+      h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("sync", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Update rates automatically"), h("span", { class: "row-sub wrap" }, st.autoRates ? (st.ratesAt ? `Last updated ${dayLabel(st.ratesAt).toLowerCase()}` : "Once a day, from a public rate service") : "Rates stay as you set them")),
+        h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(st.autoRates), "aria-label": "Update rates automatically", on: { click: () => { saveSettings({ autoRates: !st.autoRates, ratesAt: "" }); if (!st.autoRates) refreshRates(true); } } }, h("span", { class: "knob" }))),
+      st.autoRates && manual.length ? h("button", { type: "button", class: "row-btn", on: { click: () => { saveSettings({ manualRates: [], ratesAt: "" }); refreshRates(true).then(ok => toast(ok ? "Rates updated." : "Rates will update when you're online.")); } } }, `Use automatic rates for ${manual.join(", ")}`) : null,
+      h("p", { class: "row-sub", style: { padding: "4px 16px 14px", whiteSpace: "normal" } }, "Add an account in any currency from Accounts below. A rate you type yourself stays until you switch it back to automatic."));
   }
 
   function reminderGroup(group) {
@@ -2597,6 +2825,7 @@
           if (!r || typeof r !== "object" || !ID_RE.test(String(r.id)) || !VALID[t](r)) continue;
           const row = Object.fromEntries(COLS[t].filter(c => c !== "user_id" && c !== "deleted_at").map(c => [c, r[c] ?? DEFAULTS[c] ?? null]));
           if (t === "settings") row.id = settingsId();
+          if (t === "transactions" && row.receipt && !String(row.receipt).startsWith(S.uid + "/")) row.receipt = null;
           items.push({ t, r: row });
         }
       }
@@ -2736,6 +2965,7 @@
       part("Where it lives", "Your data is kept in the app's database and a copy stays on this device so the app works offline. It travels encrypted between your device and the server."),
       part("Who can see it", "Only you, when signed in. Database rules limit every record to the account that owns it. The administrator who runs this app manages its database, and sees your email, sign-in dates and record counts in the admin dashboard."),
       part("Private pages", "A private page you create for a person shows only that person's balance and history, to anyone who has the link. Turn the link off at any time and it stops working."),
+      part("Receipts and exchange rates", "Receipt photos are stored privately under your account and only you can open them. Exchange rates come from a public rate service; nothing about you is sent to it."),
       part("Notifications", "If you turn on the daily reminder, this device's notification address is stored so the reminder can be delivered. Turning it off removes it."),
       part("Your control", "Export your entries or a full backup at any time from Settings. Deleting your account removes it and all of its data permanently.")));
   }

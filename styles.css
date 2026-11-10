@@ -923,3 +923,17 @@ main.view:not(.enter) > * { animation: none; }
 .nw-area { fill: var(--accent); opacity: .12; }
 .nw-dot { fill: var(--accent); stroke: var(--card); stroke-width: 2; }
 .nw-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--faint); padding: 0 2px; }
+.hero-sub.due { font-weight: 650; }
+.hero-sub.due.late { color: #ffd3cb; }
+.row-sub.late { color: var(--neg); }
+.viewer { position: fixed; inset: 0; z-index: 40; background: rgb(3 12 9 / .94); display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 12px; padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px)); }
+.viewer img { width: 100%; height: 100%; object-fit: contain; border-radius: 14px; }
+.viewer-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 480px; width: 100%; margin: 0 auto; }
+@media (max-width: 899px) {
+  .dock .tabs { grid-template-columns: 1fr 1fr 68px 1fr 1fr; }
+  .dock .tabs .lens { width: calc((100% - 78px) / 4); }
+  .dock .add-btn { width: 68px; height: 56px; z-index: 1; }
+  .dock .add-btn .bubble { width: 50px; height: 50px; margin: auto; border-radius: 18px; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 34%, transparent); }
+  .dock .add-btn .bubble::before, .dock .add-btn .bubble::after { display: none; }
+  .dock .add-btn .ico { width: 24px; height: 24px; stroke-width: 2.4; color: var(--on-accent); }
+}

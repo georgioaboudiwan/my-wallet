@@ -13,6 +13,14 @@ const cors = {
 };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
+async function removeReceipts(userId: string) {
+  for (let i = 0; i < 20; i++) {
+    const { data } = await sb.storage.from("receipts").list(userId, { limit: 1000 });
+    if (!data || !data.length) return;
+    await sb.storage.from("receipts").remove(data.map(f => `${userId}/${f.name}`));
+  }
+}
+
 Deno.serve(async req => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST") return json({ error: "method" }, 405);
@@ -37,6 +45,7 @@ Deno.serve(async req => {
   const { data: signed, error: signErr } = await check.auth.signInWithPassword({ email: who.user.email, password });
   if (signErr || signed?.user?.id !== who.user.id) return json({ error: "That password isn't correct." }, 403);
 
+  await removeReceipts(who.user.id).catch(() => {});
   const { error } = await sb.auth.admin.deleteUser(who.user.id);
   return error ? json({ error: "Couldn't delete the account. Try again." }, 500) : json({ ok: true });
 });
