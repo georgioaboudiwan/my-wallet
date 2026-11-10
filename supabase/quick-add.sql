@@ -24,3 +24,4 @@ drop policy if exists "quick inbox delete own" on public.quick_inbox;
 create policy "quick inbox read own" on public.quick_inbox for select to authenticated using ((select auth.uid()) = user_id);
 create policy "quick inbox delete own" on public.quick_inbox for delete to authenticated using ((select auth.uid()) = user_id);
 create index if not exists quick_inbox_user_idx on public.quick_inbox (user_id);
+alter table public.quick_inbox add column if not exists category text check (category is null or char_length(category) <= 60);

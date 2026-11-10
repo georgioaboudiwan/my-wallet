@@ -560,3 +560,8 @@ Object.assign(window.WALLET_I18N.words, {
   "Turn on the daily reminder": ["Activer le rappel quotidien", "فعّل التذكير اليومي"]
 });
 window.WALLET_I18N.patterns.push(["^Every day at (.+)$", "Chaque jour à $1", "كل يوم عند $1"]);
+Object.assign(window.WALLET_I18N.words, {
+  "Needs a category": ["À classer", "بحاجة إلى فئة"],
+  "Tap to choose a category": ["Touchez pour choisir une catégorie", "اضغط لاختيار فئة"]
+});
+window.WALLET_I18N.patterns.push(["^See all (\\d+)$", "Tout voir ($1)", "عرض الكل ($1)"]);

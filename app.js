@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.5.0";
+  const VERSION = "3.6.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -1402,16 +1402,25 @@
     if (!sb || !S.session || !VAULT.key || !navigator.onLine || S.quickBusy) return;
     S.quickBusy = true;
     try {
-      const { data, error } = await sb.from("quick_inbox").select("id, amount, note, created_at").order("created_at", { ascending: true }).limit(100);
+      const { data, error } = await sb.from("quick_inbox").select("id, amount, note, category, created_at").order("created_at", { ascending: true }).limit(100);
       if (error || !Array.isArray(data) || !data.length) return;
       const accounts = rows("accounts").filter(a => !a.archived).sort(bySort);
       if (!accounts.length) return;
       const last = rows("transactions").filter(t => t.kind === "expense" && acc(t.account_id) && !acc(t.account_id).archived).sort(byRecent)[0];
       const a = last ? acc(last.account_id) : accounts[0];
-      const items = data.filter(q => Number(q.amount) > 0).map(q => ({ t: "transactions", r: { id: `q-${q.id}`, kind: "expense", amount: roundCur(Number(q.amount), a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: null, note: typeof q.note === "string" && q.note ? q.note.slice(0, 200) : null, occurred_on: ymd(new Date(q.created_at)), rule_id: null, receipt: null, created_at: q.created_at } }));
+      const cats = rows("categories").filter(c => c.kind === "expense");
+      const norm = v => String(v || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+      const findCat = name => {
+        const n = norm(name);
+        if (!n) return null;
+        const hit = cats.find(c => norm(c.name) === n) || cats.find(c => norm(tr(c.name)) === n) || cats.find(c => norm(c.name).startsWith(n) || n.startsWith(norm(c.name))) || cats.find(c => norm(c.name).includes(n));
+        return hit ? hit.id : null;
+      };
+      const items = data.filter(q => Number(q.amount) > 0).map(q => ({ t: "transactions", r: { id: `q-${q.id}`, kind: "expense", amount: roundCur(Number(q.amount), a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: findCat(q.category), note: typeof q.note === "string" && q.note ? q.note.slice(0, 200) : null, occurred_on: ymd(new Date(q.created_at)), rule_id: null, receipt: null, created_at: q.created_at } }));
       if (items.length) putMany(items);
       await sb.from("quick_inbox").delete().in("id", data.map(q => q.id));
-      if (items.length) toast(`${items.length} quick ${items.length === 1 ? "entry" : "entries"} added to ${a.name}. Open Activity to set the category.`);
+      const loose = items.filter(i => !i.r.category_id).length;
+      if (items.length) toast(`${items.length} quick ${items.length === 1 ? "entry" : "entries"} added to ${a.name}.${loose ? " Tap it on Home to set the category." : ""}`);
     } catch { } finally { S.quickBusy = false; }
   }
 
@@ -1441,11 +1450,14 @@
           step(1, "Create a Shortcut", "Open the Shortcuts app, tap +, and name it “Add expense”."),
           step(2, "Ask for the amount", "Add the action “Ask for Input”. Set the type to Number and the question to “How much?”."),
           step(3, "Send it", "Add the action “Get Contents of URL”. Paste the address below. Set Method to POST and Request Body to JSON, then add three text fields: token (paste your key below), amount (pick the “Ask for Input” result) and, if you want, note."),
-          step(4, "Put it where you want", "Add the Shortcut to your Lock Screen (Customize → widgets → Shortcuts), to the Action Button (Settings → Action Button → Shortcut), or to the Home Screen.")),
+          step(4, "Optional: pick the category too", "Before “Get Contents of URL”, add the action “Choose from List” with your category names (copy them below). Then add a fourth text field named category and pick the “Chosen Item” result. Entries then arrive already filed."),
+          step(5, "Put it where you want", "Add the Shortcut to your Lock Screen (Customize → widgets → Shortcuts), to the Action Button (Settings → Action Button → Shortcut), or to the Home Screen.")),
         h("label", { class: "field" }, h("span", null, "Address"), h("input", { class: "input", readOnly: true, value: url, id: "q-url" })),
         h("button", { type: "button", class: "btn alt", on: { click: () => copyText(url, "q-url") } }, "Copy the address"),
         h("label", { class: "field" }, h("span", null, "Your key (keep it private)"), h("input", { class: "input", readOnly: true, value: token, id: "q-token" })),
         h("button", { type: "button", class: "btn alt", on: { click: () => copyText(token, "q-token") } }, "Copy the key"),
+        h("label", { class: "field" }, h("span", null, "Your categories, one per line"), h("textarea", { class: "input", readOnly: true, rows: "4", id: "q-cats" }, rows("categories").filter(c => c.kind === "expense").sort(bySort).map(c => c.name).join("\n"))),
+        h("button", { type: "button", class: "btn alt", on: { click: () => copyText(rows("categories").filter(c => c.kind === "expense").sort(bySort).map(c => c.name).join("\n"), "q-cats") } }, "Copy the categories"),
         h("button", { type: "button", class: "btn danger", on: { click: async () => {
           if (!navigator.onLine) return toast("Connect to the internet to turn this off.", "error");
           const { error } = await sb.from("quick_tokens").delete().eq("user_id", S.uid);
@@ -1579,6 +1591,19 @@
 
     const remind = reminderCard();
     out.append(remind || reminderPill());
+    const loose = txns.filter(t => t.kind !== "transfer" && !t.category_id && t.occurred_on >= ymd(new Date(Date.now() - 45 * 864e5))).sort(byRecent);
+    if (loose.length) {
+      const card = h("section", { class: "card flush needs-cat" }, h("div", { class: "card-head" }, h("h2", null, "Needs a category"), h("span", { class: "hint num" }, String(loose.length))));
+      for (const t of loose.slice(0, 3)) {
+        const a = acc(t.account_id);
+        card.append(h("button", { type: "button", class: "row", on: { click: () => txnSheet(t) } },
+          h("span", { class: "dot gold" }, icon("plus", "ico sm")),
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, t.note || "Tap to choose a category"), h("span", { class: "row-sub" }, [dayLabel(t.occurred_on), a ? a.name : null].filter(Boolean).join(" · "))),
+          h("span", { class: "row-end " + (t.kind === "income" ? "pos" : "neg") }, (t.kind === "income" ? "+" : "−") + fmt(Number(t.amount), t.currency))));
+      }
+      if (loose.length > 3) card.append(h("button", { type: "button", class: "row-btn", on: { click: () => go("activity") } }, `See all ${loose.length}`));
+      out.append(card);
+    }
     const recap = recapCard();
     if (recap) out.append(recap);
     const coming = upcomingCard();
@@ -2688,7 +2713,7 @@
     const err = h("p", { class: "form-err", role: "alert" });
     const saveBtn = h("button", { type: "submit", class: "btn", form: "txn-form" });
     let armedDelete = false;
-    let panel = "pad";
+    let panel = x && x.kind !== "transfer" && !x.category_id ? "cat" : "pad";
     const bal = balances();
 
     const pick = () => {

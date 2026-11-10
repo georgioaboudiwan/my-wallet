@@ -17,11 +17,12 @@ Deno.serve(async req => {
   const amount = Number(String(body.amount ?? "").replace(/\s/g, "").replace(",", "."));
   if (!Number.isFinite(amount) || amount <= 0 || amount >= 1e15) return json({ error: "Enter an amount above zero." }, 400);
   const note = String(body.note ?? "").trim().slice(0, 200) || null;
+  const category = String(body.category ?? "").trim().slice(0, 60) || null;
 
   const { data: owner } = await sb.from("quick_tokens").select("user_id").eq("token_hash", await sha256(token)).maybeSingle();
   if (!owner) return json({ error: "Not allowed." }, 401);
   const { count } = await sb.from("quick_inbox").select("id", { count: "exact", head: true }).eq("user_id", owner.user_id);
   if ((count ?? 0) >= 200) return json({ error: "Open the app first: too many entries are waiting." }, 429);
-  const { error } = await sb.from("quick_inbox").insert({ user_id: owner.user_id, amount, note });
+  const { error } = await sb.from("quick_inbox").insert({ user_id: owner.user_id, amount, note, category });
   return error ? json({ error: "Couldn't save. Try again." }, 500) : json({ ok: true, saved: amount });
 });
