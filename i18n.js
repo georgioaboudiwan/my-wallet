@@ -555,3 +555,8 @@ Object.assign(window.WALLET_I18N.words, {
   "Reminders and quick add": ["Rappels et ajout rapide", "التذكيرات والإضافة السريعة"],
   "Daily notification and adding from the Lock Screen": ["Notification quotidienne et ajout depuis l'écran verrouillé", "إشعار يومي وإضافة من شاشة القفل"]
 });
+Object.assign(window.WALLET_I18N.words, {
+  "Daily reminder is on": ["Le rappel quotidien est activé", "التذكير اليومي مفعّل"],
+  "Turn on the daily reminder": ["Activer le rappel quotidien", "فعّل التذكير اليومي"]
+});
+window.WALLET_I18N.patterns.push(["^Every day at (.+)$", "Chaque jour à $1", "كل يوم عند $1"]);

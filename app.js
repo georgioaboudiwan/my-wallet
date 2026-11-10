@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.3.0";
+  const VERSION = "3.4.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -707,7 +707,40 @@
     const sideAdd = h("button", { type: "button", class: "side-add", on: { click: () => txnSheet(null) } }, icon("plus", "ico"), "New entry");
     const sideSettings = h("button", { type: "button", class: "tab side-only", "data-view": "settings", on: { click: () => go("settings") } }, icon("gear"), h("span", null, "Settings"));
     tabs.push(sideSettings);
-    const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, h("div", { class: "tabs glass" }, lens, ...tabs), add);
+    const tabsEl = h("div", { class: "tabs glass" }, lens, ...tabs);
+    const ORDER = ["home", "activity", "insights", "people"];
+    let drag = null, dragEnd = 0;
+    const dragStop = () => { tabsEl.classList.remove("dragging"); tabs.forEach(t => t.classList.remove("over")); drag = null; };
+    tabsEl.addEventListener("pointerdown", e => {
+      if (window.innerWidth >= 900 || (e.pointerType === "mouse" && e.button !== 0)) return;
+      const r = tabsEl.getBoundingClientRect();
+      drag = { id: e.pointerId, x0: e.clientX, left: r.left + 5, w: (r.width - 10) / 4, moved: false, pos: 0 };
+    });
+    tabsEl.addEventListener("pointermove", e => {
+      if (!drag || e.pointerId !== drag.id) return;
+      if (!drag.moved && Math.abs(e.clientX - drag.x0) < 8) return;
+      if (!drag.moved) { drag.moved = true; try { tabsEl.setPointerCapture(e.pointerId); } catch { } tabsEl.classList.add("dragging"); }
+      const pos = Math.max(0, Math.min(3 * drag.w, e.clientX - drag.left - drag.w / 2));
+      drag.pos = pos;
+      lens.style.transform = `translateX(${LANG === "ar" ? pos - 3 * drag.w : pos}px)`;
+      const near = Math.round(pos / drag.w);
+      const idx = LANG === "ar" ? 3 - near : near;
+      tabs.forEach(t => t.classList.toggle("over", t.dataset.view === ORDER[idx]));
+    });
+    const dragDone = e => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const d = drag;
+      dragStop();
+      if (!d.moved) return;
+      dragEnd = Date.now();
+      const near = Math.round(d.pos / d.w);
+      const view = ORDER[LANG === "ar" ? 3 - near : near];
+      if (e.type === "pointerup" && view && view !== S.view) go(view); else render();
+    };
+    tabsEl.addEventListener("pointerup", dragDone);
+    tabsEl.addEventListener("pointercancel", dragDone);
+    tabsEl.addEventListener("click", e => { if (Date.now() - dragEnd < 400) { e.stopPropagation(); e.preventDefault(); } }, true);
+    const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, tabsEl, add);
     const top = h("header", { class: "top" }, title, h("div", { class: "tool glass" }, status, eye, gear));
     const ptr = h("div", { class: "ptr", "aria-hidden": "true" }, icon("sync"));
     root.replaceChildren(h("div", { class: "shell" }, top, ptr, main, nav));
@@ -1100,6 +1133,29 @@
       h("div", { class: "remind-actions" },
         h("button", { type: "button", class: "btn", disabled: PUSH.busy, on: { click: () => enablePush((document.getElementById("h-remind") || timeIn).value || "21:00") } }, PUSH.busy ? "One moment…" : "Turn on"),
         later));
+  }
+
+  function reminderSheet() {
+    const timeIn = h("input", { id: "rs-time", class: "input time-input", type: "time", value: PUSH.time || "21:00", "aria-label": "Reminder time" });
+    openSheet("Daily reminder", h("div", { class: "form" },
+      h("p", { class: "hint" }, "A notification at the time you choose, so no expense is forgotten."),
+      h("label", { class: "remind-time" }, h("span", null, "Remind me at"), timeIn)),
+      h("button", { type: "button", class: "btn", on: { click: async () => { const t = /^\d{2}:\d{2}$/.test(timeIn.value) ? timeIn.value : "21:00"; closeSheet(); await enablePush(t); render(); } } }, "Turn on"));
+  }
+
+  function reminderPill() {
+    const on = PUSH.state === "on";
+    const act = () => {
+      if (on) { go("settings"); S.setPage = "reminders"; return render(); }
+      if (PUSH.state === "install") return toast("Add My Wallet to your Home Screen first, then open it from there.");
+      if (PUSH.state === "denied") return toast("Notifications are blocked. Allow them in iPhone Settings → Notifications → Wallet.", "error");
+      if (PUSH.state === "unsupported") return toast("This browser can't show notifications.", "error");
+      reminderSheet();
+    };
+    return h("button", { type: "button", class: "remind-pill" + (on ? " on" : ""), on: { click: act } },
+      h("span", { class: "dot " + (on ? "neutral" : "gold") }, icon("bell", "ico sm")),
+      h("span", { class: "row-main" }, h("span", { class: "row-title" }, on ? "Daily reminder is on" : "Turn on the daily reminder"), h("span", { class: "row-sub" }, on ? `Every day at ${PUSH.time || "21:00"}` : "Get a notification to log what you spent.")),
+      on ? icon("fwd") : h("span", { class: "pill-cta" }, "Turn on"));
   }
 
   function recapCard() {
@@ -1522,7 +1578,7 @@
     }
 
     const remind = reminderCard();
-    if (remind) out.append(remind);
+    out.append(remind || reminderPill());
     const recap = recapCard();
     if (recap) out.append(recap);
     const coming = upcomingCard();
