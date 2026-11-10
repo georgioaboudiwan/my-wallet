@@ -978,3 +978,36 @@ main.view:not(.enter) > * { animation: none; }
 .remind-top p { font-size: 14px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
 .remind-time { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; font-weight: 600; }
 .remind-actions { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; }
+@media (max-height: 700px) {
+  .sheet.fill .cat-grid { grid-template-rows: auto; }
+  .sheet.fill .form { gap: 8px; }
+  .sheet.fill .keypad { min-height: 150px; gap: 5px; grid-template-rows: repeat(4, minmax(34px, 1fr)); }
+  .sheet.fill .key { min-height: 34px; font-size: 21px; }
+  .sheet.fill .seg button { min-height: 34px; }
+  .sheet.fill .chip { min-height: 36px; padding: 5px 12px; }
+  .sheet.fill .amount-display { min-height: 44px; }
+  .sheet.fill .amount-display .val { font-size: 38px; }
+  .sheet.fill .amount-display .cur { font-size: 22px; }
+  .sheet .sheet-foot .btn { min-height: 48px; }
+}
+@media (max-height: 600px) {
+  .sheet.fill .cat-ico { width: 32px; height: 32px; border-radius: 10px; }
+  .sheet.fill .cat-btn { font-size: 11px; }
+  .sheet.fill .keypad { min-height: 128px; gap: 4px; grid-template-rows: repeat(4, minmax(29px, 1fr)); }
+  .sheet.fill .key { min-height: 29px; font-size: 19px; }
+  .sheet.fill .amount-display { min-height: 38px; }
+  .sheet.fill .amount-display .val { font-size: 32px; }
+  .sheet .sheet-head { padding-bottom: 2px; }
+}
+@media (max-width: 899px) and (max-width: 380px), (max-width: 899px) and (max-height: 700px) {
+  .dock .add-btn { width: 56px; height: 56px; padding: 0; justify-content: center; border-radius: 50%; }
+  .dock .add-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+}
+@media (max-width: 350px) {
+  .acts { gap: 6px; }
+  .act { font-size: 12px; min-height: 76px; padding: 10px 2px 9px; }
+  .act-ico { width: 38px; height: 38px; }
+  .tiles { gap: 6px; }
+  .hero-total { font-size: 40px; }
+  .tab span { font-size: 10px; }
+}

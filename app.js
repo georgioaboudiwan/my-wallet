@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "2.3.0";
+  const VERSION = "2.4.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -162,13 +162,49 @@
   }
   const TR_ATTRS = new Set(["placeholder", "aria-label", "title", "alt"]);
 
+  function dispatch(e) {
+    const fn = this.__on && this.__on[e.type];
+    if (fn) return fn.call(this, e);
+  }
+  const PROPS = ["checked", "disabled", "readOnly", "hidden"];
+  function morph(old, neu) {
+    if (old.nodeType !== neu.nodeType || old.nodeName !== neu.nodeName) { old.replaceWith(neu); return; }
+    if (old.nodeType === 3) { if (old.nodeValue !== neu.nodeValue) old.nodeValue = neu.nodeValue; return; }
+    if (old.nodeType !== 1) return;
+    if (old.namespaceURI !== "http://www.w3.org/1999/xhtml" || old.id !== neu.id) { if (!old.isEqualNode(neu)) old.replaceWith(neu); return; }
+    for (const a of [...old.attributes]) if (!neu.hasAttribute(a.name)) old.removeAttribute(a.name);
+    for (const a of neu.attributes) if (old.getAttribute(a.name) !== a.value) old.setAttribute(a.name, a.value);
+    const on = neu.__on || null;
+    if (on) for (const ev of Object.keys(on)) if (!old.__on || !old.__on[ev]) old.addEventListener(ev, dispatch);
+    old.__on = on;
+    for (const k of PROPS) if (k in old && old[k] !== neu[k]) old[k] = neu[k];
+    const tag = old.nodeName;
+    if (tag === "INPUT" && old.type === "file") return;
+    let o = old.firstChild, n = neu.firstChild;
+    while (n) {
+      const nextN = n.nextSibling;
+      if (!o) { old.appendChild(n); n = nextN; continue; }
+      if (n.nodeType === 1 && n.id && !(o.nodeType === 1 && o.id === n.id)) {
+        let hit = null;
+        for (let x = o.nextSibling; x; x = x.nextSibling) if (x.nodeType === 1 && x.id === n.id) { hit = x; break; }
+        if (hit) { old.insertBefore(hit, o); o = hit; }
+        else { old.insertBefore(n, o); n = nextN; continue; }
+      }
+      const nextO = o.nextSibling;
+      morph(o, n);
+      o = nextO; n = nextN;
+    }
+    while (o) { const nextO = o.nextSibling; o.remove(); o = nextO; }
+    if ((tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") && document.activeElement !== old && old.value !== neu.value) old.value = neu.value;
+  }
+
   const h = (tag, props, ...kids) => {
     const el = document.createElement(tag);
     if (props) {
       for (const [k, v] of Object.entries(props)) {
         if (v == null || v === false) continue;
         if (k === "class") el.className = v;
-        else if (k === "on") for (const [ev, fn] of Object.entries(v)) el.addEventListener(ev, fn);
+        else if (k === "on") { el.__on = { ...(el.__on || {}), ...v }; for (const ev of Object.keys(v)) el.addEventListener(ev, dispatch); }
         else if (k === "style") Object.assign(el.style, v);
         else if (k === "value" || k === "checked" || k === "disabled" || k === "readOnly" || k === "hidden") el[k] = v;
         else el.setAttribute(k, v === true ? "" : TR_ATTRS.has(k) ? tr(String(v)) : String(v));
@@ -711,7 +747,10 @@
     shell.eye.setAttribute("aria-label", tr(S.hidden ? "Show amounts" : "Hide amounts"));
     const sameView = shell.lastView === S.view;
     if (sameView) { clearTimeout(shell.enterTimer); shell.main.classList.remove("enter"); }
-    keepFocus(() => shell.main.replaceChildren(v.draw()));
+    const next = v.draw();
+    const cur = shell.main.firstElementChild;
+    if (sameView && cur && shell.main.childNodes.length === 1) morph(cur, next);
+    else keepFocus(() => shell.main.replaceChildren(next));
     if (!sameView) {
       shell.main.classList.remove("enter");
       void shell.main.offsetWidth;
@@ -1025,7 +1064,7 @@
       h("div", { class: "remind-top" }, h("span", { class: "dot gold" }, icon("bell", "ico sm")), h("div", null, h("h2", null, "Get a daily reminder"), h("p", null, "A notification at the time you choose, so no expense is forgotten."))),
       h("label", { class: "remind-time" }, h("span", null, "Remind me at"), timeIn),
       h("div", { class: "remind-actions" },
-        h("button", { type: "button", class: "btn", disabled: PUSH.busy, on: { click: () => enablePush(timeIn.value || "21:00") } }, PUSH.busy ? "One moment…" : "Turn on"),
+        h("button", { type: "button", class: "btn", disabled: PUSH.busy, on: { click: () => enablePush((document.getElementById("h-remind") || timeIn).value || "21:00") } }, PUSH.busy ? "One moment…" : "Turn on"),
         later));
   }
 
@@ -1862,12 +1901,12 @@
     out.append(group("Your name", h("div", { class: "row" }, h("span", { class: "row-main" }, nameIn, h("span", { class: "row-sub", style: { marginTop: "6px" } }, "Shown on the private pages you share")))));
 
     const fileInput = h("input", { id: "s-restore", type: "file", accept: "application/json,.json", class: "vh", on: { change: onRestoreFile } });
-    const importInput = h("input", { type: "file", accept: ".csv,text/csv", class: "vh", on: { change: onImportFile } });
+    const importInput = h("input", { id: "s-import", type: "file", accept: ".csv,text/csv", class: "vh", on: { change: onImportFile } });
     const dataKids = [
       h("button", { type: "button", class: "row-btn", on: { click: exportCsv } }, "Export spending (CSV)"),
       h("button", { type: "button", class: "row-btn", on: { click: exportBackup } }, "Download a backup"),
-      h("button", { type: "button", class: "row-btn", on: { click: () => fileInput.click() } }, "Restore from a backup"),
-      h("button", { type: "button", class: "row-btn", on: { click: () => importInput.click() } }, "Import entries from a CSV file"),
+      h("button", { type: "button", class: "row-btn", on: { click: () => (document.getElementById("s-restore") || fileInput).click() } }, "Restore from a backup"),
+      h("button", { type: "button", class: "row-btn", on: { click: () => (document.getElementById("s-import") || importInput).click() } }, "Import entries from a CSV file"),
       fileInput, importInput
     ];
     if (S.restore) {
@@ -2350,10 +2389,12 @@
     const idx = Math.max(0, options.findIndex(o => o[0] === value));
     const thumb = h("span", { class: "seg-thumb", "aria-hidden": "true", style: { width: `calc((100% - 6px) / ${options.length})`, transform: `translateX(${(LANG === "ar" ? -1 : 1) * idx * 100}%)` } });
     const el = h("div", { class: "seg", role: "group", "aria-label": label }, thumb,
-      options.map(([k, l, disabled], i) => h("button", { type: "button", "aria-pressed": String(value === k), disabled: !!disabled, on: { click: () => {
+      options.map(([k, l, disabled], i) => h("button", { type: "button", "aria-pressed": String(value === k), disabled: !!disabled, on: { click: e => {
         if (k === value) return;
-        thumb.style.transform = `translateX(${(LANG === "ar" ? -1 : 1) * i * 100}%)`;
-        el.querySelectorAll("button").forEach((b, j) => b.setAttribute("aria-pressed", String(j === i)));
+        const live = e.currentTarget.parentElement || el;
+        const liveThumb = live.querySelector(".seg-thumb") || thumb;
+        liveThumb.style.transform = `translateX(${(LANG === "ar" ? -1 : 1) * i * 100}%)`;
+        live.querySelectorAll("button").forEach((b, j) => b.setAttribute("aria-pressed", String(j === i)));
         setTimeout(() => onPick(k), 170);
       } } }, l)));
     return el;
