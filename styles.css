@@ -665,3 +665,16 @@ html { background: var(--bg); min-height: 100%; }
   .add-btn .bubble { color: #04271b; }
   .add-btn .ico { filter: none; }
 }
+
+.add-btn, .add-btn .bubble { width: 66px; height: 66px; }
+.add-btn .bubble {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(22px) saturate(1.9) brightness(1.04);
+  backdrop-filter: blur(22px) saturate(1.9) brightness(1.04);
+  color: var(--accent);
+  box-shadow: var(--glass-shade), var(--glass-hi);
+}
+.add-btn .bubble::before { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 40%, transparent), inset 0 1px 0 rgb(255 255 255 / .35); }
+.add-btn .bubble::after { display: none; }
+.add-btn .ico { position: relative; z-index: 1; width: 26px; height: 26px; stroke-width: 2.6; color: var(--on-accent); filter: none; }
+@media (prefers-color-scheme: dark) { .add-btn .bubble { color: var(--accent); } }

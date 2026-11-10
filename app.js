@@ -1961,6 +1961,14 @@
   setInterval(() => { if (document.visibilityState === "visible" && S.session) sync(); }, 120000);
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => { });
 
+  const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  const syncThemeColor = () => {
+    const meta = document.getElementById("theme-color");
+    if (meta) meta.setAttribute("content", darkQuery.matches ? "#070f0c" : "#edf2ee");
+    document.documentElement.style.backgroundColor = darkQuery.matches ? "#070f0c" : "#edf2ee";
+  };
+  syncThemeColor();
+  if (darkQuery.addEventListener) darkQuery.addEventListener("change", syncThemeColor);
   window.addEventListener("hashchange", () => { if (location.hash !== "#add" && location.hash !== "") location.reload(); });
   if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", e => { if (e.data && e.data.type === "open-add" && S.session) txnSheet(null); });
   window.addEventListener("scroll", () => { if (shell) shell.top.classList.toggle("scrolled", window.scrollY > 4); }, { passive: true });
