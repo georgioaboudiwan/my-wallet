@@ -76,6 +76,8 @@
     laptop: "M4 5h16v11H4zM2 19h20",
     coin: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v10M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .8-3 2s1.3 1.7 3 2 3 .9 3 2-1.3 2-3 2c-1.4 0-2.6-.6-3-1.6",
     bell: "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0",
+    shield: "M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z",
+    users: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
     trash: "M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3",
     del: "M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zM17 9l-5 6M12 9l5 6",
     check: "M5 12.5l4.5 4.5L19 7.5",
@@ -496,6 +498,7 @@
     insights: { title: "Insights", draw: viewInsights },
     plan: { title: "Plan", draw: viewPlan },
     people: { title: "People", draw: viewPeople },
+    admin: { title: "Admin", draw: viewAdmin },
     settings: { title: "Settings", draw: viewSettings }
   };
 
@@ -1010,6 +1013,11 @@
 
     const nameIn = h("input", { id: "s-name", class: "input", maxlength: "40", autocomplete: "name", placeholder: "e.g. Georgio", value: st.name, "aria-label": "Your name",
       on: { change: e => { const v = e.target.value.trim().replace(/\s+/g, " ").slice(0, 40); saveSettings({ name: v }); toast("Name saved."); } } });
+    if (ADMIN.allowed === null) checkAdmin();
+    if (ADMIN.allowed) out.append(group("Admin", h("button", { type: "button", class: "row", on: { click: () => go("admin") } },
+      h("span", { class: "dot gold" }, icon("shield", "ico sm")),
+      h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Admin dashboard"), h("span", { class: "row-sub" }, "Users, activity and server health")),
+      icon("fwd"))));
     out.append(reminderGroup(group));
 
     out.append(group("Your name", h("div", { class: "row" }, h("span", { class: "row-main" }, nameIn, h("span", { class: "row-sub", style: { marginTop: "6px" } }, "Shown on the private pages you share")))));
@@ -1279,6 +1287,115 @@
       list,
       h("p", { class: "hint", style: { textAlign: "center" } }, "Only people with this link can see this page."));
     document.title = "Your balance";
+  }
+
+  const ADMIN = { allowed: null, data: null, loading: false, error: null };
+
+  async function checkAdmin() {
+    if (ADMIN.checking || !sb || !S.session) return;
+    ADMIN.checking = true;
+    try { const { data } = await sb.rpc("is_admin"); ADMIN.allowed = data === true; } catch { ADMIN.allowed = false; }
+    ADMIN.checking = false;
+    if (S.view === "settings" && ADMIN.allowed) render();
+  }
+
+  async function adminCall(action, extra = {}) {
+    const res = await sb.functions.invoke("admin", { body: { action, ...extra } });
+    if (!res.error) return res.data;
+    let msg = "The admin server didn't answer. Check your connection.";
+    try { const r = res.error.context; if (r && typeof r.json === "function") { const j = await r.json(); if (j && j.error) msg = j.error; } } catch { }
+    throw new Error(msg);
+  }
+
+  async function loadAdmin() {
+    if (ADMIN.loading) return;
+    ADMIN.loading = true; ADMIN.error = null;
+    if (S.view === "admin") render();
+    try { ADMIN.data = await adminCall("overview"); } catch (e) { ADMIN.error = e.message; }
+    ADMIN.loading = false;
+    if (S.view === "admin") render();
+  }
+
+  const whenText = iso => iso ? ago(iso) : "never";
+  const isBlocked = u => !!u.banned_until && new Date(u.banned_until) > new Date();
+
+  function viewAdmin() {
+    const out = h("div", { class: "stack" });
+    if (!ADMIN.allowed) { out.append(h("p", { class: "empty" }, "This area is for the admin only.")); return out; }
+    if (!ADMIN.data && !ADMIN.loading && !ADMIN.error) loadAdmin();
+    out.append(h("div", { class: "btn-row" },
+      h("button", { type: "button", class: "btn alt", on: { click: () => go("settings") } }, icon("back", "ico sm"), "Settings"),
+      h("button", { type: "button", class: "btn alt", disabled: ADMIN.loading, on: { click: loadAdmin } }, icon("sync", "ico sm"), ADMIN.loading ? "Loading…" : "Refresh")));
+    if (ADMIN.error) { out.append(h("div", { class: "alert bad" }, icon("warn"), h("span", null, ADMIN.error))); return out; }
+    const d = ADMIN.data;
+    if (!d) { out.append(h("p", { class: "empty" }, "Loading the dashboard…")); return out; }
+    const t = d.totals || {};
+    out.append(h("div", { class: "tiles" },
+      h("div", { class: "tile" }, h("small", null, "Users"), h("strong", null, String(t.users ?? 0))),
+      h("div", { class: "tile" }, h("small", null, "Entries"), h("strong", null, String(t.transactions ?? 0))),
+      h("div", { class: "tile" }, h("small", null, "Reminders on"), h("strong", null, String(t.reminders_on ?? 0)))));
+    out.append(h("div", { class: "tiles" },
+      h("div", { class: "tile" }, h("small", null, "People"), h("strong", null, String(t.people ?? 0))),
+      h("div", { class: "tile" }, h("small", null, "Loan entries"), h("strong", null, String(t.loan_entries ?? 0))),
+      h("div", { class: "tile" }, h("small", null, "Shared pages"), h("strong", null, String(t.shared_links ?? 0)))));
+
+    const cron = d.cron;
+    const calls = d.reminder_calls || {};
+    const cronOk = cron && cron.status === "succeeded" && (Date.now() - new Date(cron.at).getTime()) < 15 * 60000;
+    out.append(h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Server health")),
+      h("div", { class: "row" }, h("span", { class: "dot " + (cronOk ? "ok" : "bad") }, icon(cronOk ? "check" : "warn", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Reminder timer"), h("span", { class: "row-sub" }, cron ? `Last run ${whenText(cron.at)} · ${cron.status}` : "Hasn't run yet"))),
+      h("div", { class: "row" }, h("span", { class: "dot " + (calls.failed ? "bad" : "ok") }, icon(calls.failed ? "warn" : "check", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Reminder server, last 24 h"), h("span", { class: "row-sub" }, `${calls.ok ?? 0} OK · ${calls.failed ?? 0} failed`)))));
+
+    const list = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, `Users (${d.users.length})`)));
+    for (const u of [...d.users].sort((a, b) => String(b.last_sign_in_at || "").localeCompare(String(a.last_sign_in_at || "")))) {
+      const st = u.stats || {};
+      const tags = [u.is_me ? "You · admin" : null, isBlocked(u) ? "Blocked" : null].filter(Boolean).join(" · ");
+      list.append(h("button", { type: "button", class: "row", on: { click: () => adminUserSheet(u) } },
+        h("span", { class: "dot " + (isBlocked(u) ? "bad" : u.is_me ? "gold" : "neutral") }, (u.email || "?").charAt(0).toUpperCase()),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, u.email || "No email"), h("span", { class: "row-sub" }, [tags, `${st.transactions ?? 0} entries`, `seen ${whenText(u.last_sign_in_at)}`].filter(Boolean).join(" · "))),
+        icon("fwd")));
+    }
+    out.append(list, h("p", { class: "hint" }, "To stop new people from creating accounts, turn off “Allow new users to sign up” in Supabase → Authentication → Sign In / Providers."));
+    return out;
+  }
+
+  function adminUserSheet(u) {
+    const st = u.stats || {};
+    const body = h("div", { class: "form" });
+    let confirmText = "";
+    let busy = false;
+    const act = async (action, extra, done) => {
+      if (busy) return;
+      busy = true; draw();
+      try { await adminCall(action, { user_id: u.id, ...extra }); closeSheet(); toast(done); ADMIN.data = null; loadAdmin(); }
+      catch (e) { busy = false; draw(); toast(e.message, "error"); }
+    };
+    const draw = () => {
+      const fact = (label, value) => h("div", { class: "fact" }, h("small", null, label), h("strong", { class: "num" }, String(value)));
+      const kids = [
+        h("section", { class: "card" }, h("div", { class: "facts" },
+          fact("Entries", st.transactions ?? 0), fact("Accounts", st.accounts ?? 0),
+          fact("People", st.people ?? 0), fact("Reminders on", st.reminders ?? 0)),
+          h("p", { class: "hint" }, `Joined ${new Date(u.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} · last sign-in ${whenText(u.last_sign_in_at)} · last entry ${whenText(st.last_entry)}`))
+      ];
+      if (u.is_me) {
+        kids.push(h("p", { class: "hint" }, "This is your admin account. You can't block or delete it from here."));
+      } else {
+        kids.push(h("button", { type: "button", class: "btn alt", disabled: busy, on: { click: () => act(isBlocked(u) ? "unblock" : "block", {}, isBlocked(u) ? "Account unblocked." : "Account blocked. They can't sign in.") } },
+          isBlocked(u) ? "Unblock account" : "Block account"));
+        const input = h("input", { id: "f-admin-confirm", class: "input", autocomplete: "off", autocapitalize: "characters", placeholder: "Type DELETE to confirm", value: confirmText, "aria-label": "Type DELETE to confirm",
+          on: { input: e => { confirmText = e.target.value; del.disabled = busy || confirmText.trim() !== "DELETE"; } } });
+        const del = h("button", { type: "button", class: "btn danger sure", disabled: busy || confirmText.trim() !== "DELETE", on: { click: () => act("delete", { confirm: "DELETE" }, "Account and all its data deleted.") } }, icon("trash", "ico sm"), "Delete account and all data");
+        kids.push(h("section", { class: "card" }, h("div", { class: "card-head" }, h("h2", null, "Danger zone")),
+          h("p", { class: "hint" }, "Deleting removes this account and every entry, account, person, shared page and reminder it has. This can't be undone."),
+          input, del));
+      }
+      keepFocus(() => body.replaceChildren(...kids));
+    };
+    draw();
+    openSheet(u.email || "User", body);
   }
 
   function closeSheet() {
@@ -1902,6 +2019,7 @@
       localStorage.removeItem("wallet:lastUser");
     } catch { }
     S.session = null; S.uid = null; S.offline = false; S.outbox = []; S.last = {};
+    ADMIN.allowed = null; ADMIN.data = null;
     for (const t of TABLES) S.data[t] = new Map();
     shell = null;
     S.view = "home";

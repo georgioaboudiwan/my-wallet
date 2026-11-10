@@ -678,3 +678,7 @@ html { background: var(--bg); min-height: 100%; }
 .add-btn .bubble::after { display: none; }
 .add-btn .ico { position: relative; z-index: 1; width: 26px; height: 26px; stroke-width: 2.6; color: var(--on-accent); filter: none; }
 @media (prefers-color-scheme: dark) { .add-btn .bubble { color: var(--accent); } }
+.dot.ok { background: var(--accent-soft); color: var(--accent); box-shadow: none; }
+.dot.bad { background: var(--neg-soft); color: var(--neg); box-shadow: none; }
+.btn.danger.sure { color: var(--neg); }
+.btn.danger.sure:disabled { opacity: .35; }
