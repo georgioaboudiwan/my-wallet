@@ -1414,7 +1414,7 @@
       const fact = (label, value) => h("div", { class: "fact" }, h("small", null, label), h("strong", { class: "num" }, String(value)));
       const kids = [
         h("section", { class: "card" }, h("div", { class: "facts" },
-          fact("Entries", st.transactions ?? 0), fact("Accounts", st.accounts ?? 0),
+          fact("Entries", st.transactions ?? 0), fact("Money accounts", st.accounts ?? 0),
           fact("People", st.people ?? 0), fact("Reminders on", st.reminders ?? 0)),
           h("p", { class: "hint" }, `Joined ${new Date(u.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} · last sign-in ${whenText(u.last_sign_in_at)} · last entry ${whenText(st.last_entry)}`))
       ];
