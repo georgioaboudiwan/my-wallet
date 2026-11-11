@@ -629,3 +629,24 @@ Object.assign(window.WALLET_I18N.words, {
   "Reloaded from the server. This device now matches your other devices.": ["Rechargé depuis le serveur. Cet appareil correspond maintenant à vos autres appareils.", "تمت إعادة التحميل من الخادم. هذا الجهاز مطابق الآن لأجهزتك الأخرى."],
   "Connect to the internet to reload your data.": ["Connectez-vous à internet pour recharger vos données.", "اتصل بالإنترنت لإعادة تحميل بياناتك."]
 });
+Object.assign(window.WALLET_I18N.words, {
+  "Loans": ["Prêts", "القروض"],
+  "Take the money from": ["Prendre l'argent sur", "خذ المال من"],
+  "Put the money into": ["Mettre l'argent sur", "ضع المال في"],
+  "Don't move money": ["Ne pas déplacer d'argent", "لا تنقل المال"],
+  "Entry deleted, and the account was corrected.": ["Entrée supprimée, et le compte a été corrigé.", "تم حذف الإدخال وتصحيح الحساب."],
+  "Send a notification": ["Envoyer une notification", "إرسال إشعار"],
+  "Send a notification to everyone": ["Envoyer une notification à tous", "إرسال إشعار للجميع"],
+  "Notify everyone": ["Notifier tout le monde", "إشعار الجميع"],
+  "Notify this user": ["Notifier cet utilisateur", "إشعار هذا المستخدم"],
+  "Send to everyone": ["Envoyer à tous", "إرسال للجميع"],
+  "Send to this user": ["Envoyer à cet utilisateur", "إرسال لهذا المستخدم"],
+  "Title": ["Titre", "العنوان"],
+  "Message": ["Message", "الرسالة"],
+  "Sending…": ["Envoi…", "جارٍ الإرسال…"]
+});
+window.WALLET_I18N.patterns.push(
+  ["^Lent to (.+)$", "Prêté à $1", "إقراض لـ $1"],
+  ["^Paid back (.+)$", "Remboursé à $1", "سداد لـ $1"],
+  ["^Borrowed from (.+)$", "Emprunté à $1", "اقتراض من $1"]
+);

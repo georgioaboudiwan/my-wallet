@@ -161,6 +161,25 @@ Deno.serve(async req => {
   if (!token) return json({ error: "unauthorized" }, 401);
   const { data: who, error: whoErr } = await sb.auth.getUser(token);
   if (!who?.user) return json({ error: "unauthorized", detail: whoErr?.message || "no user" }, 401);
+  let body: Record<string, unknown> = {};
+  try { body = await req.json(); } catch { body = {}; }
+  if (body.action === "broadcast") {
+    const { data: admin } = await sb.from("admins").select("user_id").eq("user_id", who.user.id).maybeSingle();
+    if (!admin) return json({ error: "Not allowed." }, 403);
+    const title = String(body.title ?? "").trim().slice(0, 60);
+    const text = String(body.body ?? "").trim().slice(0, 180);
+    if (!title || !text) return json({ error: "Write a title and a message." }, 400);
+    const target = body.user_id ? String(body.user_id) : null;
+    if (target && !/^[0-9a-f-]{36}$/i.test(target)) return json({ error: "Unknown user." }, 400);
+    let q = sb.from("push_subs").select("id, user_id, endpoint, p256dh, auth, remind_at, tz, last_sent").eq("enabled", true);
+    if (target) q = q.eq("user_id", target);
+    const { data: subs } = await q;
+    const list = (subs ?? []) as Sub[];
+    const statuses = await Promise.all(list.map(sub => push(keys, sub, { title, body: text }).catch(() => 0)));
+    const ok = statuses.filter(s => s >= 200 && s < 300).length;
+    const people = new Set(list.filter((_, i) => statuses[i] >= 200 && statuses[i] < 300).map(sub => sub.user_id)).size;
+    return json({ sent: ok, devices: list.length, people });
+  }
   const { data: mine } = await sb.from("push_subs").select("id, user_id, endpoint, p256dh, auth, remind_at, tz, last_sent").eq("user_id", who.user.id).eq("enabled", true);
   const results: number[] = [];
   for (const sub of (mine ?? []) as Sub[]) {

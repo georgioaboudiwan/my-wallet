@@ -1137,3 +1137,6 @@ main.view:not(.enter) > * { animation: none; }
 .tour.moving .tour-tip { opacity: 0; transform: translateY(6px); transition: none; animation: none; }
 .tour .tour-tip { transition: opacity .2s var(--ease), transform .2s var(--ease); }
 .tour.moving .tour-spot { transition: none; }
+.chip-cur { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 7px; background: var(--sunk); color: var(--muted); font-size: 12px; font-weight: 800; }
+.chip[aria-pressed="true"] .chip-cur { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+textarea.input { font: inherit; line-height: 1.4; resize: vertical; }

@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.7.3";
+  const VERSION = "3.9.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -565,8 +565,8 @@
     const add = (id, v) => b.set(id, (b.get(id) || 0) + v);
     for (const x of rows("transactions")) {
       const amt = Number(x.amount) || 0;
-      if (x.kind === "income") add(x.account_id, amt);
-      else if (x.kind === "expense") add(x.account_id, -amt);
+      if (x.kind === "income" || x.kind === "loan_in") add(x.account_id, amt);
+      else if (x.kind === "expense" || x.kind === "loan_out") add(x.account_id, -amt);
       else {
         add(x.account_id, -amt);
         if (x.to_account_id) add(x.to_account_id, Number(x.to_amount) || 0);
@@ -594,7 +594,7 @@
         if (!s.biggest || u > txMain(s.biggest)) s.biggest = x;
       } else if (x.kind === "income") {
         s.income += u;
-      } else {
+      } else if (x.kind === "transfer") {
         const from = acc(x.account_id);
         const to = acc(x.to_account_id);
         const saveGroup = planGroups().find(g => g.save);
@@ -955,7 +955,34 @@
       panel));
   }
 
+  const isLoanTx = x => x.kind === "loan_out" || x.kind === "loan_in";
+  const loanOf = x => { const e = S.data.loan_entries.get(String(x.id).replace(/^ln-/, "")); const p = e && S.data.people.get(e.person_id); return { e, p }; };
+  function loanTitle(x) {
+    const { e, p } = loanOf(x);
+    const name = p ? p.name : "someone";
+    const back = e ? Number(e.amount) < 0 : false;
+    if (x.kind === "loan_out") return back ? `Paid back ${name}` : `Lent to ${name}`;
+    return back ? `${name} paid you back` : `Borrowed from ${name}`;
+  }
+
+  function loanAccount(p) {
+    const list = rows("accounts").filter(a => !a.archived).sort(bySort);
+    const saved = store.get("loanAcc:" + p.id, null);
+    if (saved && list.some(a => a.id === saved)) return saved;
+    const same = list.find(a => a.currency === p.currency && a.kind === "cash") || list.find(a => a.currency === p.currency);
+    return same ? same.id : null;
+  }
+
   function txnRow(x) {
+    if (isLoanTx(x)) {
+      const a = acc(x.account_id);
+      const { p } = loanOf(x);
+      const out = x.kind === "loan_out";
+      return h("button", { type: "button", class: "row", on: { click: () => { if (p) personSheet(p); } } },
+        h("span", { class: "dot neutral" }, icon("people", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, loanTitle(x)), h("span", { class: "row-sub" }, [x.note, a ? a.name : null].filter(Boolean).join(" · "))),
+        h("span", { class: "row-end" + (out ? " neg" : " pos") }, (out ? "−" : "+") + fmt(Number(x.amount), x.currency), x.currency !== mainCur() ? h("small", null, "≈ " + money(txMain(x))) : null));
+    }
     const c = cat(x.category_id);
     const a = acc(x.account_id);
     let title, dot, sign = "", cls = "row-end";
@@ -1190,8 +1217,8 @@
       for (const x of txns) {
         if (x.occurred_on > end) continue;
         const amt = Number(x.amount) || 0;
-        if (x.kind === "income") add(x.account_id, amt);
-        else if (x.kind === "expense") add(x.account_id, -amt);
+        if (x.kind === "income" || x.kind === "loan_in") add(x.account_id, amt);
+        else if (x.kind === "expense" || x.kind === "loan_out") add(x.account_id, -amt);
         else { add(x.account_id, -amt); if (x.to_account_id) add(x.to_account_id, Number(x.to_amount) || 0); }
       }
       let cash = 0;
@@ -1751,7 +1778,7 @@
 
     const remind = reminderCard();
     out.append(remind || reminderPill());
-    const loose = txns.filter(t => t.kind !== "transfer" && !t.category_id && t.occurred_on >= ymd(new Date(Date.now() - 45 * 864e5))).sort(byRecent);
+    const loose = txns.filter(t => (t.kind === "expense" || t.kind === "income") && !t.category_id && t.occurred_on >= ymd(new Date(Date.now() - 45 * 864e5))).sort(byRecent);
     if (loose.length) {
       const card = h("section", { class: "card flush needs-cat" }, h("div", { class: "card-head" }, h("h2", null, "Needs a category"), h("span", { class: "hint num" }, String(loose.length))));
       for (const t of loose.slice(0, 3)) {
@@ -1838,7 +1865,7 @@
     const list = h("div", { class: "stack" });
     const search = h("input", { id: "q", type: "search", placeholder: "Search notes, categories, amounts", autocomplete: "off", enterkeyhint: "search", value: S.filter.q, "aria-label": "Search entries",
       on: { input: e => { S.filter.q = e.target.value; S.limit = 150; fill(); } } });
-    const kinds = [["all", "All"], ["expense", "Expenses"], ["income", "Income"], ["transfer", "Transfers"]];
+    const kinds = [["all", "All"], ["expense", "Expenses"], ["income", "Income"], ["transfer", "Transfers"], ["loan", "Loans"]];
     const chips = h("div", { class: "chips" },
       kinds.map(([k, l]) => h("button", { type: "button", class: "chip", "aria-pressed": String(S.filter.kind === k), on: { click: () => { S.filter.kind = k; S.limit = 150; render(); } } }, l)),
       S.filter.account && acc(S.filter.account)
@@ -1848,11 +1875,11 @@
     function fill() {
       const q = S.filter.q.trim().toLowerCase();
       const matches = rows("transactions").filter(x => {
-        if (S.filter.kind !== "all" && x.kind !== S.filter.kind) return false;
+        if (S.filter.kind !== "all" && x.kind !== S.filter.kind && !(S.filter.kind === "loan" && isLoanTx(x))) return false;
         if (S.filter.account && x.account_id !== S.filter.account && x.to_account_id !== S.filter.account) return false;
         if (!q) return true;
         const c = cat(x.category_id), a = acc(x.account_id), b = acc(x.to_account_id);
-        return [x.note, c && c.name, a && a.name, b && b.name, String(x.amount)].some(v => v && String(v).toLowerCase().includes(q));
+        return [x.note, c && c.name, a && a.name, b && b.name, String(x.amount), isLoanTx(x) ? loanTitle(x) : null].some(v => v && String(v).toLowerCase().includes(q));
       }).sort(byRecent);
       if (!matches.length) {
         list.replaceChildren(h("p", { class: "empty" }, q || S.filter.kind !== "all" || S.filter.account ? "No entries match your search." : "No entries yet. Tap + to add one."));
@@ -2403,15 +2430,29 @@
       const balance = loanBalances().get(p.id) || 0;
       const cur = p.currency;
       const back = mode === "back";
+      const moneyOut = owesMe(p) ? !back : back;
       amountSheet({
         title: back ? (owesMe(p) ? `${p.name} paid you back` : `You paid ${p.name} back`) : (owesMe(p) ? `You lent ${p.name} more` : `You borrowed more from ${p.name}`),
         cur, max: back ? balance : null,
         quick: isBig(cur) ? [1e6, 5e6, 10e6] : [50, 100, 500, 1000],
         verbFor: v => !v ? "Enter an amount" : back ? `Record ${fmt(v, cur, { show: true })} paid back` : `Add ${fmt(v, cur, { show: true })}`,
-        previewFor: v => `New balance: ${fmt(balance + (back ? -v : v), cur, { show: true })}`,
-        onSave: (v, note) => {
+        accountPick: { label: moneyOut ? "Take the money from" : "Put the money into", initial: loanAccount(p) },
+        previewFor: (v, accId) => {
+          const a = accId && acc(accId);
+          const moved = a ? ` · ${a.name} ${moneyOut ? "−" : "+"}${fmt(roundCur(convert(v, cur, a.currency), a.currency), a.currency, { show: true })}` : "";
+          return `New balance: ${fmt(balance + (back ? -v : v), cur, { show: true })}${moved}`;
+        },
+        onSave: (v, note, accId) => {
           const amount = roundCur(v, cur) * (back ? -1 : 1);
-          put("loan_entries", { id: newId(), person_id: p.id, amount, note, occurred_on: today(), created_at: new Date().toISOString() });
+          const id = newId();
+          const now = new Date().toISOString();
+          const items = [{ t: "loan_entries", r: { id, person_id: p.id, amount, note, occurred_on: today(), created_at: now } }];
+          const a = accId && acc(accId);
+          if (a) {
+            items.push({ t: "transactions", r: { id: `ln-${id}`, kind: moneyOut ? "loan_out" : "loan_in", amount: roundCur(convert(v, cur, a.currency), a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: null, note, occurred_on: today(), rule_id: null, receipt: null, created_at: now } });
+            store.set("loanAcc:" + p.id, a.id);
+          }
+          putMany(items);
           const next = balance + amount;
           personSheet(S.data.people.get(p.id) || p, { title: next === 0 ? "Saved. All settled." : `Saved. Balance is now ${fmt(next, cur, { show: true })}.`, message: loanMessage(p, amount, next, note) });
         }
@@ -2462,12 +2503,15 @@
       const hist = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, `History (${history.length})`)));
       for (const e of history) {
         const v = Number(e.amount);
-        const label = owesMe(p) ? (v > 0 ? "Lent" : "Paid back") : (v > 0 ? "Borrowed" : "Paid back");
+        const label0 = owesMe(p) ? (v > 0 ? "Lent" : "Paid back") : (v > 0 ? "Borrowed" : "Paid back");
+        const linkedTx = S.data.transactions.get(`ln-${e.id}`);
+        const linkedAcc = linkedTx && acc(linkedTx.account_id);
+        const label = linkedAcc ? `${label0} · ${linkedAcc.name}` : label0;
         hist.append(h("div", { class: "row" },
           h("span", { class: "row-main" }, h("span", { class: "row-title" }, e.note || label), h("span", { class: "row-sub" }, e.note ? `${label} · ${dayLabel(e.occurred_on)}` : dayLabel(e.occurred_on))),
           h("span", { class: "row-end" + (v < 0 ? " neg" : " pos") }, (v > 0 ? "+" : "−") + fmt(Math.abs(v), cur)),
           h("button", { type: "button", class: "icon-btn", "aria-label": armed === e.id ? "Confirm delete" : "Delete entry", style: armed === e.id ? { color: "var(--neg)" } : null,
-            on: { click: () => { if (armed !== e.id) { armed = e.id; draw(); return; } armed = null; removeRow("loan_entries", e); toast("Entry deleted."); draw(); } } }, icon(armed === e.id ? "warn" : "close"))));
+            on: { click: () => { if (armed !== e.id) { armed = e.id; draw(); return; } armed = null; removeRow("loan_entries", e); const linked = S.data.transactions.get(`ln-${e.id}`); if (linked) removeRow("transactions", linked); toast(linked ? "Entry deleted, and the account was corrected." : "Entry deleted."); draw(); } } }, icon(armed === e.id ? "warn" : "close"))));
       }
       if (!history.length) hist.append(h("p", { class: "empty" }, "No entries yet."));
       kids.push(hist);
@@ -2494,7 +2538,7 @@
         } } }, "Save details"),
         h("button", { type: "button", class: "btn danger" + (armed === "delete" ? " sure" : ""), on: { click: () => {
           if (armed !== "delete") { armed = "delete"; draw(); return; }
-          const items = [{ t: "people", r: { ...p, share_token: null, deleted_at: new Date().toISOString() } }, ...history.map(e => ({ t: "loan_entries", r: { ...e, deleted_at: new Date().toISOString() } }))];
+          const items = [{ t: "people", r: { ...p, share_token: null, deleted_at: new Date().toISOString() } }, ...history.map(e => ({ t: "loan_entries", r: { ...e, deleted_at: new Date().toISOString() } })), ...history.map(e => S.data.transactions.get(`ln-${e.id}`)).filter(Boolean).map(x => ({ t: "transactions", r: { ...x, deleted_at: new Date().toISOString() } }))];
           putMany(items); closeSheet(); toast(`${p.name} removed.`);
         } } }, armed === "delete" ? `Tap again to remove ${p.name} and their history` : "Remove person")));
 
@@ -2602,6 +2646,37 @@
     throw new Error(msg);
   }
 
+  function notifySheet(u) {
+    const f = { title: "", body: "" };
+    const err = h("p", { class: "form-err", role: "alert" });
+    const reach = u ? (u.stats && u.stats.reminders) || 0 : (ADMIN.data && ADMIN.data.totals && ADMIN.data.totals.reminders_on) || 0;
+    let busy = false;
+    const btn = h("button", { type: "submit", class: "btn", form: "nt-form" }, u ? "Send to this user" : "Send to everyone");
+    const body = h("form", { class: "form", id: "nt-form", novalidate: true },
+      h("p", { class: "hint" }, u ? `Goes to ${u.email || "this user"} on every device where they turned on notifications.` : "Goes to every user who turned on notifications in the app."),
+      h("p", { class: "hint" }, reach ? `${reach} ${reach === 1 ? "device" : "devices"} can receive it.` : "No devices have notifications turned on yet, so nobody would receive it."),
+      h("label", { class: "field" }, h("span", null, "Title"), h("input", { id: "nt-title", class: "input", maxlength: "60", autocomplete: "off", placeholder: "e.g. New in My Wallet", on: { input: e => { f.title = e.target.value; err.textContent = ""; e.target.classList.remove("invalid"); } } })),
+      h("label", { class: "field" }, h("span", null, "Message"), h("textarea", { id: "nt-body", class: "input", maxlength: "180", rows: "3", placeholder: "Keep it short. Up to 180 characters.", on: { input: e => { f.body = e.target.value; err.textContent = ""; e.target.classList.remove("invalid"); } } })),
+      err);
+    body.addEventListener("submit", async ev => {
+      ev.preventDefault();
+      if (busy) return;
+      if (!f.title.trim()) return fail(err, "Write a title.", document.getElementById("nt-title"));
+      if (!f.body.trim()) return fail(err, "Write a message.", document.getElementById("nt-body"));
+      if (!navigator.onLine) return fail(err, "Connect to the internet to send.");
+      busy = true; btn.disabled = true; btn.textContent = tr("Sending…");
+      let res = null;
+      try { res = await sb.functions.invoke("send-reminder", { body: { action: "broadcast", title: f.title.trim(), body: f.body.trim(), user_id: u ? u.id : null } }); } catch { res = { error: true }; }
+      busy = false; btn.disabled = false; btn.textContent = tr(u ? "Send to this user" : "Send to everyone");
+      if (res.error || !res.data) return fail(err, "Couldn't send. Check your connection and try again.");
+      const d = res.data;
+      closeSheet();
+      if (!d.devices) return toast(u ? "This user hasn't turned on notifications, so nothing was sent." : "Nobody has notifications turned on yet.", "error");
+      toast(d.sent === d.devices ? `Sent to ${d.sent} ${d.sent === 1 ? "device" : "devices"}.` : `Sent to ${d.sent} of ${d.devices} devices. The others may have turned notifications off.`);
+    });
+    openSheet(u ? "Notify this user" : "Notify everyone", body, btn);
+  }
+
   async function loadAdmin() {
     if (ADMIN.loading) return;
     ADMIN.loading = true; ADMIN.error = null;
@@ -2643,6 +2718,7 @@
       h("div", { class: "row" }, h("span", { class: "dot " + (calls.failed ? "bad" : "ok") }, icon(calls.failed ? "warn" : "check", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Reminder server, last 24 h"), h("span", { class: "row-sub" }, `${calls.ok ?? 0} OK · ${calls.failed ?? 0} failed`)))));
 
+    out.append(h("button", { type: "button", class: "btn", on: { click: () => notifySheet(null) } }, icon("bell", "ico sm"), "Send a notification to everyone"));
     const list = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, `Users (${d.users.length})`)));
     for (const u of [...d.users].sort((a, b) => String(b.last_sign_in_at || "").localeCompare(String(a.last_sign_in_at || "")))) {
       const st = u.stats || {};
@@ -2675,6 +2751,7 @@
           fact("Loan contacts", st.people ?? 0), fact("Reminders on", st.reminders ?? 0)),
           h("p", { class: "hint" }, `Joined ${new Date(u.created_at).toLocaleDateString(dateLocale(), { day: "numeric", month: "short", year: "numeric" })} · last sign-in ${whenText(u.last_sign_in_at)} · last entry ${whenText(st.last_entry)}`))
       ];
+      kids.push(h("button", { type: "button", class: "btn", disabled: busy, on: { click: () => { closeSheet(); setTimeout(() => notifySheet(u), 350); } } }, icon("bell", "ico sm"), "Send a notification"));
       if (u.is_me) {
         kids.push(h("p", { class: "hint" }, "This is your admin account. You can't block or delete it from here."));
       } else {
@@ -2821,8 +2898,17 @@
     return el;
   }
 
-  function amountSheet({ title, cur, max, quick, verbFor, previewFor, onSave }) {
-    const f = { amount: "", note: "" };
+  function amountSheet({ title, cur, max, quick, verbFor, previewFor, onSave, accountPick }) {
+    const f = { amount: "", note: "", account: accountPick ? accountPick.initial : null };
+    const accRow = accountPick ? h("div", { class: "field acc-pick" }) : null;
+    const drawAcc = () => {
+      if (!accRow) return;
+      const list = rows("accounts").filter(a => !a.archived).sort(bySort);
+      accRow.replaceChildren(h("span", { class: "label" }, accountPick.label),
+        h("div", { class: "chips wrap" },
+          list.map(a => h("button", { type: "button", class: "chip", "aria-pressed": String(f.account === a.id), on: { click: () => { f.account = a.id; drawAcc(); refresh(); } } }, h("span", { class: "chip-cur" }, curSymbol(a.currency)), a.name)),
+          h("button", { type: "button", class: "chip", "aria-pressed": String(!f.account), on: { click: () => { f.account = null; drawAcc(); refresh(); } } }, "Don't move money")));
+    };
     const body = h("form", { class: "form", id: "amt-form", novalidate: true });
     const save = h("button", { type: "submit", class: "btn", form: "amt-form" });
     const display = amountDisplay(cur);
@@ -2833,7 +2919,7 @@
       const over = max != null && v && v > max;
       save.classList.toggle("waiting", !v || !!over);
       save.textContent = tr(verbFor(v));
-      preview.textContent = !v ? " " : over ? `That's more than the ${fmt(max, cur, { show: true })} balance.` : previewFor(v);
+      preview.textContent = !v ? " " : over ? `That's more than the ${fmt(max, cur, { show: true })} balance.` : previewFor(v, f.account);
       preview.classList.toggle("bad", !!over);
     };
     const pad = amountPad(cur, () => f.amount, v => { f.amount = v; }, refresh);
@@ -2842,6 +2928,7 @@
       h("div", { class: "chips center" },
         quick.map(n => h("button", { type: "button", class: "chip", on: { click: () => setQuick(n) } }, fmt(n, cur, { show: true, compact: true }))),
         max ? h("button", { type: "button", class: "chip", on: { click: () => setQuick(max) } }, "All of it") : null),
+      accRow,
       h("input", { id: "f-anote", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: "Add a note (optional)", "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }),
       pad);
     body.addEventListener("submit", ev => {
@@ -2849,8 +2936,9 @@
       const v = parseAmt(f.amount);
       if (!v) return fail(null, "Type the amount on the number pad first.", display);
       if (max != null && v > max) return fail(null, `That's more than the ${fmt(max, cur, { show: true })} balance.`, display);
-      onSave(v, f.note.trim().slice(0, 200) || null);
+      onSave(v, f.note.trim().slice(0, 200) || null, f.account);
     });
+    drawAcc();
     refresh();
     openSheet(title, body, save, { fill: true });
   }
@@ -3411,7 +3499,7 @@
   const VALID = {
     accounts: r => typeof r.name === "string" && r.name.length > 0 && r.name.length <= 60 && CUR_RE.test(String(r.currency)) && Object.keys(KIND_LABEL).includes(r.kind),
     categories: r => typeof r.name === "string" && r.name.length > 0 && r.name.length <= 40 && ["expense", "income"].includes(r.kind),
-    transactions: r => ["expense", "income", "transfer"].includes(r.kind) && Number(r.amount) > 0 && CUR_RE.test(String(r.currency)) && Number(r.rate) > 0 && DATE_RE.test(String(r.occurred_on)) && typeof r.account_id === "string",
+    transactions: r => ["expense", "income", "transfer", "loan_out", "loan_in"].includes(r.kind) && Number(r.amount) > 0 && CUR_RE.test(String(r.currency)) && Number(r.rate) > 0 && DATE_RE.test(String(r.occurred_on)) && typeof r.account_id === "string",
     rules: r => ["expense", "income"].includes(r.kind) && Number(r.amount) > 0 && CUR_RE.test(String(r.currency)) && Number.isInteger(r.day) && r.day >= 1 && r.day <= 28 && DATE_RE.test(String(r.next_on)),
     settings: r => !!r.data && typeof r.data === "object" && !Array.isArray(r.data),
     people: r => typeof r.name === "string" && r.name.length > 0 && r.name.length <= 40 && ["owes_me", "i_owe"].includes(r.direction) && CUR_RE.test(String(r.currency)) && (r.phone == null || PHONE_RE.test(r.phone)) && (r.share_token == null || TOKEN_RE.test(r.share_token)),
