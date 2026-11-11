@@ -45,13 +45,14 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.6.0";
+  const VERSION = "3.7.1";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
     chart: "M3 3v18h18M7 15l4-4 3 3 6-6",
     cam: "M4 8h3l2-3h6l2 3h3v11H4zM12 17a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z",
     chev: "M6 9l6 6 6-6",
+    help: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.6 9.3a2.5 2.5 0 0 1 4.8.8c0 1.7-2.4 2.1-2.4 3.6M12 17h.01",
     up: "M12 19V5M5 12l7-7 7 7",
     down: "M12 5v14M5 12l7 7 7-7",
     plan: "M12 3a9 9 0 1 0 9 9h-9zM15 2.6A9 9 0 0 1 21.4 9H15z",
@@ -469,10 +470,11 @@
   }
 
   async function pull() {
-    let changed = 0;
+    let changed = 0, unreadable = 0;
     const full = !!S.fullPull;
     await Promise.all(TABLES.map(async t => {
-      const since = S.last[t] ? new Date(new Date(S.last[t]).getTime() - 120000).toISOString() : "1970-01-01T00:00:00Z";
+      const seen = full ? new Set() : null;
+      const since = !full && S.last[t] ? new Date(new Date(S.last[t]).getTime() - 120000).toISOString() : "1970-01-01T00:00:00Z";
       let from = 0;
       let max = S.last[t] || null;
       for (;;) {
@@ -480,15 +482,18 @@
         if (error) throw error;
         for (const r of data) {
           const prev = S.data[t].get(r.id);
+          if (seen && !r.deleted_at) seen.add(r.id);
           if (r.deleted_at) { if (prev) { S.data[t].delete(r.id); changed++; } }
-          else if (full || !prev || prev.updated_at !== r.updated_at) { if (await openRow(t, r)) { S.data[t].set(r.id, r); changed++; } }
+          else if (full || !prev || prev.updated_at !== r.updated_at) { if (await openRow(t, r)) { S.data[t].set(r.id, r); changed++; } else unreadable++; }
           if (!max || r.updated_at > max) max = r.updated_at;
         }
         if (data.length < 1000) break;
         from += 1000;
       }
       if (max) S.last[t] = max;
+      if (seen) for (const id of [...S.data[t].keys()]) if (!seen.has(id) && !S.outbox.some(o => o.t === t && o.r.id === id)) { S.data[t].delete(id); changed++; }
     }));
+    if (unreadable) toast(`${unreadable} item${unreadable === 1 ? "" : "s"} couldn't be opened on this device. Sign out and back in to fix it.`, "error");
     for (const o of S.outbox) {
       if (o.r.deleted_at) S.data[o.t].delete(o.r.id); else S.data[o.t].set(o.r.id, o.r);
     }
@@ -696,8 +701,9 @@
   function buildShell() {
     const title = h("h1");
     const status = h("button", { type: "button", class: "status", on: { click: () => sync() } });
-    const eye = h("button", { type: "button", class: "icon-btn", on: { click: () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); } } });
-    const gear = h("button", { type: "button", class: "icon-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, icon("gear"));
+    const eye = h("button", { type: "button", class: "icon-btn eye-btn", on: { click: () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); } } });
+    const help = h("button", { type: "button", class: "icon-btn help-btn", "aria-label": "Help", on: { click: helpSheet } }, icon("help"));
+    const gear = h("button", { type: "button", class: "icon-btn gear-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, icon("gear"));
     const main = h("main", { class: "view" });
     const tab = (view, label, ic) => h("button", { type: "button", class: "tab", "data-view": view, on: { click: () => go(view) } }, icon(ic), h("span", null, label));
     const tabs = [tab("home", "Home", "home"), tab("activity", "Activity", "list"), tab("insights", "Insights", "chart"), tab("people", "People", "people")];
@@ -741,7 +747,7 @@
     tabsEl.addEventListener("pointercancel", dragDone);
     tabsEl.addEventListener("click", e => { if (Date.now() - dragEnd < 400) { e.stopPropagation(); e.preventDefault(); } }, true);
     const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, tabsEl, add);
-    const top = h("header", { class: "top" }, title, h("div", { class: "tool glass" }, status, eye, gear));
+    const top = h("header", { class: "top" }, title, h("div", { class: "tool glass" }, status, eye, help, gear));
     const ptr = h("div", { class: "ptr", "aria-hidden": "true" }, icon("sync"));
     root.replaceChildren(h("div", { class: "shell" }, top, ptr, main, nav));
     shell = { title, status, eye, main, tabs, top, ptr, lens, lastView: null };
@@ -805,6 +811,7 @@
     shell.lens.style.opacity = tabIndex < 0 ? "0" : "1";
     if (tabIndex >= 0) shell.lens.style.transform = `translateX(${LANG === "ar" ? -tabIndex * 100 : tabIndex * 100}%)`;
     renderStatus();
+    maybeTour();
   }
 
   function renderSetup() {
@@ -1530,6 +1537,126 @@
     openSheet("Welcome", body, foot);
   }
 
+  const TOURS = {
+    home: [
+      [".hero", "Total balance", "Everything you have across all your accounts, in your main currency. The small pills show each currency separately."],
+      [".eye-btn", "Hide amounts", "Tap the eye to hide every number, for example when someone is looking at your screen."],
+      [".top .status", "Sync", "Shows whether your data is saved online. Tap it to save now."],
+      [".gear-btn", "Settings", "Accounts, categories, reminders, language, security and backups."],
+      [".acts", "Quick actions", "Expense is money you spent. Income is money you received. Transfer moves money between your own accounts. Plan shows how your income is divided."],
+      [".tiles", "Your day and month", "What you spent today and this month, and how much you can still spend per day to stay on plan."],
+      [".month-card", "Month plan", "How much of this month's plan is used. Tap it to change your income or your groups."],
+      [".quick", "Quick add", "Your most used categories. Tap one to add an expense already filed in that category."],
+      [".remind-pill, .remind", "Daily reminder", "A notification every evening so no expense is forgotten."],
+      [".dock .tabs", "Sections", "Home, Activity for every entry, Insights for where your money goes, People for loans. Tap a tab or slide your finger along the bar."],
+      [".add-btn, .side-add", "Add anything", "The fastest way to add an expense, income or transfer, from any screen."],
+      [".help-btn", "Help anytime", "Tap the question mark to replay this tour or read what each screen does."]
+    ],
+    activity: [
+      [".search", "Search", "Find any entry by its note, category or amount."],
+      ["main .chips", "Filters", "Show only expenses, income or transfers."],
+      ["main .card.day", "Your entries", "Grouped by day. Tap an entry to edit it, change its category or delete it."]
+    ],
+    insights: [
+      [".month", "Pick a month", "Use the arrows to look at another month."],
+      ["main .card.flush .row", "Plan and budgets", "Set your income, divide it into groups and give each category a budget."],
+      ["main .tiles", "The month in numbers", "What you spent, what came in, and what is left."],
+      ["main .cat-row", "Where it went", "Your spending by category, biggest first."]
+    ],
+    people: [
+      ["main .tiles", "Totals", "What people owe you, and what you owe them."],
+      ["main .row-btn", "Add a person", "Track money you lend or borrow. Each person can get a private page and a WhatsApp reminder."],
+      ["main .card.flush .row", "A person", "Tap to record a payment, send their balance on WhatsApp or share their private page."]
+    ]
+  };
+  const TOUR = { el: null, view: null, steps: [], i: 0 };
+  const tourSeen = v => store.get("tour:" + v, 0) === 1;
+
+  function endTour() {
+    if (TOUR.view) store.set("tour:" + TOUR.view, 1);
+    if (TOUR.el) TOUR.el.remove();
+    TOUR.el = null; TOUR.view = null;
+    window.removeEventListener("resize", placeTour);
+  }
+
+  function placeTour() {
+    if (!TOUR.el) return;
+    const [sel] = TOUR.steps[TOUR.i];
+    const target = [...document.querySelectorAll(sel)].find(x => x.getClientRects().length);
+    const spot = TOUR.el.querySelector(".tour-spot"), tip = TOUR.el.querySelector(".tour-tip");
+    if (!target) return;
+    const r = target.getBoundingClientRect(), pad = 6;
+    Object.assign(spot.style, { top: `${r.top - pad}px`, left: `${r.left - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
+    const vw = window.innerWidth, vh = window.innerHeight, w = Math.min(340, vw - 32);
+    tip.style.width = `${w}px`;
+    tip.style.left = `${Math.max(16, Math.min(vw - w - 16, r.left + r.width / 2 - w / 2))}px`;
+    const th = tip.offsetHeight;
+    const below = r.bottom + pad + 14, above = r.top - pad - 14 - th;
+    tip.style.top = `${vh - below > th + 16 ? below : above > 16 ? above : Math.max(16, (vh - th) / 2)}px`;
+  }
+
+  function showTourStep() {
+    const steps = TOUR.steps, i = TOUR.i;
+    const [sel, title, text] = steps[i];
+    const target = [...document.querySelectorAll(sel)].find(x => x.getClientRects().length);
+    if (!target) { steps.splice(i, 1); if (i >= steps.length) return endTour(); return showTourStep(); }
+    if (!target.closest(".dock, .top")) target.scrollIntoView({ block: "center", behavior: "smooth" });
+    const tip = TOUR.el.querySelector(".tour-tip");
+    tip.replaceChildren(
+      h("div", { class: "tour-count" }, `${i + 1} / ${steps.length}`),
+      h("h3", null, title),
+      h("p", null, text),
+      h("div", { class: "tour-actions" },
+        h("button", { type: "button", class: "link-btn", on: { click: endTour } }, i === steps.length - 1 ? "Close" : "Skip"),
+        h("span", { class: "tour-gap" }),
+        i > 0 ? h("button", { type: "button", class: "btn alt", on: { click: () => { TOUR.i--; showTourStep(); } } }, "Back") : null,
+        h("button", { type: "button", class: "btn", on: { click: () => { if (TOUR.i >= steps.length - 1) return endTour(); TOUR.i++; showTourStep(); } } }, i === steps.length - 1 ? "Got it" : "Next")));
+    placeTour();
+    setTimeout(placeTour, 380);
+  }
+
+  function startTour(view) {
+    const list = TOURS[view];
+    if (!list || TOUR.el) return;
+    TOUR.view = view; TOUR.steps = list.slice(); TOUR.i = 0;
+    TOUR.el = h("div", { class: "tour", role: "dialog", "aria-modal": "true", "aria-label": "Guide" }, h("div", { class: "tour-spot" }), h("div", { class: "tour-tip" }));
+    TOUR.el.addEventListener("click", e => { if (e.target === TOUR.el) e.stopPropagation(); });
+    document.body.append(TOUR.el);
+    window.addEventListener("resize", placeTour);
+    showTourStep();
+  }
+
+  function maybeTour() {
+    const v = S.view;
+    if (!TOURS[v] || tourSeen(v) || TOUR.el || S.onboarding || !S.session || !VAULT.key) return;
+    if (!storedSettings().onboarded) return;
+    clearTimeout(TOUR.timer);
+    let tries = 0;
+    const attempt = () => {
+      if (S.view !== v || TOUR.el || tourSeen(v)) return;
+      if (S.onboarding || document.querySelector(".overlay, .lock, .viewer")) { if (++tries < 40) TOUR.timer = setTimeout(attempt, 700); return; }
+      startTour(v);
+    };
+    TOUR.timer = setTimeout(attempt, 900);
+  }
+
+  function helpSheet() {
+    const part = (ic, title, text) => h("div", { class: "help-row" }, h("span", { class: "dot neutral" }, icon(ic, "ico sm")), h("div", null, h("h3", null, title), h("p", null, text)));
+    const cur = TOURS[S.view] ? S.view : "home";
+    openSheet("How it works", h("div", { class: "help-list" },
+      part("home", "Home", "Your total balance, today's spending, your month plan and one-tap actions."),
+      part("plus", "Add", "The green + adds an expense, income or transfer. Type the amount, pick a category, save."),
+      part("list", "Activity", "Every entry, by day. Search, filter, and tap any entry to edit or delete it."),
+      part("chart", "Insights", "Where your money went, your plan and budgets, goals and net worth."),
+      part("people", "People", "Money you lend or borrow, with WhatsApp reminders and a private page for each person."),
+      part("eye", "Eye", "Hides every amount on screen."),
+      part("sync", "Sync", "Saves your data online so it's on all your devices."),
+      part("gear", "Settings", "Accounts, categories, reminders, language, security and backups.")),
+      h("div", { class: "help-foot" },
+        h("button", { type: "button", class: "btn", on: { click: () => { closeSheet(); setTimeout(() => { if (S.view !== cur) go(cur); setTimeout(() => startTour(cur), 450); }, 350); } } }, cur === "home" ? "Start the tour" : "Tour of this screen"),
+        cur !== "home" ? h("button", { type: "button", class: "btn alt", on: { click: () => { closeSheet(); setTimeout(() => { go("home"); setTimeout(() => startTour("home"), 500); }, 350); } } }, "Full tour from Home") : null));
+  }
+
   function viewHome() {
     const st = settings();
     const bal = balances();
@@ -2039,7 +2166,14 @@
       h("div", { class: "row" }, h("span", { class: "row-main" },
         h("span", { class: "row-title" }, !navigator.onLine ? "Offline" : S.syncError ? "Couldn't sync" : pending ? `${pending} changes waiting` : "Up to date"),
         h("span", { class: "row-sub" }, S.syncedAt ? `Last synced ${ago(S.syncedAt)}` : "Not synced yet"))),
-      h("button", { type: "button", class: "row-btn", on: { click: () => sync() } }, "Sync now")));
+      h("button", { type: "button", class: "row-btn", on: { click: () => sync() } }, "Sync now"),
+      h("button", { type: "button", class: "row-btn", on: { click: async () => {
+        if (!navigator.onLine) return toast("Connect to the internet to reload your data.", "error");
+        if (S.outbox.length) await flush().catch(() => { });
+        S.fullPull = true;
+        await sync();
+        toast("Reloaded from the server. This device now matches your other devices.");
+      } } }, "Reload everything from the server")));
 
     out.append(currencyGroup(group));
 
@@ -2099,6 +2233,9 @@
     const armed = S.armed === "signout";
     const locked = !!lockCfg();
     const nav = (title, sub, fn, ic) => h("button", { type: "button", class: "row", on: { click: fn } }, h("span", { class: "dot neutral" }, icon(ic, "ico sm")), h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), sub ? h("span", { class: "row-sub" }, sub) : null), icon("fwd"));
+    out.append(group("Help",
+      h("button", { type: "button", class: "row-btn", on: { click: () => { for (const v of Object.keys(TOURS)) store.set("tour:" + v, 0); go("home"); setTimeout(() => startTour("home"), 500); } } }, "Show the tour again"),
+      h("button", { type: "button", class: "row-btn", on: { click: helpSheet } }, "How each screen works")));
     out.append(group("Language",
       h("div", { class: "row lang-row" }, seg(Object.entries(LANGS), LANG, setLang, "Language"))));
     out.append(group("Security",
@@ -2125,7 +2262,7 @@
       h("button", { type: "button", class: "row-btn danger", on: { click: () => { if (armed) signOut(); else { S.armed = "signout"; render(); } } } },
         armed ? (pending ? `Sign out and lose ${pending} unsynced changes?` : "Tap again to sign out") : "Sign out")));
     const PAGES = [
-      ["general", "General", "Language, your name and currency", "gear", ["Language", "Your name", "Currency"]],
+      ["general", "General", "Language, your name and currency", "gear", ["Language", "Your name", "Currency", "Help"]],
       ["money", "Accounts and categories", "Accounts, categories and repeating entries", "bank", ["Accounts", "Spending categories", "Income categories", "Every month"]],
       ["reminders", "Reminders and quick add", "Daily notification and adding from the Lock Screen", "bell", ["Reminders", "Daily reminder", "Quick add"]],
       ["data", "Sync and backup", "Sync, export, import and restore", "sync", ["Sync", "Your data"]],
