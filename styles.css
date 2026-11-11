@@ -1140,3 +1140,28 @@ main.view:not(.enter) > * { animation: none; }
 .chip-cur { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 7px; background: var(--sunk); color: var(--muted); font-size: 12px; font-weight: 800; }
 .chip[aria-pressed="true"] .chip-cur { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
 textarea.input { font: inherit; line-height: 1.4; resize: vertical; }
+.txn[data-kind="loan"] .seg-thumb { background: #3b7dd8; box-shadow: 0 4px 12px rgb(59 125 216 / .3); }
+.txn[data-kind="loan"] .amount-display:not(.empty) .val, .txn[data-kind="loan"] .amount-display:not(.empty) .cur { color: #3b7dd8; }
+.sheet-foot .btn.loan:not(.waiting) { background: #3b7dd8; box-shadow: 0 8px 20px rgb(59 125 216 / .3); }
+.txn .seg button { font-size: 15px; }
+@media (max-width: 380px) { .txn .seg button { font-size: 13px; } }
+.add-row .pick-name { color: var(--accent); }
+.txn .form-err:empty { display: none; }
+.bell-btn { position: relative; }
+.bell-btn[hidden] { display: none; }
+.bell-badge { position: absolute; top: 3px; inset-inline-end: 2px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--neg); color: #fff; font: 800 10px/17px var(--ui); text-align: center; box-shadow: 0 0 0 2px var(--card); }
+.bell-badge:empty { display: none; }
+.inbox { display: grid; gap: 10px; }
+.inbox-item { padding: 14px; border-radius: 16px; background: var(--card); box-shadow: var(--shadow); display: grid; gap: 4px; }
+.inbox-item.new { box-shadow: inset 3px 0 0 var(--accent), var(--shadow); }
+[dir="rtl"] .inbox-item.new { box-shadow: inset -3px 0 0 var(--accent), var(--shadow); }
+.inbox-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.inbox-top h3 { font-size: 16px; font-weight: 700; }
+.inbox-top time { font-size: 12px; color: var(--faint); flex: none; }
+.inbox-item p { font-size: 15px; line-height: 1.45; color: var(--muted); white-space: pre-line; }
+.inbox-card { display: flex; align-items: center; gap: 12px; border: 0; width: 100%; text-align: start; color: var(--ink); font: inherit; background: linear-gradient(135deg, color-mix(in srgb, var(--gold) 14%, var(--card)), var(--card) 70%); }
+.inbox-card .row-sub { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.inbox-more { flex: none; font-size: 13px; font-weight: 800; color: var(--gold); }
+.sent-row { align-items: flex-start; }
+.sent-row .row-sub.wrap { white-space: normal; color: var(--ink); opacity: .8; }
+@media (max-width: 380px) { .top .tool .icon-btn { width: 34px; } .top .tool { gap: 0; } }

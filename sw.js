@@ -1,4 +1,4 @@
-const CACHE = "wallet-shell-v57";
+const CACHE = "wallet-shell-v59";
 const ASSETS = [
   "./",
   "./index.html",
@@ -13,7 +13,7 @@ const ASSETS = [
 ];
 
 self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS.map(u => new Request(u, { cache: "reload" })))));
   self.skipWaiting();
 });
 
@@ -25,12 +25,33 @@ self.addEventListener("activate", event => {
   );
 });
 
+const SHELL = /\.(js|css|webmanifest)$/;
+
 self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
+  const navigate = event.request.mode === "navigate";
+  const key = navigate ? "./index.html" : event.request;
+  if (navigate || SHELL.test(url.pathname)) {
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE);
+      const network = fetch(event.request, { cache: "no-cache" }).then(response => {
+        if (response.ok) cache.put(key, response.clone());
+        return response;
+      });
+      const timeout = new Promise(resolve => setTimeout(resolve, 2500, null));
+      try {
+        const fresh = await Promise.race([network, timeout]);
+        if (fresh) return fresh;
+      } catch { }
+      const cached = await cache.match(key, { ignoreSearch: true });
+      if (cached) { event.waitUntil(network.catch(() => null)); return cached; }
+      try { return await network; } catch { return Response.error(); }
+    })());
+    return;
+  }
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
-    const key = event.request.mode === "navigate" ? "./index.html" : event.request;
     const cached = await cache.match(key, { ignoreSearch: true });
     const network = fetch(event.request, { cache: "no-cache" })
       .then(response => {

@@ -650,3 +650,42 @@ window.WALLET_I18N.patterns.push(
   ["^Paid back (.+)$", "Remboursé à $1", "سداد لـ $1"],
   ["^Borrowed from (.+)$", "Emprunté à $1", "اقتراض من $1"]
 );
+Object.assign(window.WALLET_I18N.words, {
+  "Loan": ["Prêt", "قرض"],
+  "Person": ["Personne", "الشخص"],
+  "What happened": ["Ce qui s'est passé", "ماذا حدث"],
+  "Lent or borrowed": ["Prêté ou emprunté", "إقراض أو اقتراض"],
+  "Save loan": ["Enregistrer le prêt", "حفظ القرض"],
+  "Next: choose a person": ["Suivant : choisir une personne", "التالي: اختر شخصاً"],
+  "Add a new person": ["Ajouter une personne", "إضافة شخص جديد"],
+  "I lent money": ["J'ai prêté de l'argent", "أقرضتُ مالاً"],
+  "They paid me back": ["On m'a remboursé", "سدّدوا لي"],
+  "Note (optional)": ["Note (facultatif)", "ملاحظة (اختياري)"],
+  "settled": ["réglé", "مُسدَّد"],
+  "Updated to version": ["Mis à jour vers la version", "تم التحديث إلى الإصدار"]
+});
+window.WALLET_I18N.patterns.push(
+  ["^I lent (.+)$", "J'ai prêté à $1", "أقرضتُ $1"],
+  ["^(.+) paid me back$", "$1 m'a remboursé", "$1 سدّد لي"],
+  ["^I borrowed from (.+)$", "J'ai emprunté à $1", "اقترضتُ من $1"],
+  ["^I paid (.+) back$", "J'ai remboursé $1", "سدّدتُ لـ $1"],
+  ["^owes you (.+)$", "vous doit $1", "مدين لك بـ $1"],
+  ["^you owe (.+)$", "vous devez $1", "عليك $1"]
+);
+Object.assign(window.WALLET_I18N.words, {
+  "Notifications": ["Notifications", "الإشعارات"],
+  "No notifications yet.": ["Aucune notification pour l'instant.", "لا توجد إشعارات بعد."],
+  "Nothing sent yet.": ["Rien d'envoyé pour l'instant.", "لم يُرسل شيء بعد."],
+  "Everyone": ["Tout le monde", "الجميع"],
+  "One user": ["Un utilisateur", "مستخدم واحد"],
+  "inbox only": ["boîte de réception seulement", "صندوق الوارد فقط"],
+  "Delete notification": ["Supprimer la notification", "حذف الإشعار"],
+  "Deleted. Users no longer see it in their inbox.": ["Supprimée. Les utilisateurs ne la voient plus.", "تم الحذف. لم يعد المستخدمون يرونه."],
+  "It also appears in their inbox in the app.": ["Elle apparaît aussi dans leur boîte de réception.", "يظهر أيضاً في صندوق الوارد لديهم."],
+  "It also appears in every user's inbox in the app.": ["Elle apparaît aussi dans la boîte de réception de chacun.", "يظهر أيضاً في صندوق الوارد لدى كل المستخدمين."]
+});
+window.WALLET_I18N.patterns.push(
+  ["^Sent notifications \\((\\d+)\\)$", "Notifications envoyées ($1)", "الإشعارات المرسلة ($1)"],
+  ["^Notifications, (\\d+) unread$", "Notifications, $1 non lues", "الإشعارات، $1 غير مقروءة"],
+  ["^delivered to (\\d+) of (\\d+) devices$", "reçue sur $1 appareils sur $2", "وصل إلى $1 من $2 أجهزة"]
+);

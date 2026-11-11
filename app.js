@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.9.0";
+  const VERSION = "3.11.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -510,6 +510,7 @@
       await flush();
       const changed = await pull();
       S.syncedAt = new Date().toISOString();
+      loadInbox();
       store.set("syncedAt", S.syncedAt);
       S.syncError = false;
       ensureDefaults();
@@ -701,6 +702,7 @@
   function buildShell() {
     const title = h("h1");
     const status = h("button", { type: "button", class: "status", on: { click: () => sync() } });
+    const bell = h("button", { type: "button", class: "icon-btn bell-btn", "aria-label": "Notifications", hidden: true, on: { click: inboxSheet } }, icon("bell"), h("span", { class: "bell-badge" }));
     const eye = h("button", { type: "button", class: "icon-btn eye-btn", on: { click: () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); } } });
     const help = h("button", { type: "button", class: "icon-btn help-btn", "aria-label": "Help", on: { click: helpSheet } }, icon("help"));
     const gear = h("button", { type: "button", class: "icon-btn gear-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, icon("gear"));
@@ -747,10 +749,10 @@
     tabsEl.addEventListener("pointercancel", dragDone);
     tabsEl.addEventListener("click", e => { if (Date.now() - dragEnd < 400) { e.stopPropagation(); e.preventDefault(); } }, true);
     const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, tabsEl, add);
-    const top = h("header", { class: "top" }, title, h("div", { class: "tool glass" }, status, eye, help, gear));
+    const top = h("header", { class: "top" }, title, h("div", { class: "tool glass" }, status, bell, eye, help, gear));
     const ptr = h("div", { class: "ptr", "aria-hidden": "true" }, icon("sync"));
     root.replaceChildren(h("div", { class: "shell" }, top, ptr, main, nav));
-    shell = { title, status, eye, main, tabs, top, ptr, lens, lastView: null };
+    shell = { title, status, eye, bell, main, tabs, top, ptr, lens, lastView: null };
   }
 
   function renderStatus() {
@@ -811,6 +813,7 @@
     shell.lens.style.opacity = tabIndex < 0 ? "0" : "1";
     if (tabIndex >= 0) shell.lens.style.transform = `translateX(${LANG === "ar" ? -tabIndex * 100 : tabIndex * 100}%)`;
     renderStatus();
+    paintBell();
     maybeTour();
   }
 
@@ -1717,6 +1720,88 @@
         cur !== "home" ? h("button", { type: "button", class: "btn alt", on: { click: () => { closeSheet(); setTimeout(() => { go("home"); setTimeout(() => startTour("home"), 500); }, 350); } } }, "Full tour from Home") : null));
   }
 
+  const INBOX = { items: [], loading: false, ok: true, at: 0 };
+  const inboxSeen = () => store.get("inboxSeen", "");
+  const myInbox = () => INBOX.items.filter(x => !x.target_user || x.target_user === S.uid);
+  const unreadCount = () => myInbox().filter(n => n.created_at > inboxSeen()).length;
+
+  async function loadInbox(force) {
+    if (INBOX.loading || !sb || !S.session || !navigator.onLine) return;
+    if (!force && Date.now() - INBOX.at < 60000) return;
+    INBOX.loading = true;
+    try {
+      const { data, error } = await sb.from("notifications").select("id, title, body, created_at, target_user, devices, sent").order("created_at", { ascending: false }).limit(60);
+      if (error) { INBOX.ok = false; }
+      else { INBOX.ok = true; INBOX.items = (data || []).filter(n => n && typeof n.title === "string"); }
+      INBOX.at = Date.now();
+    } catch { INBOX.ok = false; }
+    INBOX.loading = false;
+    paintBell();
+    if (S.view === "home" || S.view === "admin") scheduleRender();
+  }
+
+  function paintBell() {
+    if (!shell || !shell.bell) return;
+    const n = unreadCount();
+    const mine = myInbox();
+    shell.bell.querySelector(".bell-badge").textContent = n ? String(Math.min(n, 9)) + (n > 9 ? "+" : "") : "";
+    shell.bell.setAttribute("aria-label", tr(n ? `Notifications, ${n} unread` : "Notifications"));
+    shell.bell.classList.toggle("has-new", n > 0);
+    shell.bell.hidden = !mine.length && !n;
+  }
+
+  function inboxSheet() {
+    const seen = inboxSeen();
+    const mine = myInbox();
+    if (mine.length) store.set("inboxSeen", mine[0].created_at);
+    paintBell();
+    const when = iso => new Date(iso).toLocaleString(dateLocale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    openSheet("Notifications", mine.length
+      ? h("div", { class: "inbox" }, mine.map(n => h("article", { class: "inbox-item" + (n.created_at > seen ? " new" : "") },
+          h("div", { class: "inbox-top" }, h("h3", null, n.title), h("time", null, when(n.created_at))),
+          h("p", null, n.body))))
+      : h("p", { class: "empty" }, "No notifications yet."));
+    if (S.view === "home") scheduleRender();
+  }
+
+  function inboxCard() {
+    const mine = myInbox().filter(x => x.created_at > inboxSeen());
+    if (!mine.length) return null;
+    const n = mine[0];
+    return h("button", { type: "button", class: "card inbox-card", on: { click: inboxSheet } },
+      h("span", { class: "dot gold" }, icon("bell", "ico sm")),
+      h("span", { class: "row-main" }, h("span", { class: "row-title" }, n.title), h("span", { class: "row-sub" }, n.body)),
+      mine.length > 1 ? h("span", { class: "inbox-more" }, `+${mine.length - 1}`) : icon("fwd"));
+  }
+
+  function sentCard() {
+    if (!INBOX.ok) return h("section", { class: "card" }, h("div", { class: "card-head" }, h("h2", null, "Sent notifications")),
+      h("p", { class: "hint" }, "The history isn't set up on the server yet. Run supabase/notifications.sql in the Supabase SQL editor once."));
+    const users = new Map(((ADMIN.data && ADMIN.data.users) || []).map(u => [u.id, u.email]));
+    const sent = INBOX.items;
+    const card = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, `Sent notifications (${sent.length})`)));
+    if (!sent.length) { card.append(h("p", { class: "empty" }, "Nothing sent yet.")); return card; }
+    for (const n of sent.slice(0, 30)) {
+      const armed = ADMIN.armedNote === n.id;
+      card.append(h("div", { class: "row sent-row" },
+        h("span", { class: "dot " + (n.target_user ? "neutral" : "gold") }, icon(n.target_user ? "people" : "bell", "ico sm")),
+        h("span", { class: "row-main" },
+          h("span", { class: "row-title" }, n.title),
+          h("span", { class: "row-sub wrap" }, n.body),
+          h("span", { class: "row-sub wrap" }, [n.target_user ? (users.get(n.target_user) || "One user") : "Everyone", whenText(n.created_at), n.devices ? `delivered to ${n.sent} of ${n.devices} devices` : "inbox only"].join(" · "))),
+        h("button", { type: "button", class: "icon-btn", "aria-label": armed ? "Confirm delete" : "Delete notification", style: armed ? { color: "var(--neg)" } : null, on: { click: async () => {
+          if (!armed) { ADMIN.armedNote = n.id; return render(); }
+          ADMIN.armedNote = null;
+          const { error } = await sb.from("notifications").delete().eq("id", n.id);
+          if (error) return toast("Couldn't delete it. Try again.", "error");
+          INBOX.items = INBOX.items.filter(x => x.id !== n.id);
+          toast("Deleted. Users no longer see it in their inbox.");
+          render();
+        } } }, icon(armed ? "warn" : "close"))));
+    }
+    return card;
+  }
+
   function viewHome() {
     const st = settings();
     const bal = balances();
@@ -1776,6 +1861,8 @@
           h("span", { class: "fav-dot", style: { background: c.color } }, catGlyph(c, "ico sm")), c.name)))));
     }
 
+    const news = inboxCard();
+    if (news) out.append(news);
     const remind = reminderCard();
     out.append(remind || reminderPill());
     const loose = txns.filter(t => (t.kind === "expense" || t.kind === "income") && !t.category_id && t.occurred_on >= ymd(new Date(Date.now() - 45 * 864e5))).sort(byRecent);
@@ -2654,7 +2741,7 @@
     const btn = h("button", { type: "submit", class: "btn", form: "nt-form" }, u ? "Send to this user" : "Send to everyone");
     const body = h("form", { class: "form", id: "nt-form", novalidate: true },
       h("p", { class: "hint" }, u ? `Goes to ${u.email || "this user"} on every device where they turned on notifications.` : "Goes to every user who turned on notifications in the app."),
-      h("p", { class: "hint" }, reach ? `${reach} ${reach === 1 ? "device" : "devices"} can receive it.` : "No devices have notifications turned on yet, so nobody would receive it."),
+      h("p", { class: "hint" }, (reach ? `${reach} ${reach === 1 ? "device gets" : "devices get"} an alert right away.` : "No devices have notifications turned on, so nobody gets an alert.") + " " + (u ? "It also appears in their inbox in the app." : "It also appears in every user's inbox in the app.")),
       h("label", { class: "field" }, h("span", null, "Title"), h("input", { id: "nt-title", class: "input", maxlength: "60", autocomplete: "off", placeholder: "e.g. New in My Wallet", on: { input: e => { f.title = e.target.value; err.textContent = ""; e.target.classList.remove("invalid"); } } })),
       h("label", { class: "field" }, h("span", null, "Message"), h("textarea", { id: "nt-body", class: "input", maxlength: "180", rows: "3", placeholder: "Keep it short. Up to 180 characters.", on: { input: e => { f.body = e.target.value; err.textContent = ""; e.target.classList.remove("invalid"); } } })),
       err);
@@ -2671,8 +2758,10 @@
       if (res.error || !res.data) return fail(err, "Couldn't send. Check your connection and try again.");
       const d = res.data;
       closeSheet();
-      if (!d.devices) return toast(u ? "This user hasn't turned on notifications, so nothing was sent." : "Nobody has notifications turned on yet.", "error");
-      toast(d.sent === d.devices ? `Sent to ${d.sent} ${d.sent === 1 ? "device" : "devices"}.` : `Sent to ${d.sent} of ${d.devices} devices. The others may have turned notifications off.`);
+      loadInbox(true);
+      const inbox = d.saved ? (u ? " It's also in their inbox in the app." : " It's also in everyone's inbox in the app.") : "";
+      if (!d.devices) return toast(d.saved ? (u ? "Saved to their inbox. They haven't turned on notifications, so no alert was sent." : "Saved to everyone's inbox. Nobody has notifications turned on, so no alert was sent.") : (u ? "This user hasn't turned on notifications, so nothing was sent." : "Nobody has notifications turned on yet."), d.saved ? undefined : "error");
+      toast((d.sent === d.devices ? `Sent to ${d.sent} ${d.sent === 1 ? "device" : "devices"}.` : `Sent to ${d.sent} of ${d.devices} devices. The others may have turned notifications off.`) + inbox);
     });
     openSheet(u ? "Notify this user" : "Notify everyone", body, btn);
   }
@@ -2719,6 +2808,8 @@
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Reminder server, last 24 h"), h("span", { class: "row-sub" }, `${calls.ok ?? 0} OK · ${calls.failed ?? 0} failed`)))));
 
     out.append(h("button", { type: "button", class: "btn", on: { click: () => notifySheet(null) } }, icon("bell", "ico sm"), "Send a notification to everyone"));
+    if (!INBOX.at) loadInbox(true);
+    out.append(sentCard());
     const list = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, `Users (${d.users.length})`)));
     for (const u of [...d.users].sort((a, b) => String(b.last_sign_in_at || "").localeCompare(String(a.last_sign_in_at || "")))) {
       const st = u.stats || {};
@@ -2962,6 +3053,8 @@
       f.blob = blob;
       draw();
     } } });
+    f.person = null;
+    f.lmode = "more";
     if (!x && preset) Object.assign(f, preset);
     if (x && curDec(x.currency) === 0) f.amount = String(Math.round(Number(x.amount)));
     const usage = new Map();
@@ -2981,7 +3074,11 @@
         f.to = other ? other.id : null;
       }
       if (f.kind !== "transfer" && f.category && (!cat(f.category) || cat(f.category).kind !== f.kind)) f.category = null;
+      if (f.person && !S.data.people.get(f.person)) f.person = null;
     };
+    const loanPerson = () => f.kind === "loan" && f.person ? S.data.people.get(f.person) : null;
+    const loanOut = () => { const p = loanPerson(); return p ? (owesMe(p) ? f.lmode === "more" : f.lmode === "back") : f.lmode === "more"; };
+    const loanLabel = p => !p ? (f.lmode === "more" ? "Lent or borrowed" : "Paid back") : owesMe(p) ? (f.lmode === "more" ? `I lent ${p.name}` : `${p.name} paid me back`) : (f.lmode === "more" ? `I borrowed from ${p.name}` : `I paid ${p.name} back`);
     const convertFor = (amount, from, to) => roundCur(convert(amount, from, to), to);
 
     const draw = () => {
@@ -2999,26 +3096,32 @@
         display.set(f.amount);
         const v = parseAmt(f.amount);
         if (v && cross && !f.toTouched) { f.toAmount = String(convertFor(v, cur, to.currency)); toInput.value = f.toAmount; }
-        const needCat = f.kind !== "transfer" && !f.category;
+        const needCat = f.kind === "loan" ? !f.person : f.kind !== "transfer" && !f.category;
         const conv = !v || cur === mainCur() ? "" : `≈ ${money(toMain(v, cur), { show: true })}`;
         preview.textContent = conv || "\u00a0";
         const catTile = body.querySelector(".ftile");
         if (catTile && f.kind !== "transfer") catTile.classList.toggle("attn", !!v && needCat);
-        const verb = { expense: "Save expense", income: "Save income", transfer: "Move money" }[f.kind];
-        saveBtn.textContent = !v ? tr("Type an amount") : needCat ? tr("Next: choose a category") : `${tr(verb)} · ${fmt(v, cur, { show: true })}`;
+        const verb = { expense: "Save expense", income: "Save income", transfer: "Move money", loan: "Save loan" }[f.kind];
+        saveBtn.textContent = !v ? tr("Type an amount") : needCat ? tr(f.kind === "loan" ? "Next: choose a person" : "Next: choose a category") : `${tr(verb)} · ${fmt(v, cur, { show: true })}`;
         saveBtn.className = "btn " + f.kind + (!v ? " waiting" : "");
       };
       const pad = amountPad(cur, () => f.amount, v => { f.amount = v; }, refresh);
       const yest = ymd(new Date(Date.now() - 864e5));
       const dateText = f.date === today() ? "Today" : f.date === yest ? "Yesterday" : dayLabel(f.date);
-      const open = k => { panel = panel === k ? "pad" : k; draw(); if (panel === "more") { const n = document.getElementById("f-note"); if (n) n.focus(); } };
+      const open = k => { err.textContent = ""; panel = panel === k ? "pad" : k; draw(); if (panel === "more") { const n = document.getElementById("f-note"); if (n) n.focus(); } };
       const tile = (k, caption, value, lead, empty) => h("button", { type: "button", class: "ftile" + (empty ? " empty" : "") + (k === "cat" && empty && parseAmt(f.amount) ? " attn" : ""), "aria-expanded": String(panel === k), on: { click: () => open(k) } },
         lead || null,
         h("span", { class: "ftile-text" }, h("small", null, caption), h("strong", null, value)),
         icon("chev", "ico sm"));
       const chosen = f.kind !== "transfer" && f.category ? cat(f.category) : null;
       const extras = [f.note ? f.note : null, f.repeat ? "Monthly" : null, f.blob || f.receipt ? "Receipt" : null].filter(Boolean);
-      const tiles = f.kind === "transfer"
+      const lp = loanPerson();
+      const tiles = f.kind === "loan"
+        ? [tile("person", "Person", lp ? lp.name : "Choose", h("span", { class: "ftile-ico", style: lp ? { background: COLORS[(lp.sort || 0) % COLORS.length], color: "#fff" } : null }, lp ? lp.name.charAt(0).toUpperCase() : icon("people", "ico sm")), !lp),
+          tile("lmode", "What happened", loanLabel(lp), h("span", { class: "ftile-ico" }, icon(loanOut() ? "up" : "down", "ico sm"))),
+          tile("acc", loanOut() ? "Paid from" : "Into", a.name, h("span", { class: "cur-tag" }, curTag(a.currency))),
+          tile("date", "Date", dateText, h("span", { class: "ftile-ico" }, icon("cal", "ico sm")))]
+        : f.kind === "transfer"
         ? [tile("acc", "From", a.name, h("span", { class: "cur-tag" }, curTag(a.currency))),
           tile("to", "To", to ? to.name : "Choose", to ? h("span", { class: "cur-tag" }, curTag(to.currency)) : null, !to),
           tile("date", "Date", dateText, h("span", { class: "ftile-ico" }, icon("cal", "ico sm"))),
@@ -3034,7 +3137,25 @@
           h("span", { class: "pick-name" }, o.name),
           h("span", { class: "pick-end num" }, fmt(bal.get(o.id) || 0, o.currency, { whole: true })))));
       let panelEl;
-      if (panel === "cat" && f.kind !== "transfer") {
+      const lb = f.kind === "loan" ? loanBalances() : null;
+      if (panel === "person" && f.kind === "loan") {
+        const people = rows("people").sort((p, q) => Math.abs(toMain(lb.get(q.id) || 0, q.currency)) - Math.abs(toMain(lb.get(p.id) || 0, p.currency)) || bySort(p, q));
+        panelEl = h("div", { class: "pick-list" },
+          people.map(p => { const v = lb.get(p.id) || 0; return h("button", { type: "button", class: "pick-row", "aria-pressed": String(p.id === f.person), on: { click: () => { f.person = p.id; const la = loanAccount(p); if (la) f.account = la; panel = "pad"; draw(); } } },
+            h("span", { class: "ftile-ico", style: { background: COLORS[(p.sort || 0) % COLORS.length], color: "#fff" } }, p.name.charAt(0).toUpperCase()),
+            h("span", { class: "pick-name" }, p.name),
+            h("span", { class: "pick-end num" }, v ? `${owesMe(p) ? "owes you" : "you owe"} ${fmt(v, p.currency, { whole: true })}` : "settled")); }),
+          h("button", { type: "button", class: "pick-row add-row", on: { click: () => { closeSheet(); setTimeout(() => personSheet(null), 350); } } }, h("span", { class: "ftile-ico" }, icon("plus", "ico sm")), h("span", { class: "pick-name" }, "Add a new person")));
+      } else if (panel === "lmode" && f.kind === "loan") {
+        const choice = (mode, label, ic) => h("button", { type: "button", class: "pick-row", "aria-pressed": String(f.lmode === mode), on: { click: () => { f.lmode = mode; draw(); } } }, h("span", { class: "ftile-ico" }, icon(ic, "ico sm")), h("span", { class: "pick-name" }, label));
+        const p = lp;
+        panelEl = h("div", { class: "pick-list" },
+          p && !owesMe(p)
+            ? [choice("more", `I borrowed from ${p.name}`, "down"), choice("back", `I paid ${p.name} back`, "up")]
+            : [choice("more", p ? `I lent ${p.name}` : "I lent money", "up"), choice("back", p ? `${p.name} paid me back` : "They paid me back", "down")],
+          h("input", { id: "f-note", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: "Note (optional)", value: f.note, "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }),
+          h("button", { type: "button", class: "btn alt", on: { click: () => { panel = "pad"; draw(); } } }, "Done"));
+      } else if (panel === "cat" && f.kind !== "transfer" && f.kind !== "loan") {
         const cats = rows("categories").filter(c => c.kind === f.kind).sort((p, q) => (usage.get(q.id) || 0) - (usage.get(p.id) || 0) || bySort(p, q));
         panelEl = cats.length
           ? h("div", { class: "cat-grid", role: "group", "aria-label": "Category" }, cats.map(c => h("button", { type: "button", class: "cat-btn", "aria-pressed": String(c.id === f.category), on: { click: () => { f.category = c.id; panel = "pad"; draw(); } } },
@@ -3067,10 +3188,11 @@
       }
 
       const kids = [
-        seg([["expense", "Expense"], ["income", "Income"], ["transfer", "Transfer", accounts.length < 2]], f.kind, k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; panel = "pad"; draw(); }, "Entry type"),
+        seg([["expense", "Expense"], ["income", "Income"], ["transfer", "Transfer", accounts.length < 2], ["loan", "Loan"]], f.kind, k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; panel = "pad"; draw(); }, "Entry type"),
         h("button", { type: "button", class: "amount-tap", "aria-label": "Amount", on: { click: () => { if (panel !== "pad") { panel = "pad"; draw(); } } } }, display),
         preview,
         h("div", { class: "ftiles" }, tiles),
+        err,
         cross ? h("label", { class: "field" }, h("span", null, `${to.name} receives (${curSymbol(to.currency)})`), toInput, h("span", { class: "hint" }, `At ${fmt(1, cur, { show: true })} = ${fmt(convert(1, cur, to.currency), to.currency, { show: true })}. Change it if you got a different rate.`)) : null,
         h("div", { class: "panel" + (panel === "pad" ? "" : " list") }, panelEl)
       ];
@@ -3087,6 +3209,24 @@
       const amount = parseAmt(f.amount);
       if (!amount) { fail(null, "Type the amount on the number pad first.", body.querySelector(".amount-display")); return; }
       if (!DATE_RE.test(f.date)) { fail(err, "Pick a date."); return; }
+      if (f.kind === "loan") {
+        const p = loanPerson();
+        if (!p) { panel = "person"; draw(); return; }
+        const owed = loanBalances().get(p.id) || 0;
+        const loanAmt = roundCur(convert(amount, a.currency, p.currency), p.currency);
+        if (f.lmode === "back" && loanAmt > owed + 1e-9) { fail(err, owed > 0 ? `That's more than the ${fmt(owed, p.currency, { show: true })} balance.` : `Nothing is owed between you and ${p.name} right now.`); return; }
+        const id = newId(), now = new Date().toISOString(), note = f.note.trim().slice(0, 200) || null;
+        const out = loanOut();
+        putMany([
+          { t: "loan_entries", r: { id, person_id: p.id, amount: f.lmode === "back" ? -loanAmt : loanAmt, note, occurred_on: f.date, created_at: now } },
+          { t: "transactions", r: { id: `ln-${id}`, kind: out ? "loan_out" : "loan_in", amount: roundCur(amount, a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: null, note, occurred_on: f.date, rule_id: null, receipt: null, created_at: now } }]);
+        store.set("lastAcc:loan", a.id);
+        store.set("loanAcc:" + p.id, a.id);
+        closeSheet();
+        const next = owed + (f.lmode === "back" ? -loanAmt : loanAmt);
+        toast(next === 0 ? `Saved. You and ${p.name} are settled.` : `Saved. ${owesMe(p) ? `${p.name} owes you` : `You owe ${p.name}`} ${fmt(next, p.currency, { show: true })}.`);
+        return;
+      }
       let toAmount = null;
       if (f.kind === "transfer") {
         const to = acc(f.to);
@@ -3946,6 +4086,11 @@
 
   async function start() {
     applyLang();
+    try {
+      const seen = localStorage.getItem("wallet:version");
+      if (seen && seen !== VERSION) setTimeout(() => toast(`${tr("Updated to version")} ${VERSION}`), 1200);
+      localStorage.setItem("wallet:version", VERSION);
+    } catch { }
     S.month = thisMonth();
     if (!CFG.supabaseUrl || !CFG.supabaseAnonKey || !window.supabase) return render();
     sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, {

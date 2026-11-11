@@ -178,7 +178,9 @@ Deno.serve(async req => {
     const statuses = await Promise.all(list.map(sub => push(keys, sub, { title, body: text }).catch(() => 0)));
     const ok = statuses.filter(s => s >= 200 && s < 300).length;
     const people = new Set(list.filter((_, i) => statuses[i] >= 200 && statuses[i] < 300).map(sub => sub.user_id)).size;
-    return json({ sent: ok, devices: list.length, people });
+    const { error: logErr } = await sb.from("notifications").insert({ sender: who.user.id, target_user: target, title, body: text, devices: list.length, sent: ok });
+    if (logErr) console.error("notifications log", logErr.message);
+    return json({ sent: ok, devices: list.length, people, saved: !logErr });
   }
   const { data: mine } = await sb.from("push_subs").select("id, user_id, endpoint, p256dh, auth, remind_at, tz, last_sent").eq("user_id", who.user.id).eq("enabled", true);
   const results: number[] = [];
