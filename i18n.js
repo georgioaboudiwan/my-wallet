@@ -702,3 +702,7 @@ Object.assign(window.WALLET_I18N.words, {
   "Notes are optional": ["Les notes sont facultatives", "الملاحظات اختيارية"]
 });
 Object.assign(window.WALLET_I18N.words, { "Language, your name, currency and notes": ["Langue, nom, devise et notes", "اللغة والاسم والعملة والملاحظات"] });
+Object.assign(window.WALLET_I18N.words, {
+  "Couldn't load notifications. Check your connection and try again.": ["Impossible de charger les notifications. Vérifiez votre connexion et réessayez.", "تعذّر تحميل الإشعارات. تحقق من اتصالك وحاول مجددًا."]
+});
+Object.assign(window.WALLET_I18N.words, { "Loading…": ["Chargement…", "جارٍ التحميل…"] });

@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.12.0";
+  const VERSION = "3.12.1";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -703,7 +703,7 @@
   function buildShell() {
     const title = h("h1");
     const status = h("button", { type: "button", class: "status", on: { click: () => sync() } });
-    const bell = h("button", { type: "button", class: "icon-btn bell-btn", "aria-label": "Notifications", hidden: true, on: { click: inboxSheet } }, icon("bell"), h("span", { class: "bell-badge" }));
+    const bell = h("button", { type: "button", class: "icon-btn bell-btn", "aria-label": "Notifications", on: { click: inboxSheet } }, icon("bell"), h("span", { class: "bell-badge" }));
     const eye = h("button", { type: "button", class: "icon-btn eye-btn", on: { click: () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); } } });
     const help = h("button", { type: "button", class: "icon-btn help-btn", "aria-label": "Help", on: { click: helpSheet } }, icon("help"));
     const gear = h("button", { type: "button", class: "icon-btn gear-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, icon("gear"));
@@ -1728,10 +1728,16 @@
   const myInbox = () => INBOX.items.filter(x => !x.target_user || x.target_user === S.uid);
   const unreadCount = () => myInbox().filter(n => n.created_at > inboxSeen()).length;
 
-  async function loadInbox(force) {
-    if (INBOX.loading || !sb || !S.session || !navigator.onLine) return;
-    if (!force && Date.now() - INBOX.at < 60000) return;
+  function loadInbox(force) {
+    if (INBOX.loading) return INBOX.p;
+    if (!sb || !S.session || !navigator.onLine) return Promise.resolve();
+    if (!force && Date.now() - INBOX.at < 60000) return Promise.resolve();
     INBOX.loading = true;
+    INBOX.p = fetchInbox();
+    return INBOX.p;
+  }
+
+  async function fetchInbox() {
     try {
       const { data, error } = await sb.from("notifications").select("id, title, body, created_at, target_user, devices, sent").order("created_at", { ascending: false }).limit(60);
       if (error) { INBOX.ok = false; }
@@ -1746,25 +1752,29 @@
   function paintBell() {
     if (!shell || !shell.bell) return;
     const n = unreadCount();
-    const mine = myInbox();
     shell.bell.querySelector(".bell-badge").textContent = n ? String(Math.min(n, 9)) + (n > 9 ? "+" : "") : "";
     shell.bell.setAttribute("aria-label", tr(n ? `Notifications, ${n} unread` : "Notifications"));
     shell.bell.classList.toggle("has-new", n > 0);
-    shell.bell.hidden = !mine.length && !n;
   }
 
   function inboxSheet() {
     const seen = inboxSeen();
-    const mine = myInbox();
-    if (mine.length) store.set("inboxSeen", mine[0].created_at);
-    paintBell();
+    const box = h("div", { class: "inbox" });
     const when = iso => new Date(iso).toLocaleString(dateLocale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-    openSheet("Notifications", mine.length
-      ? h("div", { class: "inbox" }, mine.map(n => h("article", { class: "inbox-item" + (n.created_at > seen ? " new" : "") },
-          h("div", { class: "inbox-top" }, h("h3", null, n.title), h("time", null, when(n.created_at))),
-          h("p", null, n.body))))
-      : h("p", { class: "empty" }, "No notifications yet."));
-    if (S.view === "home") scheduleRender();
+    const draw = loading => {
+      const mine = myInbox();
+      if (mine.length) store.set("inboxSeen", mine[0].created_at);
+      paintBell();
+      box.replaceChildren(...(mine.length
+        ? mine.map(n => h("article", { class: "inbox-item" + (n.created_at > seen ? " new" : "") },
+            h("div", { class: "inbox-top" }, h("h3", null, n.title), h("time", null, when(n.created_at))),
+            h("p", null, n.body)))
+        : [h("p", { class: "empty" }, loading ? "Loading…" : !INBOX.ok ? "Couldn't load notifications. Check your connection and try again." : "No notifications yet.")]));
+    };
+    draw(navigator.onLine);
+    openSheet("Notifications", box);
+    INBOX.at = 0;
+    loadInbox(true).then(() => { draw(false); if (S.view === "home") scheduleRender(); });
   }
 
   function inboxCard() {
@@ -4162,6 +4172,7 @@
     if (document.visibilityState === "hidden") { LOCK.hiddenAt = Date.now(); return; }
     if (S.uid && lockCfg() && LOCK.hiddenAt && Date.now() - LOCK.hiddenAt > 60000) showLock();
     if (S.offline) recover(); else sync();
+    loadInbox(true);
   });
   setInterval(() => { if (document.visibilityState === "visible" && S.session) sync(); }, 120000);
   if ("serviceWorker" in navigator && location.protocol === "https:") {
