@@ -1134,3 +1134,6 @@ main.view:not(.enter) > * { animation: none; }
 .help-foot { display: grid; gap: 8px; width: 100%; }
 @media (max-width: 380px) { .top .tool .icon-btn { width: 38px; } }
 .tour-count { direction: ltr; unicode-bidi: isolate; }
+.tour.moving .tour-tip { opacity: 0; transform: translateY(6px); transition: none; animation: none; }
+.tour .tour-tip { transition: opacity .2s var(--ease), transform .2s var(--ease); }
+.tour.moving .tour-spot { transition: none; }

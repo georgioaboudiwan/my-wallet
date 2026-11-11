@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.7.1";
+  const VERSION = "3.7.2";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -1569,7 +1569,7 @@
       ["main .card.flush .row", "A person", "Tap to record a payment, send their balance on WhatsApp or share their private page."]
     ]
   };
-  const TOUR = { el: null, view: null, steps: [], i: 0 };
+  const TOUR = { el: null, view: null, steps: [], i: 0, seq: 0 };
   const tourSeen = v => store.get("tour:" + v, 0) === 1;
 
   function endTour() {
@@ -1582,7 +1582,7 @@
   function placeTour() {
     if (!TOUR.el) return;
     const [sel] = TOUR.steps[TOUR.i];
-    const target = [...document.querySelectorAll(sel)].find(x => x.getClientRects().length);
+    const target = tourTarget(sel);
     const spot = TOUR.el.querySelector(".tour-spot"), tip = TOUR.el.querySelector(".tour-tip");
     if (!target) return;
     const r = target.getBoundingClientRect(), pad = 6;
@@ -1595,12 +1595,29 @@
     tip.style.top = `${vh - below > th + 16 ? below : above > 16 ? above : Math.max(16, (vh - th) / 2)}px`;
   }
 
+  const tourTarget = sel => [...document.querySelectorAll(sel)].find(x => x.getClientRects().length && x.getBoundingClientRect().width > 0);
+
+  function settle(el, done) {
+    let last = null, still = 0, frames = 0;
+    const tick = () => {
+      if (!TOUR.el) return;
+      const r = el.getBoundingClientRect();
+      const key = `${Math.round(r.top)}:${Math.round(r.left)}:${Math.round(r.width)}:${Math.round(r.height)}`;
+      still = key === last ? still + 1 : 0;
+      last = key;
+      if (still >= 3 || ++frames > 60) return done();
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
   function showTourStep() {
     const steps = TOUR.steps, i = TOUR.i;
     const [sel, title, text] = steps[i];
-    const target = [...document.querySelectorAll(sel)].find(x => x.getClientRects().length);
-    if (!target) { steps.splice(i, 1); if (i >= steps.length) return endTour(); return showTourStep(); }
-    if (!target.closest(".dock, .top")) target.scrollIntoView({ block: "center", behavior: "smooth" });
+    const target = tourTarget(sel);
+    if (!target) { steps.splice(i, 1); if (!steps.length || i >= steps.length) return endTour(); return showTourStep(); }
+    const token = ++TOUR.seq;
+    TOUR.el.classList.add("moving");
     const tip = TOUR.el.querySelector(".tour-tip");
     tip.replaceChildren(
       h("div", { class: "tour-count" }, `${i + 1} / ${steps.length}`),
@@ -1611,16 +1628,28 @@
         h("span", { class: "tour-gap" }),
         i > 0 ? h("button", { type: "button", class: "btn alt", on: { click: () => { TOUR.i--; showTourStep(); } } }, "Back") : null,
         h("button", { type: "button", class: "btn", on: { click: () => { if (TOUR.i >= steps.length - 1) return endTour(); TOUR.i++; showTourStep(); } } }, i === steps.length - 1 ? "Got it" : "Next")));
-    placeTour();
-    setTimeout(placeTour, 380);
+    if (!target.closest(".dock, .top")) {
+      const r = target.getBoundingClientRect();
+      const room = window.innerHeight - 240;
+      if (r.top < 90 || r.bottom > room) window.scrollBy({ top: r.top - Math.max(90, (room - r.height) / 2), behavior: "smooth" });
+    }
+    settle(target, () => {
+      if (token !== TOUR.seq || !TOUR.el) return;
+      placeTour();
+      TOUR.el.classList.remove("moving");
+    });
   }
 
   function startTour(view) {
     const list = TOURS[view];
     if (!list || TOUR.el) return;
-    TOUR.view = view; TOUR.steps = list.slice(); TOUR.i = 0;
-    TOUR.el = h("div", { class: "tour", role: "dialog", "aria-modal": "true", "aria-label": "Guide" }, h("div", { class: "tour-spot" }), h("div", { class: "tour-tip" }));
+    const steps = list.filter(([sel]) => tourTarget(sel));
+    if (!steps.length) return;
+    TOUR.view = view; TOUR.steps = steps; TOUR.i = 0; TOUR.seq = 0;
+    TOUR.el = h("div", { class: "tour moving", role: "dialog", "aria-modal": "true", "aria-label": "Guide" }, h("div", { class: "tour-spot" }), h("div", { class: "tour-tip" }));
     TOUR.el.addEventListener("click", e => { if (e.target === TOUR.el) e.stopPropagation(); });
+    TOUR.el.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
+    TOUR.el.addEventListener("wheel", e => e.preventDefault(), { passive: false });
     document.body.append(TOUR.el);
     window.addEventListener("resize", placeTour);
     showTourStep();
