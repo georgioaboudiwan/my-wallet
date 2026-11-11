@@ -689,3 +689,16 @@ window.WALLET_I18N.patterns.push(
   ["^Notifications, (\\d+) unread$", "Notifications, $1 non lues", "الإشعارات، $1 غير مقروءة"],
   ["^delivered to (\\d+) of (\\d+) devices$", "reçue sur $1 appareils sur $2", "وصل إلى $1 من $2 أجهزة"]
 );
+Object.assign(window.WALLET_I18N.words, {
+  "Repeat or receipt": ["Répéter ou reçu", "تكرار أو إيصال"],
+  "What was it for?": ["C'était pour quoi ?", "لأي غرض كان؟"],
+  "Where is it from?": ["Ça vient d'où ?", "من أين جاء؟"],
+  "What is it for?": ["C'est pour quoi ?", "لأي غرض؟"],
+  "Why are you moving it?": ["Pourquoi ce virement ?", "لماذا تنقله؟"],
+  "Write a short note so you remember what it was.": ["Écrivez une courte note pour vous en souvenir.", "اكتب ملاحظة قصيرة لتتذكر ما كان."],
+  "Entries": ["Opérations", "القيود"],
+  "Note is required": ["Note obligatoire", "الملاحظة إلزامية"],
+  "Every new entry needs a short note": ["Chaque nouvelle opération a besoin d'une courte note", "كل قيد جديد يحتاج إلى ملاحظة قصيرة"],
+  "Notes are optional": ["Les notes sont facultatives", "الملاحظات اختيارية"]
+});
+Object.assign(window.WALLET_I18N.words, { "Language, your name, currency and notes": ["Langue, nom, devise et notes", "اللغة والاسم والعملة والملاحظات"] });

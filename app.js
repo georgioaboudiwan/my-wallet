@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.11.0";
+  const VERSION = "3.12.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -371,6 +371,7 @@
       loanDue: d.loanDue && typeof d.loanDue === "object" ? Object.fromEntries(Object.entries(d.loanDue).filter(([k, v]) => typeof k === "string" && DATE_RE.test(String(v)))) : {},
       autoRates: d.autoRates !== false,
       strictVault: d.strictVault === true,
+      noteRequired: d.noteRequired !== false,
       manualRates: Array.isArray(d.manualRates) ? d.manualRates.filter(c => CUR_RE.test(c)) : [],
       ratesAt: DATE_RE.test(d.ratesAt || "") ? d.ratesAt : "",
       goals: Array.isArray(d.goals) ? d.goals.filter(g => g && typeof g.id === "string" && Number(g.target) > 0).slice(0, 12).map((g, i) => ({ id: g.id.slice(0, 40), name: String(g.name || "Goal").slice(0, 40), target: Number(g.target), saved: Math.max(0, Number(g.saved) || 0), by: /^\d{4}-\d{2}$/.test(g.by || "") ? g.by : "", color: /^#[0-9a-f]{6}$/i.test(g.color) ? g.color : COLORS[i % COLORS.length] })) : [],
@@ -976,6 +977,8 @@
     return same ? same.id : null;
   }
 
+  const rowDate = d => DATE_RE.test(String(d)) ? new Date(d + "T12:00:00").toLocaleDateString(dateLocale(), { day: "numeric", month: "short", ...(d.slice(0, 4) !== today().slice(0, 4) ? { year: "numeric" } : {}) }) : null;
+
   function txnRow(x) {
     if (isLoanTx(x)) {
       const a = acc(x.account_id);
@@ -983,7 +986,7 @@
       const out = x.kind === "loan_out";
       return h("button", { type: "button", class: "row", on: { click: () => { if (p) personSheet(p); } } },
         h("span", { class: "dot neutral" }, icon("people", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, loanTitle(x)), h("span", { class: "row-sub" }, [x.note, a ? a.name : null].filter(Boolean).join(" · "))),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, loanTitle(x)), h("span", { class: "row-sub" }, [rowDate(x.occurred_on), x.note, a ? a.name : null].filter(Boolean).join(" · "))),
         h("span", { class: "row-end" + (out ? " neg" : " pos") }, (out ? "−" : "+") + fmt(Number(x.amount), x.currency), x.currency !== mainCur() ? h("small", null, "≈ " + money(txMain(x))) : null));
     }
     const c = cat(x.category_id);
@@ -999,7 +1002,7 @@
       sign = x.kind === "income" ? "+" : "−";
       cls += x.kind === "income" ? " pos" : " neg";
     }
-    const sub = [x.note, x.kind !== "transfer" && a ? a.name : null, x.rule_id ? "Monthly" : null, x.receipt ? "Receipt" : null].filter(Boolean).join(" · ");
+    const sub = [rowDate(x.occurred_on), x.note, x.kind !== "transfer" && a ? a.name : null, x.rule_id ? "Monthly" : null, x.receipt ? "Receipt" : null].filter(Boolean).join(" · ");
     const toAcc = acc(x.to_account_id);
     const other = x.kind === "transfer" && toAcc && toAcc.currency !== x.currency && x.to_amount
       ? h("small", null, "→ " + fmt(Number(x.to_amount), toAcc.currency))
@@ -2380,6 +2383,10 @@
     const armed = S.armed === "signout";
     const locked = !!lockCfg();
     const nav = (title, sub, fn, ic) => h("button", { type: "button", class: "row", on: { click: fn } }, h("span", { class: "dot neutral" }, icon(ic, "ico sm")), h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), sub ? h("span", { class: "row-sub" }, sub) : null), icon("fwd"));
+    out.append(group("Entries",
+      h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("note", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Note is required"), h("span", { class: "row-sub wrap" }, settings().noteRequired ? "Every new entry needs a short note" : "Notes are optional")),
+        h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(settings().noteRequired), "aria-label": "Note is required", on: { click: () => saveSettings({ noteRequired: !settings().noteRequired }) } }, h("span", { class: "knob" })))));
     out.append(group("Help",
       h("button", { type: "button", class: "row-btn", on: { click: () => { for (const v of Object.keys(TOURS)) store.set("tour:" + v, 0); go("home"); setTimeout(() => startTour("home"), 500); } } }, "Show the tour again"),
       h("button", { type: "button", class: "row-btn", on: { click: helpSheet } }, "How each screen works")));
@@ -2409,7 +2416,7 @@
       h("button", { type: "button", class: "row-btn danger", on: { click: () => { if (armed) signOut(); else { S.armed = "signout"; render(); } } } },
         armed ? (pending ? `Sign out and lose ${pending} unsynced changes?` : "Tap again to sign out") : "Sign out")));
     const PAGES = [
-      ["general", "General", "Language, your name and currency", "gear", ["Language", "Your name", "Currency", "Help"]],
+      ["general", "General", "Language, your name, currency and notes", "gear", ["Language", "Your name", "Currency", "Entries", "Help"]],
       ["money", "Accounts and categories", "Accounts, categories and repeating entries", "bank", ["Accounts", "Spending categories", "Income categories", "Every month"]],
       ["reminders", "Reminders and quick add", "Daily notification and adding from the Lock Screen", "bell", ["Reminders", "Daily reminder", "Quick add"]],
       ["data", "Sync and backup", "Sync, export, import and restore", "sync", ["Sync", "Your data"]],
@@ -3020,13 +3027,14 @@
         quick.map(n => h("button", { type: "button", class: "chip", on: { click: () => setQuick(n) } }, fmt(n, cur, { show: true, compact: true }))),
         max ? h("button", { type: "button", class: "chip", on: { click: () => setQuick(max) } }, "All of it") : null),
       accRow,
-      h("input", { id: "f-anote", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: "Add a note (optional)", "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }),
+      h("input", { id: "f-anote", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: settings().noteRequired ? "What is it for?" : "Add a note (optional)", "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }),
       pad);
     body.addEventListener("submit", ev => {
       ev.preventDefault();
       const v = parseAmt(f.amount);
       if (!v) return fail(null, "Type the amount on the number pad first.", display);
       if (max != null && v > max) return fail(null, `That's more than the ${fmt(max, cur, { show: true })} balance.`, display);
+      if (settings().noteRequired && !f.note.trim()) return fail(null, "Write a short note so you remember what it was.", body.querySelector("#f-anote"));
       onSave(v, f.note.trim().slice(0, 200) || null, f.account);
     });
     drawAcc();
@@ -3108,14 +3116,16 @@
       const pad = amountPad(cur, () => f.amount, v => { f.amount = v; }, refresh);
       const yest = ymd(new Date(Date.now() - 864e5));
       const dateText = f.date === today() ? "Today" : f.date === yest ? "Yesterday" : dayLabel(f.date);
-      const open = k => { err.textContent = ""; panel = panel === k ? "pad" : k; draw(); if (panel === "more") { const n = document.getElementById("f-note"); if (n) n.focus(); } };
+      const open = k => { err.textContent = ""; panel = panel === k ? "pad" : k; draw(); };
       const tile = (k, caption, value, lead, empty) => h("button", { type: "button", class: "ftile" + (empty ? " empty" : "") + (k === "cat" && empty && parseAmt(f.amount) ? " attn" : ""), "aria-expanded": String(panel === k), on: { click: () => open(k) } },
         lead || null,
         h("span", { class: "ftile-text" }, h("small", null, caption), h("strong", null, value)),
         icon("chev", "ico sm"));
       const chosen = f.kind !== "transfer" && f.category ? cat(f.category) : null;
-      const extras = [f.note ? f.note : null, f.repeat ? "Monthly" : null, f.blob || f.receipt ? "Receipt" : null].filter(Boolean);
+      const extras = [f.repeat ? "Monthly" : null, f.blob || f.receipt ? "Receipt" : null].filter(Boolean);
       const lp = loanPerson();
+      const needNote = settings().noteRequired && !x;
+      const noteHint = f.kind === "expense" ? "What was it for?" : f.kind === "income" ? "Where is it from?" : f.kind === "loan" ? "What is it for?" : "Why are you moving it?";
       const tiles = f.kind === "loan"
         ? [tile("person", "Person", lp ? lp.name : "Choose", h("span", { class: "ftile-ico", style: lp ? { background: COLORS[(lp.sort || 0) % COLORS.length], color: "#fff" } : null }, lp ? lp.name.charAt(0).toUpperCase() : icon("people", "ico sm")), !lp),
           tile("lmode", "What happened", loanLabel(lp), h("span", { class: "ftile-ico" }, icon(loanOut() ? "up" : "down", "ico sm"))),
@@ -3124,12 +3134,11 @@
         : f.kind === "transfer"
         ? [tile("acc", "From", a.name, h("span", { class: "cur-tag" }, curTag(a.currency))),
           tile("to", "To", to ? to.name : "Choose", to ? h("span", { class: "cur-tag" }, curTag(to.currency)) : null, !to),
-          tile("date", "Date", dateText, h("span", { class: "ftile-ico" }, icon("cal", "ico sm"))),
-          tile("more", "Note", f.note || "Add a note", h("span", { class: "ftile-ico" }, icon("note", "ico sm")), !f.note)]
+          tile("date", "Date", dateText, h("span", { class: "ftile-ico" }, icon("cal", "ico sm")))]
         : [tile("cat", "Category", chosen ? chosen.name : "Choose", chosen ? h("span", { class: "ftile-ico", style: { background: chosen.color, color: "#fff" } }, catGlyph(chosen, "ico sm")) : h("span", { class: "ftile-ico" }, icon("plus", "ico sm")), !chosen),
           tile("acc", f.kind === "income" ? "Into" : "Paid from", a.name, h("span", { class: "cur-tag" }, curTag(a.currency))),
           tile("date", "Date", dateText, h("span", { class: "ftile-ico" }, icon("cal", "ico sm"))),
-          tile("more", "More", extras.length ? extras.join(" · ") : "Note and more", h("span", { class: "ftile-ico" }, icon("note", "ico sm")), !extras.length)];
+          tile("more", "More", extras.length ? extras.join(" · ") : "Repeat or receipt", h("span", { class: "ftile-ico" }, icon("repeat", "ico sm")), !extras.length)];
 
       const accList = (value, onPick, exclude) => h("div", { class: "pick-list" }, accounts.filter(o => o.id !== exclude).map(o =>
         h("button", { type: "button", class: "pick-row", "aria-pressed": String(o.id === value), on: { click: () => onPick(o.id) } },
@@ -3153,7 +3162,6 @@
           p && !owesMe(p)
             ? [choice("more", `I borrowed from ${p.name}`, "down"), choice("back", `I paid ${p.name} back`, "up")]
             : [choice("more", p ? `I lent ${p.name}` : "I lent money", "up"), choice("back", p ? `${p.name} paid me back` : "They paid me back", "down")],
-          h("input", { id: "f-note", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: "Note (optional)", value: f.note, "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }),
           h("button", { type: "button", class: "btn alt", on: { click: () => { panel = "pad"; draw(); } } }, "Done"));
       } else if (panel === "cat" && f.kind !== "transfer" && f.kind !== "loan") {
         const cats = rows("categories").filter(c => c.kind === f.kind).sort((p, q) => (usage.get(q.id) || 0) - (usage.get(p.id) || 0) || bySort(p, q));
@@ -3173,7 +3181,6 @@
             h("input", { id: "f-date", class: "input", type: "date", value: f.date, max: ymd(new Date(Date.now() + 366 * 864e5)), "aria-label": "Pick another date", on: { change: e => { if (DATE_RE.test(e.target.value)) { f.date = e.target.value; panel = "pad"; draw(); } } } })));
       } else if (panel === "more") {
         panelEl = h("div", { class: "pick-list" },
-          h("input", { id: "f-note", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: f.kind === "expense" ? "What was it?" : "Note", value: f.note, "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }),
           !x && f.kind !== "transfer" ? h("button", { type: "button", class: "pick-row", "aria-pressed": String(f.repeat), on: { click: () => { f.repeat = !f.repeat; draw(); } } }, h("span", { class: "ftile-ico" }, icon("repeat", "ico sm")), h("span", { class: "pick-name" }, "Repeat every month"), h("span", { class: "pick-end" }, f.repeat ? `Day ${Math.min(28, Number(f.date.slice(8)) || 1)}` : "Off")) : null,
           f.kind !== "transfer" ? h("button", { type: "button", class: "pick-row", "aria-pressed": String(!!(f.blob || f.receipt)), on: { click: () => {
             if (f.blob) { f.blob = null; return draw(); }
@@ -3191,6 +3198,9 @@
         seg([["expense", "Expense"], ["income", "Income"], ["transfer", "Transfer", accounts.length < 2], ["loan", "Loan"]], f.kind, k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; panel = "pad"; draw(); }, "Entry type"),
         h("button", { type: "button", class: "amount-tap", "aria-label": "Amount", on: { click: () => { if (panel !== "pad") { panel = "pad"; draw(); } } } }, display),
         preview,
+        h("label", { class: "note-line" + (needNote && !f.note.trim() ? " need" : "") }, h("span", { class: "ftile-ico" }, icon("note", "ico sm")),
+          h("input", { id: "f-note", class: "note-input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: noteHint, value: f.note, "aria-label": "Note",
+            on: { input: e => { f.note = e.target.value; if (f.note.trim()) err.textContent = ""; e.target.parentNode.classList.toggle("need", needNote && !f.note.trim()); }, keydown: e => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } } } })),
         h("div", { class: "ftiles" }, tiles),
         err,
         cross ? h("label", { class: "field" }, h("span", null, `${to.name} receives (${curSymbol(to.currency)})`), toInput, h("span", { class: "hint" }, `At ${fmt(1, cur, { show: true })} = ${fmt(convert(1, cur, to.currency), to.currency, { show: true })}. Change it if you got a different rate.`)) : null,
@@ -3209,6 +3219,7 @@
       const amount = parseAmt(f.amount);
       if (!amount) { fail(null, "Type the amount on the number pad first.", body.querySelector(".amount-display")); return; }
       if (!DATE_RE.test(f.date)) { fail(err, "Pick a date."); return; }
+      if (settings().noteRequired && !x && !f.note.trim()) { fail(err, "Write a short note so you remember what it was."); const n = document.getElementById("f-note"); if (n) n.focus(); return; }
       if (f.kind === "loan") {
         const p = loanPerson();
         if (!p) { panel = "person"; draw(); return; }
