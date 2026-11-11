@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.7.2";
+  const VERSION = "3.7.3";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -1591,8 +1591,11 @@
     tip.style.width = `${w}px`;
     tip.style.left = `${Math.max(16, Math.min(vw - w - 16, r.left + r.width / 2 - w / 2))}px`;
     const th = tip.offsetHeight;
+    const dock = document.querySelector(".dock");
+    const inDock = !!target.closest(".dock");
+    const floor = inDock || !dock || window.innerWidth >= 900 ? vh - 12 : dock.getBoundingClientRect().top - 12;
     const below = r.bottom + pad + 14, above = r.top - pad - 14 - th;
-    tip.style.top = `${vh - below > th + 16 ? below : above > 16 ? above : Math.max(16, (vh - th) / 2)}px`;
+    tip.style.top = `${below + th <= floor ? below : above >= 12 ? above : Math.max(12, Math.min(floor - th, below))}px`;
   }
 
   const tourTarget = sel => [...document.querySelectorAll(sel)].find(x => x.getClientRects().length && x.getBoundingClientRect().width > 0);
@@ -1630,8 +1633,9 @@
         h("button", { type: "button", class: "btn", on: { click: () => { if (TOUR.i >= steps.length - 1) return endTour(); TOUR.i++; showTourStep(); } } }, i === steps.length - 1 ? "Got it" : "Next")));
     if (!target.closest(".dock, .top")) {
       const r = target.getBoundingClientRect();
-      const room = window.innerHeight - 240;
-      if (r.top < 90 || r.bottom > room) window.scrollBy({ top: r.top - Math.max(90, (room - r.height) / 2), behavior: "smooth" });
+      const header = document.querySelector(".top");
+      const topGap = (header ? header.getBoundingClientRect().bottom : 70) + 16;
+      if (Math.abs(r.top - topGap) > 4) window.scrollBy({ top: r.top - topGap, behavior: "smooth" });
     }
     settle(target, () => {
       if (token !== TOUR.seq || !TOUR.el) return;
