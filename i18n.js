@@ -953,3 +953,17 @@ Object.assign(window.WALLET_I18N.words, {
   "Home, Activity for every entry, Insights for where your money goes, Split for loans and shared expenses. Tap a tab or slide your finger along the bar.": ["Accueil, Activité pour chaque opération, Analyses pour savoir où va votre argent, Partage pour les prêts et dépenses partagées. Touchez un onglet ou glissez le doigt sur la barre.", "الرئيسية، النشاط لكل قيد، التحليلات لمعرفة أين يذهب مالك، التقسيم للقروض والمصاريف المشتركة. اضغط على تبويب أو مرّر إصبعك على الشريط."]
 });
 window.WALLET_I18N.patterns.push(["^Your loan with (.+) is now in Split\\.$", "Votre prêt avec $1 est maintenant dans Partage.", "قرضك مع $1 أصبح الآن في التقسيم."]);
+Object.assign(window.WALLET_I18N.words, {
+  "Turn back into a loan": ["Refaire un prêt", "أعده قرضًا"],
+  "Couldn't turn it into a loan. Nothing was changed. Try again.": ["Impossible d'en refaire un prêt. Rien n'a changé. Réessayez.", "تعذّر تحويله إلى قرض. لم يتغير شيء. حاول مجددًا."]
+});
+window.WALLET_I18N.patterns.push(
+  ["^Tap again to turn it into a loan with (.+)$", "Touchez encore pour en faire un prêt avec $1", "اضغط مجددًا لتحويله إلى قرض مع $1"],
+  ["^(.+) goes back to Your loans with the same history and balance\\.$", "$1 revient dans Vos prêts avec le même historique et solde.", "يعود $1 إلى قروضك بالسجل والرصيد نفسيهما."],
+  ["^(.+) goes back to Your loans with the same history and balance, and stops seeing this group in their app\\.$", "$1 revient dans Vos prêts avec le même historique et solde, et ne voit plus ce groupe.", "يعود $1 إلى قروضك بالسجل والرصيد نفسيهما، ولن يرى هذه المجموعة بعد الآن."],
+  ["^(.+) is a loan with (.+) again\\.$", "$1 est de nouveau un prêt avec $2.", "عاد $1 قرضًا مع $2."]
+);
+Object.assign(window.WALLET_I18N.words, {
+  "Groups of two can go back to a loan": ["Les groupes de deux peuvent redevenir un prêt", "يمكن لمجموعات الشخصين أن تعود قرضًا"],
+  "If you made a group and it's only you and one other person, open it and tap Turn back into a loan. The history and balance stay the same.": ["Si vous avez créé un groupe avec une seule autre personne, ouvrez-le et touchez Refaire un prêt. L'historique et le solde restent identiques.", "إذا أنشأت مجموعة فيها أنت وشخص واحد فقط، افتحها واضغط «أعده قرضًا». يبقى السجل والرصيد كما هما."]
+});

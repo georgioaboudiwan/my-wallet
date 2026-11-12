@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.21.2";
+  const VERSION = "3.22.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -1781,6 +1781,9 @@
   }
 
   const CHANGES = [
+    { v: "3.22.0", items: [
+      ["users", "Groups of two can go back to a loan", "If you made a group and it's only you and one other person, open it and tap Turn back into a loan. The history and balance stay the same."]
+    ] },
     { v: "3.21.1", items: [
       ["star", "Meet BudgetSplit", "My Wallet has a new name and icon. Same app, same data: track what you spend, plan your month, lend and borrow, and share with others."]
     ] },
@@ -2982,7 +2985,7 @@
             } catch { }
           }
           entries.sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
-          next.set(g.id, { id: g.id, joined: row.joined, invited_by: ((ms.data || []).find(x => x.group_id === g.id && x.user_id === S.uid) || {}).invited_by, meta: { name: String(meta.name || "Group").slice(0, 40), currency: CUR_RE.test(String(meta.currency)) ? meta.currency : "USD", guests: Array.isArray(meta.guests) ? meta.guests.filter(x => x && typeof x.id === "string" && typeof x.name === "string").slice(0, 30) : [], claims: meta.claims && typeof meta.claims === "object" ? Object.fromEntries(Object.entries(meta.claims).filter(([k, v]) => typeof k === "string" && /^[0-9a-f-]{36}$/i.test(String(v)))) : {} }, members, entries });
+          next.set(g.id, { id: g.id, created_by: g.created_by, joined: row.joined, invited_by: ((ms.data || []).find(x => x.group_id === g.id && x.user_id === S.uid) || {}).invited_by, meta: { name: String(meta.name || "Group").slice(0, 40), currency: CUR_RE.test(String(meta.currency)) ? meta.currency : "USD", guests: Array.isArray(meta.guests) ? meta.guests.filter(x => x && typeof x.id === "string" && typeof x.name === "string").slice(0, 30) : [], claims: meta.claims && typeof meta.claims === "object" ? Object.fromEntries(Object.entries(meta.claims).filter(([k, v]) => typeof k === "string" && /^[0-9a-f-]{36}$/i.test(String(v)))) : {} }, members, entries });
         }
       }
       const before = GROUPS.list;
@@ -3186,6 +3189,16 @@
       }
       for (const m of g.members.filter(x => !x.joined)) mem.append(h("div", { class: "row pending" }, h("span", { class: "dot neutral" }, "?"), h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Invited"), h("span", { class: "row-sub" }, "Hasn't answered yet"))));
       kids.push(mem);
+      const parties = gParties(g);
+      if (g.created_by === S.uid && parties.length === 2 && g.members.length <= 2) {
+        const other = parties.find(p => !p.me);
+        kids.push(h("button", { type: "button", class: "btn alt" + (armed === "toloan" ? " sure" : ""), on: { click: () => {
+          if (armed !== "toloan") { armed = "toloan"; draw(); return; }
+          armed = null;
+          groupToLoan(g);
+        } } }, armed === "toloan" ? `Tap again to turn it into a loan with ${other.name}` : "Turn back into a loan"),
+          armed === "toloan" ? h("p", { class: "hint" }, other.guest ? `${other.name} goes back to Your loans with the same history and balance.` : `${other.name} goes back to Your loans with the same history and balance, and stops seeing this group in their app.`) : null);
+      }
       const alone = g.members.filter(m => m.joined).length === 1;
       kids.push(h("button", { type: "button", class: "btn danger" + (armed === "leave" ? " sure" : ""), on: { click: async () => {
         if (armed !== "leave") { armed = "leave"; draw(); return; }
@@ -3438,6 +3451,46 @@
       used ? h("p", { class: "hint" }, `${guest.name} has entries, so they can't be removed. Link them to a member instead.`)
         : h("button", { type: "button", class: "btn danger", on: { click: () => save({ ...g.meta, guests: g.meta.guests.filter(x => x.id !== guestId) }).then(() => toast(`${guest.name} removed.`)) } }, `Remove ${guest.name}`));
     openSheet(guest.name, body);
+  }
+
+  async function groupToLoan(g) {
+    if (!navigator.onLine) return toast("Connect to the internet first.", "error");
+    const other = gParties(g).find(p => !p.me);
+    if (!other) return;
+    const bal = myGroupBalance(g);
+    const direction = bal < 0 ? "i_owe" : "owes_me";
+    const sign = direction === "owes_me" ? 1 : -1;
+    const now = new Date().toISOString();
+    const person = { id: newId(), name: other.name.slice(0, 40), direction, currency: g.meta.currency, phone: null, share_token: null, sort: Math.max(-1, ...rows("people").map(r => r.sort || 0)) + 1 };
+    const items = [{ t: "people", r: person }];
+    const map = store.get("gxGroup", {}) || {};
+    for (const e of [...g.entries].reverse()) {
+      const paid = isMe(g, e.payer) ? e.amount : 0;
+      const owed = Object.entries(e.shares).filter(([k]) => isMe(g, k)).reduce((t, [, v]) => t + (Number(v) || 0), 0);
+      const net = roundCur(paid - owed, g.meta.currency);
+      if (!net) continue;
+      const id = newId();
+      items.push({ t: "loan_entries", r: { id, person_id: person.id, amount: net * sign, note: e.note || null, occurred_on: e.date, created_at: e.created_at || now } });
+      for (const txId of ["gx-" + e.id + "-o", "gx-" + e.id]) {
+        const tx = S.data.transactions.get(txId);
+        if (!tx || (tx.kind !== "loan_out" && tx.kind !== "loan_in")) continue;
+        items.push({ t: "transactions", r: { ...tx, id: "ln-" + id } }, { t: "transactions", r: { ...tx, deleted_at: now } });
+        delete map[txId];
+        break;
+      }
+    }
+    try {
+      const { error } = await sb.rpc("delete_group", { p_group: g.id });
+      if (error) throw error;
+    } catch { return toast("Couldn't turn it into a loan. Nothing was changed. Try again.", "error"); }
+    TRACK.mute = true; putMany(items); TRACK.mute = false;
+    store.set("gxGroup", map);
+    GROUPS.list.delete(g.id); GROUPS.keys.delete(g.id); cacheGroups();
+    track("add", "loan_from_group");
+    closeSheet();
+    go("people");
+    setTimeout(() => personSheet(S.data.people.get(person.id)), 350);
+    toast(`${g.meta.name} is a loan with ${person.name} again.`);
   }
 
   async function personToGroup(p, email) {

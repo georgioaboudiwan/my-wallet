@@ -231,3 +231,19 @@ begin
     execute format('grant execute on function public.%s to authenticated', f);
   end loop;
 end $$;
+
+create or replace function public.delete_group(p_group uuid) returns boolean
+language plpgsql security definer set search_path = '' as $fn$
+begin
+  if not exists (select 1 from public.groups where id = p_group and created_by = auth.uid()) then
+    raise exception 'only the creator can do this' using errcode = '42501';
+  end if;
+  if (select count(*) from public.group_members where group_id = p_group) > 2 then
+    raise exception 'only for groups of two' using errcode = '22023';
+  end if;
+  delete from public.groups where id = p_group;
+  return true;
+end
+$fn$;
+revoke all on function public.delete_group(uuid) from public, anon;
+grant execute on function public.delete_group(uuid) to authenticated;
