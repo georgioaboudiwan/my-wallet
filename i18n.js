@@ -870,3 +870,40 @@ window.WALLET_I18N.patterns.push(
   ["^(\\d+) to approve$", "$1 à approuver", "$1 بانتظار موافقتك"],
   ["^There are (\\d+) new entries in your shared groups\\.$", "Il y a $1 nouvelles opérations dans vos groupes.", "هناك $1 قيود جديدة في مجموعاتك."]
 );
+Object.assign(window.WALLET_I18N.words, {
+  "Take the money from": ["Prendre l'argent de", "خذ المال من"],
+  "Put the money into": ["Mettre l'argent dans", "ضع المال في"],
+  "Don't record": ["Ne pas enregistrer", "لا تسجّل"],
+  "Your share counts as": ["Votre part compte comme", "حصتك تُحسب كـ"],
+  "Your account goes down by what you paid. Only your share counts as spending.": ["Votre compte baisse de ce que vous avez payé. Seule votre part compte comme dépense.", "ينخفض حسابك بما دفعته. حصتك فقط تُحسب كإنفاق."],
+  "Your account goes up by what you received.": ["Votre compte augmente de ce que vous avez reçu.", "يرتفع حسابك بما استلمته."],
+  "Nothing changes in your accounts.": ["Rien ne change dans vos comptes.", "لا يتغير شيء في حساباتك."],
+  "Record it in my accounts": ["L'enregistrer dans mes comptes", "سجّله في حساباتي"],
+  "Record the money I received": ["Enregistrer l'argent reçu", "سجّل المال الذي استلمته"],
+  "Recorded in your accounts.": ["Enregistré dans vos comptes.", "تم التسجيل في حساباتك."],
+  "Record in my accounts": ["Enregistrer dans mes comptes", "سجّل في حساباتي"],
+  "Pick an account.": ["Choisissez un compte.", "اختر حسابًا."],
+  "Paid for a shared group": ["Payé pour un groupe partagé", "مدفوع لمجموعة مشتركة"],
+  "Received from a shared group": ["Reçu d'un groupe partagé", "مستلم من مجموعة مشتركة"],
+  "An entry was removed from a group, so your accounts were corrected.": ["Une opération a été retirée d'un groupe, vos comptes ont été corrigés.", "حُذف قيد من مجموعة، فتم تصحيح حساباتك."],
+  "Me": ["Moi", "أنا"],
+  "Move to a shared group": ["Passer en groupe partagé", "انقل إلى مجموعة مشتركة"],
+  "Tap again to move it to a shared group": ["Touchez encore pour passer en groupe partagé", "اضغط مجددًا للنقل إلى مجموعة مشتركة"],
+  "Connect to the internet first.": ["Connectez-vous d'abord à Internet.", "اتصل بالإنترنت أولًا."],
+  "This person has too many entries to move at once.": ["Cette personne a trop d'opérations à déplacer d'un coup.", "لدى هذا الشخص قيود كثيرة لا يمكن نقلها دفعة واحدة."],
+  "Couldn't move the loan. Nothing was changed. Try again.": ["Impossible de déplacer le prêt. Rien n'a changé. Réessayez.", "تعذّر نقل القرض. لم يتغير شيء. حاول مجددًا."],
+  "Groups move your money too": ["Les groupes bougent aussi votre argent", "المجموعات تحرّك مالك أيضًا"],
+  "When you pay or receive money in a shared group, pick the account. Only your own share counts as spending.": ["Quand vous payez ou recevez dans un groupe, choisissez le compte. Seule votre part compte comme dépense.", "عندما تدفع أو تستلم مالًا في مجموعة، اختر الحساب. حصتك فقط تُحسب كإنفاق."],
+  "Loans become shared groups": ["Les prêts deviennent des groupes", "القروض تصبح مجموعات مشتركة"],
+  "Open a person in People and tap Move to a shared group. The history comes with it.": ["Ouvrez une personne et touchez Passer en groupe partagé. L'historique suit.", "افتح شخصًا في الأشخاص واضغط انقل إلى مجموعة مشتركة. ينتقل السجل معه."],
+  "Link a name to an account": ["Lier un nom à un compte", "اربط اسمًا بحساب"],
+  "If someone you added by name joins the app, tap their name to link them. Their history follows.": ["Si quelqu'un ajouté par son nom rejoint l'app, touchez son nom pour le lier. Son historique suit.", "إذا انضم شخص أضفته بالاسم إلى التطبيق، اضغط اسمه لربطه. يتبعه سجله."]
+});
+window.WALLET_I18N.patterns.push(
+  ["^Paid · (.+)$", "Payé · $1", "مدفوع · $1"],
+  ["^Received · (.+)$", "Reçu · $1", "مستلم · $1"],
+  ["^(.+) is…$", "$1 est…", "$1 هو…"],
+  ["^(.+) is now linked to (.+)\\.$", "$1 est maintenant lié à $2.", "تم ربط $1 بـ $2."],
+  ["^Remove (.+)$", "Retirer $1", "أزل $1"],
+  ["^(.+)'s loan is now a shared group\\. Add more people or invite (.+) by email\\.$", "Le prêt de $1 est maintenant un groupe partagé. Ajoutez des personnes ou invitez $2 par email.", "قرض $1 أصبح مجموعة مشتركة. أضف أشخاصًا أو ادعُ $2 بالبريد."]
+);

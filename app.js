@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.17.0";
+  const VERSION = "3.18.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -999,9 +999,11 @@
       const a = acc(x.account_id);
       const { p } = loanOf(x);
       const out = x.kind === "loan_out";
-      return h("button", { type: "button", class: "row", on: { click: () => { if (p) personSheet(p); } } },
+      const gx = String(x.id).startsWith("gx-") ? groupOfTx(x) : null;
+      const title = gx ? `${out ? "Paid" : "Received"} · ${gx.g.meta.name}` : String(x.id).startsWith("gx-") ? (out ? "Paid for a shared group" : "Received from a shared group") : loanTitle(x);
+      return h("button", { type: "button", class: "row", on: { click: () => { if (gx) groupSheet(gx.g.id); else if (p) personSheet(p); } } },
         h("span", { class: "dot neutral" }, icon("people", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, loanTitle(x)), h("span", { class: "row-sub" }, [rowDate(x.occurred_on), x.note, a ? a.name : null].filter(Boolean).join(" · "))),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), h("span", { class: "row-sub" }, [rowDate(x.occurred_on), x.note, a ? a.name : null].filter(Boolean).join(" · "))),
         h("span", { class: "row-end" + (out ? " neg" : " pos") }, (out ? "−" : "+") + fmt(Number(x.amount), x.currency), x.currency !== mainCur() ? h("small", null, "≈ " + money(txMain(x))) : null));
     }
     const c = cat(x.category_id);
@@ -1745,6 +1747,11 @@
   }
 
   const CHANGES = [
+    { v: "3.18.0", items: [
+      ["bank", "Groups move your money too", "When you pay or receive money in a shared group, pick the account. Only your own share counts as spending."],
+      ["swap", "Loans become shared groups", "Open a person in People and tap Move to a shared group. The history comes with it."],
+      ["people", "Link a name to an account", "If someone you added by name joins the app, tap their name to link them. Their history follows."]
+    ] },
     { v: "3.17.0", items: [
       ["people", "Shared groups", "In People, make a group for a trip, the house or a loan to several people. Everyone sees the same history and who owes whom."],
       ["cart", "Expenses, loans and payments", "Add what someone paid and split it, a loan to one or more people, or a payment back. The app works out who owes whom."],
@@ -2930,7 +2937,7 @@
             } catch { }
           }
           entries.sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
-          next.set(g.id, { id: g.id, joined: row.joined, invited_by: ((ms.data || []).find(x => x.group_id === g.id && x.user_id === S.uid) || {}).invited_by, meta: { name: String(meta.name || "Group").slice(0, 40), currency: CUR_RE.test(String(meta.currency)) ? meta.currency : "USD", guests: Array.isArray(meta.guests) ? meta.guests.filter(x => x && typeof x.id === "string" && typeof x.name === "string").slice(0, 30) : [] }, members, entries });
+          next.set(g.id, { id: g.id, joined: row.joined, invited_by: ((ms.data || []).find(x => x.group_id === g.id && x.user_id === S.uid) || {}).invited_by, meta: { name: String(meta.name || "Group").slice(0, 40), currency: CUR_RE.test(String(meta.currency)) ? meta.currency : "USD", guests: Array.isArray(meta.guests) ? meta.guests.filter(x => x && typeof x.id === "string" && typeof x.name === "string").slice(0, 30) : [], claims: meta.claims && typeof meta.claims === "object" ? Object.fromEntries(Object.entries(meta.claims).filter(([k, v]) => typeof k === "string" && /^[0-9a-f-]{36}$/i.test(String(v)))) : {} }, members, entries });
         }
       }
       const before = GROUPS.list;
@@ -2949,6 +2956,7 @@
       if (!quiet && invites) toast("You've been invited to a shared group. Open People to answer.");
       ver++;
       scheduleRender();
+      cleanGroupMoney();
       if (GROUPS.open) GROUPS.open();
     } catch { } finally { GROUPS.loading = false; }
   }
@@ -2963,13 +2971,16 @@
     sb.functions.invoke("send-reminder", { body: { action: "group_ping", group_id: id, name: settings().name || "", invitee: invitee || null } }).catch(() => { });
   }
 
-  const gName = (g, k) => { if (k.startsWith("g:")) { const x = g.meta.guests.find(q => "g:" + q.id === k); return x ? x.name : "Someone"; } const m = g.members.find(q => q.id === k); return m ? (m.user_id === S.uid ? "You" : m.name) : "Former member"; };
-  const gParties = g => [...g.members.filter(m => m.joined || m.user_id === S.uid).map(m => ({ id: m.id, name: m.user_id === S.uid ? "You" : m.name, me: m.user_id === S.uid })), ...g.meta.guests.map(x => ({ id: "g:" + x.id, name: x.name, guest: true }))];
+  const canon = (g, k) => { if (k.startsWith("g:")) { const u = (g.meta.claims || {})[k.slice(2)]; if (u) return memberKey(u); } return k; };
+  const isMe = (g, k) => canon(g, k) === memberKey(S.uid);
+  const gName = (g, k0) => { const k = canon(g, k0); if (k.startsWith("g:")) { const x = g.meta.guests.find(q => "g:" + q.id === k); return x ? x.name : "Someone"; } const m = g.members.find(q => q.id === k); return m ? (m.user_id === S.uid ? "You" : m.name) : "Former member"; };
+  const gParties = g => [...g.members.filter(m => m.joined || m.user_id === S.uid).map(m => ({ id: m.id, name: m.user_id === S.uid ? "You" : m.name, me: m.user_id === S.uid })), ...g.meta.guests.filter(x => !(g.meta.claims || {})[x.id]).map(x => ({ id: "g:" + x.id, name: x.name, guest: true }))];
   function gBalances(g) {
     const b = new Map(gParties(g).map(p => [p.id, 0]));
     for (const e of g.entries) {
-      b.set(e.payer, (b.get(e.payer) || 0) + e.amount);
-      for (const [k, v] of Object.entries(e.shares)) b.set(k, (b.get(k) || 0) - (Number(v) || 0));
+      const payer = canon(g, e.payer);
+      b.set(payer, (b.get(payer) || 0) + e.amount);
+      for (const [k0, v] of Object.entries(e.shares)) { const k = canon(g, k0); b.set(k, (b.get(k) || 0) - (Number(v) || 0)); }
     }
     return b;
   }
@@ -3110,7 +3121,7 @@
       const mem = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "People"), h("button", { type: "button", class: "link-btn", on: { click: () => groupInviteSheet(g.id) } }, "Add")));
       for (const p of gParties(g)) {
         const v = bal.get(p.id) || 0;
-        mem.append(h("div", { class: "row" }, h("span", { class: "dot neutral" }, p.name.charAt(0).toUpperCase()),
+        mem.append(h(p.guest ? "button" : "div", { class: "row", type: p.guest ? "button" : null, on: p.guest ? { click: () => guestSheet(g.id, p.id.slice(2)) } : null }, h("span", { class: "dot neutral" }, p.name.charAt(0).toUpperCase()),
           h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" }, p.guest ? "Name only, no app" : p.me ? "You" : "Uses My Wallet")),
           h("span", { class: "row-end num" + (v > 0.005 ? " pos" : v < -0.005 ? " neg" : "") }, Math.abs(v) < 0.005 ? "0" : (v > 0 ? "+" : "−") + fmt(Math.abs(v), cur))));
       }
@@ -3138,7 +3149,7 @@
     if (!g) return;
     const parties = gParties(g);
     const me = memberKey(S.uid);
-    const f = { kind, amount: "", payer: me, split: new Set(kind === "loan" ? parties.filter(p => p.id !== me).map(p => p.id) : parties.map(p => p.id)), to: (parties.find(p => p.id !== me) || {}).id || "", note: "", date: today() };
+    const f = { kind, amount: "", payer: me, split: new Set(kind === "loan" ? parties.filter(p => p.id !== me).map(p => p.id) : parties.map(p => p.id)), to: (parties.find(p => p.id !== me) || {}).id || "", note: "", date: today(), account: groupAccount(g), category: groupCategory() };
     const err = h("p", { class: "form-err", role: "alert" });
     const body = h("form", { class: "form", id: "gentry-form", novalidate: true });
     const draw = () => {
@@ -3158,6 +3169,8 @@
           h("div", { class: "chips wrap" }, parties.filter(p => f.kind !== "loan" || p.id !== f.payer).map(p => h("button", { type: "button", class: "chip" + (f.split.has(p.id) ? " on" : ""), "aria-pressed": String(f.split.has(p.id)), on: { click: () => { if (f.split.has(p.id)) f.split.delete(p.id); else f.split.add(p.id); draw(); } } }, p.name))),
           h("small", { class: "hint split-each" }, splitText())));
       }
+      const flow = f.kind === "payment" ? (f.payer === me ? "out" : f.to === me ? "in" : null) : f.payer === me ? "out" : f.kind === "loan" && f.split.has(me) ? "in" : null;
+      if (flow) kids.push(accountPicker(f, flow, f.kind === "expense" && f.payer === me && f.split.has(me)));
       kids.push(
         h("label", { class: "note-line" + (!f.note.trim() ? " need" : "") }, h("span", { class: "ftile-ico" }, icon("note", "ico sm")), h("input", { id: "ge-note", class: "note-input", maxlength: "200", autocomplete: "off", placeholder: f.kind === "payment" ? "Note (optional)" : "What was it for?", value: f.note, on: { input: e => { f.note = e.target.value; e.target.parentNode.classList.toggle("need", f.kind !== "payment" && !f.note.trim()); } } })),
         h("label", { class: "field" }, h("span", null, "Date"), h("input", { id: "ge-date", class: "input", type: "date", value: f.date, on: { input: e => { f.date = e.target.value; } } })),
@@ -3187,9 +3200,11 @@
       btn.disabled = true;
       try {
         const key = await groupKey(g.id);
+        const entryId = "ge-" + gid8();
         const enc = await sealWith(key, { kind: f.kind, payer: f.payer, amount, shares, note: f.note.trim().slice(0, 200), date: f.date });
-        const { error } = await sb.from("group_entries").insert({ id: "ge-" + gid8(), group_id: g.id, enc });
+        const { error } = await sb.from("group_entries").insert({ id: entryId, group_id: g.id, enc });
         if (error) throw error;
+        if (f.account) recordGroupMoney(g, { id: entryId, kind: f.kind, payer: f.payer, amount, shares, note: f.note.trim().slice(0, 200), date: f.date }, f.account, f.category);
         track("add", "group_" + f.kind);
         groupPing(g.id);
         closeSheet();
@@ -3224,10 +3239,170 @@
       toast(data && data.deleted ? "Everyone agreed. The entry was removed." : msg);
       await loadGroups(true);
     };
+    const mv = myMoney(g, e);
+    if (mv && !S.data.transactions.has("gx-" + e.id)) body.append(h("button", { type: "button", class: "btn alt", on: { click: () => recordLaterSheet(g.id, e.id) } }, icon("bank", "ico sm"), mv.dir === "out" ? "Record it in my accounts" : "Record the money I received"));
+    else if (S.data.transactions.has("gx-" + e.id)) body.append(h("p", { class: "hint" }, icon("check", "ico sm"), " Recorded in your accounts."));
     const btn = voted
       ? h("button", { type: "button", class: "btn alt", on: { click: () => act("unvote_delete", "Your delete request was withdrawn.") } }, "Keep it, withdraw my request")
       : h("button", { type: "button", class: "btn danger", on: { click: () => act("vote_delete", e.votes.length ? "You agreed to delete it." : "Delete requested. Everyone else needs to agree.") } }, e.votes.length ? "Agree to delete" : "Ask to delete");
     openSheet(e.note || kindLabel(e.kind), body, btn);
+  }
+
+  function groupAccount(g) {
+    const list = rows("accounts").filter(a => !a.archived).sort(bySort);
+    const saved = store.get("groupAcc:" + g.id, null);
+    if (saved && list.some(a => a.id === saved)) return saved;
+    const same = list.find(a => a.currency === g.meta.currency && a.kind === "cash") || list.find(a => a.currency === g.meta.currency);
+    return same ? same.id : null;
+  }
+  function groupCategory() {
+    const cats = rows("categories").filter(c => c.kind === "expense");
+    const used = new Map();
+    for (const x of rows("transactions")) if (x.category_id && x.kind === "expense") used.set(x.category_id, (used.get(x.category_id) || 0) + 1);
+    cats.sort((a, b) => (used.get(b.id) || 0) - (used.get(a.id) || 0) || bySort(a, b));
+    return cats[0] ? cats[0].id : null;
+  }
+  function accountPicker(f, flow, needCat) {
+    const accounts = rows("accounts").filter(a => !a.archived).sort(bySort);
+    const wrap = h("div", { class: "field money-pick" },
+      h("span", null, flow === "out" ? "Take the money from" : "Put the money into"),
+      h("div", { class: "chips wrap" },
+        accounts.map(a => h("button", { type: "button", class: "chip" + (f.account === a.id ? " on" : ""), "aria-pressed": String(f.account === a.id), on: { click: () => { f.account = a.id; wrap.replaceWith(accountPicker(f, flow, needCat)); } } }, h("span", { class: "chip-cur" }, curTag(a.currency)), a.name)),
+        h("button", { type: "button", class: "chip" + (!f.account ? " on" : ""), "aria-pressed": String(!f.account), on: { click: () => { f.account = null; wrap.replaceWith(accountPicker(f, flow, needCat)); } } }, "Don't record")),
+      needCat && f.account ? h("label", { class: "field" }, h("span", null, "Your share counts as"),
+        h("select", { id: "ge-cat", class: "input", on: { change: e => { f.category = e.target.value; } } }, rows("categories").filter(c => c.kind === "expense").sort(bySort).map(c => h("option", { value: c.id, selected: c.id === f.category }, c.name)))) : null,
+      h("small", { class: "hint" }, f.account ? (flow === "out" ? "Your account goes down by what you paid. Only your share counts as spending." : "Your account goes up by what you received.") : "Nothing changes in your accounts."));
+    return wrap;
+  }
+  function myMoney(g, e) {
+    const mine = Object.entries(e.shares).filter(([k]) => isMe(g, k)).reduce((t, [, v]) => t + (Number(v) || 0), 0);
+    if (isMe(g, e.payer)) return { dir: "out", amount: e.amount, share: e.kind === "expense" ? mine : 0 };
+    if ((e.kind === "loan" || e.kind === "payment") && mine > 0) return { dir: "in", amount: mine, share: 0 };
+    return null;
+  }
+  function recordGroupMoney(g, e, accId, catId) {
+    const a = acc(accId);
+    const mv = myMoney(g, e);
+    if (!a || !mv) return;
+    const now = new Date().toISOString();
+    const conv = v => roundCur(convert(v, g.meta.currency, a.currency), a.currency);
+    const note = [g.meta.name, e.note].filter(Boolean).join(" · ").slice(0, 200);
+    const base = { currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, occurred_on: e.date, rule_id: null, receipt: null, created_at: now, note };
+    const items = [];
+    if (mv.dir === "out" && mv.share > 0 && catId && cat(catId)) {
+      items.push({ t: "transactions", r: { ...base, id: "gx-" + e.id, kind: "expense", amount: conv(mv.share), category_id: catId } });
+      if (mv.amount - mv.share > 0.004) items.push({ t: "transactions", r: { ...base, id: "gx-" + e.id + "-o", kind: "loan_out", amount: conv(mv.amount - mv.share), category_id: null } });
+    } else items.push({ t: "transactions", r: { ...base, id: "gx-" + e.id, kind: mv.dir === "out" ? "loan_out" : "loan_in", amount: conv(mv.amount), category_id: null } });
+    putMany(items);
+    store.set("groupAcc:" + g.id, a.id);
+    const map = store.get("gxGroup", {});
+    for (const it of items) map[it.r.id] = g.id;
+    store.set("gxGroup", map);
+  }
+  function recordLaterSheet(id, entryId) {
+    const g = GROUPS.list.get(id);
+    const e = g && g.entries.find(x => x.id === entryId);
+    const mv = e && myMoney(g, e);
+    if (!mv) return;
+    const f = { account: groupAccount(g), category: groupCategory() };
+    const body = h("div", { class: "form" }, h("p", { class: "hint" }, `${e.note || kindLabel(e.kind)} · ${fmt(mv.amount, g.meta.currency, { show: true })}`), accountPicker(f, mv.dir, mv.share > 0));
+    openSheet("Record in my accounts", body, h("button", { type: "button", class: "btn", on: { click: () => {
+      if (!f.account) return toast("Pick an account.");
+      recordGroupMoney(g, e, f.account, f.category);
+      closeSheet();
+      toast("Recorded in your accounts.");
+    } } }, "Save"));
+  }
+  function groupOfTx(x) {
+    const m = String(x.id).match(/^gx-(ge-[A-Za-z0-9_-]+?)(-o)?$/);
+    if (!m) return null;
+    for (const g of GROUPS.list.values()) { const e = g.entries.find(q => q.id === m[1]); if (e) return { g, e }; }
+    const gid = (store.get("gxGroup", {}) || {})[x.id];
+    const g = gid && GROUPS.list.get(gid);
+    return g ? { g, e: null } : null;
+  }
+  function cleanGroupMoney() {
+    const map = store.get("gxGroup", {}) || {};
+    const gone = [];
+    for (const x of rows("transactions")) {
+      const m = String(x.id).match(/^gx-(ge-[A-Za-z0-9_-]+?)(-o)?$/);
+      if (!m) continue;
+      const g = GROUPS.list.get(map[x.id]);
+      if (g && g.joined && !g.entries.some(e => e.id === m[1])) gone.push({ t: "transactions", r: { ...x, deleted_at: new Date().toISOString() } });
+    }
+    if (gone.length) { TRACK.mute = true; putMany(gone); TRACK.mute = false; toast("An entry was removed from a group, so your accounts were corrected."); }
+  }
+
+  function guestSheet(id, guestId) {
+    const g = GROUPS.list.get(id);
+    const guest = g && g.meta.guests.find(x => x.id === guestId);
+    if (!guest) return;
+    const used = g.entries.some(e => e.payer === "g:" + guestId || ("g:" + guestId) in e.shares);
+    const members = g.members.filter(m => m.joined);
+    const save = async meta => {
+      const key = await groupKey(g.id);
+      const { error } = await sb.rpc("update_group", { p_group: g.id, p_enc: await sealWith(key, meta) });
+      if (error) return toast("Couldn't save. Try again.", "error");
+      groupPing(g.id);
+      closeSheet();
+      await loadGroups(true);
+      setTimeout(() => groupSheet(g.id), 300);
+    };
+    const body = h("div", { class: "form" },
+      h("p", { class: "hint" }, `If ${guest.name} joined the group with the app, link them here. Everything recorded for ${guest.name} then counts for their account.`),
+      h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, `${guest.name} is…`)),
+        ...members.map(m => h("button", { type: "button", class: "row", on: { click: () => save({ ...g.meta, claims: { ...(g.meta.claims || {}), [guestId]: m.user_id } }).then(() => toast(`${guest.name} is now linked to ${m.user_id === S.uid ? "you" : m.name}.`)) } },
+          h("span", { class: "dot neutral" }, (m.user_id === S.uid ? "Y" : m.name.charAt(0)).toUpperCase()),
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, m.user_id === S.uid ? "Me" : m.name))))),
+      used ? h("p", { class: "hint" }, `${guest.name} has entries, so they can't be removed. Link them to a member instead.`)
+        : h("button", { type: "button", class: "btn danger", on: { click: () => save({ ...g.meta, guests: g.meta.guests.filter(x => x.id !== guestId) }).then(() => toast(`${guest.name} removed.`)) } }, `Remove ${guest.name}`));
+    openSheet(guest.name, body);
+  }
+
+  async function personToGroup(p) {
+    if (!navigator.onLine) return toast("Connect to the internet first.", "error");
+    const history = rows("loan_entries").filter(e => e.person_id === p.id).sort((a, b) => a.occurred_on.localeCompare(b.occurred_on) || String(a.created_at || "").localeCompare(String(b.created_at || "")));
+    if (history.length > 100) return toast("This person has too many entries to move at once.", "error");
+    try {
+      const k = await myKeys();
+      await publishKey();
+      const raw = rand(32);
+      const key = await aesKey(raw);
+      const id = crypto.randomUUID();
+      const guestId = gid8().slice(0, 12);
+      const meta = { name: p.name.slice(0, 40), currency: p.currency, guests: [{ id: guestId, name: p.name.slice(0, 40) }], claims: {} };
+      const r = await sb.rpc("create_group", { p_id: id, p_enc: await sealWith(key, meta), p_sealed: await sealTo(k.pub, raw) });
+      if (r.error) throw r.error;
+      GROUPS.keys.set(id, raw);
+      await setGroupProfile(id);
+      const me = memberKey(S.uid), them = "g:" + guestId;
+      const items = [];
+      const map = store.get("gxGroup", {}) || {};
+      for (const le of history) {
+        const v = Number(le.amount);
+        if (!v) continue;
+        const amt = Math.abs(v);
+        const lend = owesMe(p) ? v > 0 : v < 0;
+        const kind = v > 0 ? "loan" : "payment";
+        const payer = lend ? me : them;
+        const to = lend ? them : me;
+        const entryId = "ge-" + gid8();
+        const { error } = await sb.from("group_entries").insert({ id: entryId, group_id: id, enc: await sealWith(key, { kind, payer, amount: amt, shares: { [to]: amt }, note: le.note || "", date: le.occurred_on }) });
+        if (error) throw error;
+        const tx = S.data.transactions.get("ln-" + le.id);
+        if (tx) { items.push({ t: "transactions", r: { ...tx, id: "gx-" + entryId } }, { t: "transactions", r: { ...tx, deleted_at: new Date().toISOString() } }); map["gx-" + entryId] = id; }
+        items.push({ t: "loan_entries", r: { ...le, deleted_at: new Date().toISOString() } });
+      }
+      store.set("gxGroup", map);
+      items.push({ t: "people", r: { ...p, share_token: null, deleted_at: new Date().toISOString() } });
+      TRACK.mute = true; putMany(items); TRACK.mute = false;
+      track("add", "group_from_person");
+      closeSheet();
+      await loadGroups(true);
+      go("people");
+      setTimeout(() => groupSheet(id), 350);
+      toast(`${p.name}'s loan is now a shared group. Add more people or invite ${p.name} by email.`);
+    } catch { toast("Couldn't move the loan. Nothing was changed. Try again.", "error"); }
   }
 
   function groupInviteSheet(id) {
@@ -3450,6 +3625,12 @@
         share.append(h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `Make a link that shows ${p.name} only their own balance and history.`),
           h("button", { type: "button", class: "row-btn", on: { click: () => { putMany([{ t: "people", r: { ...p, share_token: newToken(), skey: toUrl(b64u8(rand(32))) } }, ...history.map(e => ({ t: "loan_entries", r: { ...e } }))]); draw(); } } }, "Create private link"));
       }
+      if (!link && !connected) share.append(h("button", { type: "button", class: "row-btn", on: { click: () => {
+        if (armed !== "togroup") { armed = "togroup"; draw(); return; }
+        armed = null;
+        personToGroup(p);
+      } } }, armed === "togroup" ? "Tap again to move it to a shared group" : "Move to a shared group"),
+        armed === "togroup" ? h("p", { class: "row-sub", style: { padding: "0 16px 10px", whiteSpace: "normal" } }, `${p.name} becomes a member of a new shared group with the same history. You can then invite them by email or add more people.`) : null);
       kids.push(share);
 
       const hist = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, `History (${history.length})`)));
