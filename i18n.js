@@ -907,3 +907,26 @@ window.WALLET_I18N.patterns.push(
   ["^Remove (.+)$", "Retirer $1", "أزل $1"],
   ["^(.+)'s loan is now a shared group\\. Add more people or invite (.+) by email\\.$", "Le prêt de $1 est maintenant un groupe partagé. Ajoutez des personnes ou invitez $2 par email.", "قرض $1 أصبح مجموعة مشتركة. أضف أشخاصًا أو ادعُ $2 بالبريد."]
 );
+Object.assign(window.WALLET_I18N.words, {
+  "They're already in the group.": ["Cette personne est déjà dans le groupe.", "هو موجود في المجموعة بالفعل."],
+  "Request sent. They got an email and a notification in the app.": ["Demande envoyée. Un email et une notification ont été envoyés.", "أُرسل الطلب. وصله بريد وإشعار في التطبيق."],
+  "Request sent. They'll see it in the app.": ["Demande envoyée. Elle apparaîtra dans l'app.", "أُرسل الطلب. سيراه في التطبيق."],
+  "The email couldn't be sent automatically. Send it yourself:": ["L'email n'a pas pu partir automatiquement. Envoyez-le vous-même :", "تعذّر إرسال البريد تلقائيًا. أرسله بنفسك:"],
+  "Too many invites today. Try again tomorrow.": ["Trop d'invitations aujourd'hui. Réessayez demain.", "دعوات كثيرة اليوم. حاول غدًا."],
+  "Send request": ["Envoyer la demande", "أرسل الطلب"],
+  "Email (optional)": ["Email (facultatif)", "البريد الإلكتروني (اختياري)"],
+  "If you add it, they get a request to share this loan with you in their app.": ["Si vous l'ajoutez, la personne reçoit une demande pour partager ce prêt dans son app.", "إذا أضفته، يصله طلب لمشاركة هذا القرض معك في تطبيقه."],
+  "Enter a valid email, or leave it empty.": ["Entrez un email valide ou laissez vide.", "أدخل بريدًا صالحًا أو اتركه فارغًا."],
+  "Sending the request…": ["Envoi de la demande…", "جارٍ إرسال الطلب…"],
+  "The group is ready, but the request couldn't be sent. Open the group and try again.": ["Le groupe est prêt, mais la demande n'a pas pu partir. Ouvrez le groupe et réessayez.", "المجموعة جاهزة لكن تعذّر إرسال الطلب. افتح المجموعة وحاول مجددًا."],
+  "Requests by email": ["Demandes par email", "طلبات بالبريد"],
+  "Their history follows them": ["Leur historique les suit", "سجلهم يتبعهم"],
+  "Add someone's email, even for people already on your list. They get an email and, if they use the app, a notification to accept.": ["Ajoutez l'email de quelqu'un, même déjà dans votre liste. La personne reçoit un email et, si elle a l'app, une notification.", "أضف بريد أي شخص، حتى من هم في قائمتك. يصله بريد، وإشعار إن كان يستخدم التطبيق."],
+  "When they accept, everything you recorded for them counts for their account.": ["Quand ils acceptent, tout ce que vous avez noté pour eux compte pour leur compte.", "عندما يقبلون، كل ما سجّلته لهم يُحسب لحسابهم."]
+});
+window.WALLET_I18N.patterns.push(
+  ["^Email sent to (.+)\\. They'll see the request as soon as they sign up with this email\\.$", "Email envoyé à $1. La demande apparaîtra dès l'inscription avec cet email.", "أُرسل البريد إلى $1. سيرى الطلب فور تسجيله بهذا البريد."],
+  ["^Saved\\. When (.+) signs up, they'll see the request\\.$", "Enregistré. Quand $1 s'inscrira, la demande apparaîtra.", "تم الحفظ. عندما يسجّل $1 سيرى الطلب."],
+  ["^Invite (.+) \\(optional\\)$", "Inviter $1 (facultatif)", "ادعُ $1 (اختياري)"],
+  ["^(.+)'s email \\(optional\\)$", "Email de $1 (facultatif)", "بريد $1 (اختياري)"]
+);

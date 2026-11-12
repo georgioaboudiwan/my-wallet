@@ -1230,3 +1230,4 @@ input[type="month"].input::-webkit-date-and-time-value, input[type="date"].input
 .invite-out:empty { display: none; }
 .groups-card .row-end { font-variant-numeric: tabular-nums; }
 .chip.on .chip-cur { background: rgb(255 255 255 / .22); color: #fff; }
+.email-req { display: grid; gap: 8px; padding: 4px 16px 12px; }

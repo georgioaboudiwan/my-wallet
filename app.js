@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.18.1";
+  const VERSION = "3.19.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -1748,6 +1748,10 @@
   }
 
   const CHANGES = [
+    { v: "3.19.0", items: [
+      ["mail", "Requests by email", "Add someone's email, even for people already on your list. They get an email and, if they use the app, a notification to accept."],
+      ["people", "Their history follows them", "When they accept, everything you recorded for them counts for their account."]
+    ] },
     { v: "3.18.0", items: [
       ["bank", "Groups move your money too", "When you pay or receive money in a shared group, pick the account. Only your own share counts as spending."],
       ["swap", "Loans become shared groups", "Open a person in People and tap Move to a shared group. The history comes with it."],
@@ -2958,6 +2962,7 @@
       ver++;
       scheduleRender();
       cleanGroupMoney();
+      if (!GROUPS.resolving) { GROUPS.resolving = true; resolveEmailInvites().finally(() => { GROUPS.resolving = false; }); }
       if (GROUPS.open) GROUPS.open();
     } catch { } finally { GROUPS.loading = false; }
   }
@@ -2972,10 +2977,11 @@
     sb.functions.invoke("send-reminder", { body: { action: "group_ping", group_id: id, name: settings().name || "", invitee: invitee || null } }).catch(() => { });
   }
 
-  const canon = (g, k) => { if (k.startsWith("g:")) { const u = (g.meta.claims || {})[k.slice(2)]; if (u) return memberKey(u); } return k; };
+  const claimOf = (g, gid) => { const u = (g.meta.claims || {})[gid]; return u && g.members.some(m => m.user_id === u && m.joined) ? u : null; };
+  const canon = (g, k) => { if (k.startsWith("g:")) { const u = claimOf(g, k.slice(2)); if (u) return memberKey(u); } return k; };
   const isMe = (g, k) => canon(g, k) === memberKey(S.uid);
   const gName = (g, k0) => { const k = canon(g, k0); if (k.startsWith("g:")) { const x = g.meta.guests.find(q => "g:" + q.id === k); return x ? x.name : "Someone"; } const m = g.members.find(q => q.id === k); return m ? (m.user_id === S.uid ? "You" : m.name) : "Former member"; };
-  const gParties = g => [...g.members.filter(m => m.joined || m.user_id === S.uid).map(m => ({ id: m.id, name: m.user_id === S.uid ? "You" : m.name, me: m.user_id === S.uid })), ...g.meta.guests.filter(x => !(g.meta.claims || {})[x.id]).map(x => ({ id: "g:" + x.id, name: x.name, guest: true }))];
+  const gParties = g => [...g.members.filter(m => m.joined || m.user_id === S.uid).map(m => ({ id: m.id, name: m.user_id === S.uid ? "You" : m.name, me: m.user_id === S.uid })), ...g.meta.guests.filter(x => !claimOf(g, x.id)).map(x => ({ id: "g:" + x.id, name: x.name, guest: true }))];
   function gBalances(g) {
     const b = new Map(gParties(g).map(p => [p.id, 0]));
     for (const e of g.entries) {
@@ -3349,8 +3355,23 @@
       await loadGroups(true);
       setTimeout(() => groupSheet(g.id), 300);
     };
+    const fe = { email: "" };
+    const gerr = h("p", { class: "form-err", role: "alert" });
     const body = h("div", { class: "form" },
-      h("p", { class: "hint" }, `If ${guest.name} joined the group with the app, link them here. Everything recorded for ${guest.name} then counts for their account.`),
+      h("section", { class: "card" }, h("div", { class: "card-head" }, h("h2", null, `Invite ${guest.name} (optional)`)),
+        h("p", { class: "hint" }, `Add ${guest.name}'s email to send a request. If they accept, they see this group and everything recorded for ${guest.name} counts for their account.`),
+        h("input", { id: "gs-email", class: "input", type: "email", inputmode: "email", autocomplete: "off", autocapitalize: "none", placeholder: "name@example.com", on: { input: e => { fe.email = e.target.value; } } }),
+        h("button", { type: "button", class: "btn", on: { click: async () => {
+          const email = fe.email.trim().toLowerCase();
+          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail(gerr, "Enter a valid email.", document.getElementById("gs-email"));
+          if (!navigator.onLine) return fail(gerr, "Connect to the internet to invite.");
+          try {
+            const r = await emailInvite(g, email, guestId);
+            if (r.self || r.member) return fail(gerr, inviteMessage(r, email));
+            closeSheet(); toast(inviteMessage(r, email)); loadGroups(true);
+          } catch (x) { fail(gerr, x && x.code === "54000" ? "Too many invites today. Try again tomorrow." : "Couldn't send the invite. Try again."); }
+        } } }, "Send request"), gerr),
+      h("p", { class: "hint" }, `If ${guest.name} already joined the group with the app, link them here instead.`),
       h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, `${guest.name} is…`)),
         ...members.map(m => h("button", { type: "button", class: "row", on: { click: () => save({ ...g.meta, claims: { ...(g.meta.claims || {}), [guestId]: m.user_id } }).then(() => toast(`${guest.name} is now linked to ${m.user_id === S.uid ? "you" : m.name}.`)) } },
           h("span", { class: "dot neutral" }, (m.user_id === S.uid ? "Y" : m.name.charAt(0)).toUpperCase()),
@@ -3360,7 +3381,7 @@
     openSheet(guest.name, body);
   }
 
-  async function personToGroup(p) {
+  async function personToGroup(p, email) {
     if (!navigator.onLine) return toast("Connect to the internet first.", "error");
     const history = rows("loan_entries").filter(e => e.person_id === p.id).sort((a, b) => a.occurred_on.localeCompare(b.occurred_on) || String(a.created_at || "").localeCompare(String(b.created_at || "")));
     if (history.length > 100) return toast("This person has too many entries to move at once.", "error");
@@ -3400,10 +3421,65 @@
       track("add", "group_from_person");
       closeSheet();
       await loadGroups(true);
+      let msg = `${p.name}'s loan is now a shared group. Add more people or invite ${p.name} by email.`;
+      if (email && GROUPS.list.get(id)) { try { const r = await emailInvite(GROUPS.list.get(id), email, guestId); msg = inviteMessage(r, email); await loadGroups(true); } catch { msg = "The group is ready, but the request couldn't be sent. Open the group and try again."; } }
       go("people");
       setTimeout(() => groupSheet(id), 350);
-      toast(`${p.name}'s loan is now a shared group. Add more people or invite ${p.name} by email.`);
+      toast(msg);
     } catch { toast("Couldn't move the loan. Nothing was changed. Try again.", "error"); }
+  }
+
+  async function saveGroupMeta(g, meta) {
+    const key = await groupKey(g.id);
+    const { error } = await sb.rpc("update_group", { p_group: g.id, p_enc: await sealWith(key, { ...g.meta, ...meta }) });
+    if (error) throw error;
+    g.meta = { ...g.meta, ...meta };
+  }
+  async function emailInvite(g, email, guestId) {
+    const addr = String(email || "").trim().toLowerCase();
+    const { data, error } = await sb.rpc("invite_email", { p_group: g.id, p_email: addr, p_guest: guestId || null });
+    if (error) throw error;
+    if (data && data.self) return { self: true };
+    if (data && data.member) return { member: true };
+    let invited = false;
+    if (data && data.user_id && data.pub) {
+      const r = await sb.rpc("invite_to_group", { p_group: g.id, p_user: data.user_id, p_sealed: await sealTo(data.pub, GROUPS.keys.get(g.id)) });
+      if (r.error) throw r.error;
+      if (guestId) await saveGroupMeta(g, { claims: { ...(g.meta.claims || {}), [guestId]: data.user_id } });
+      groupPing(g.id, data.user_id);
+      invited = true;
+    }
+    let mail = null;
+    try { mail = (await sb.functions.invoke("send-invite", { body: { group_id: g.id, email: addr, name: settings().name || "", existing: !!(data && data.user_id) } })).data; } catch { mail = null; }
+    if (invited) sb.from("group_email_invites").delete().eq("group_id", g.id).eq("email", addr).then(() => { }, () => { });
+    track("add", "group_invite");
+    return { invited, emailed: !!(mail && mail.emailed), reason: mail && mail.reason, existing: !!(data && data.user_id) };
+  }
+  function inviteMessage(r, email) {
+    if (r.self) return "That's your own email.";
+    if (r.member) return "They're already in the group.";
+    if (r.invited && r.emailed) return "Request sent. They got an email and a notification in the app.";
+    if (r.invited) return "Request sent. They'll see it in the app.";
+    if (r.emailed) return `Email sent to ${email}. They'll see the request as soon as they sign up with this email.`;
+    return `Saved. When ${email} signs up, they'll see the request.`;
+  }
+  async function resolveEmailInvites() {
+    for (const g of GROUPS.list.values()) {
+      if (!g.joined || !GROUPS.keys.get(g.id)) continue;
+      try {
+        const { data } = await sb.rpc("resolve_email_invites", { p_group: g.id });
+        if (!data || !data.length) continue;
+        const claims = { ...(g.meta.claims || {}) };
+        for (const r of data) {
+          const res = await sb.rpc("invite_to_group", { p_group: g.id, p_user: r.user_id, p_sealed: await sealTo(r.pub, GROUPS.keys.get(g.id)) });
+          if (res.error) continue;
+          if (r.guest_id) claims[r.guest_id] = r.user_id;
+          groupPing(g.id, r.user_id);
+          await sb.from("group_email_invites").delete().eq("id", r.id);
+        }
+        if (JSON.stringify(claims) !== JSON.stringify(g.meta.claims || {})) await saveGroupMeta(g, { claims });
+      } catch { }
+    }
   }
 
   function groupInviteSheet(id) {
@@ -3428,31 +3504,19 @@
       if (!navigator.onLine) return fail(err, "Connect to the internet to invite.");
       err.textContent = "";
       try {
-        const { data, error } = await sb.rpc("find_wallet_user", { p_email: email });
-        if (error) throw error;
-        if (data && data.self) return fail(err, "That's your own email.");
-        if (data && data.found) {
-          const sealed = await sealTo(data.pub, GROUPS.keys.get(g.id));
-          const r = await sb.rpc("invite_to_group", { p_group: g.id, p_user: data.id, p_sealed: sealed });
-          if (r.error) throw r.error;
-          groupPing(g.id, data.id);
-          track("add", "group_invite");
-          closeSheet();
-          toast("Invite sent. They'll get a notification to accept it.");
-          loadGroups(true);
+        const r = await emailInvite(g, email);
+        if (r.self || r.member) return fail(err, inviteMessage(r, email));
+        if (!r.emailed && !r.invited) {
+          const text = `Hi! I'm using My Wallet to keep track of what we share in "${g.meta.name}". Sign up with this email (${email}) and you'll see my request:\n\n${location.origin}${location.pathname}`;
+          out.replaceChildren(
+            h("p", { class: "hint" }, "The email couldn't be sent automatically. Send it yourself:"),
+            h("a", { class: "btn alt", href: `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(`Join "${g.meta.name}" on My Wallet`)}&body=${encodeURIComponent(text)}` }, icon("mail", "ico sm"), "Open email"));
           return;
         }
-        const token = newToken();
-        const r = await sb.rpc("make_group_link", { p_group: g.id, p_token: token });
-        if (r.error) throw r.error;
-        const url = `${location.origin}${location.pathname}#group=${token}.${toUrl(b64u8(GROUPS.keys.get(g.id)))}`;
-        const subject = `Join "${g.meta.name}" on My Wallet`;
-        const text = `Hi! I'm using My Wallet to keep track of what we share in "${g.meta.name}". Open this link, sign up, and you'll see the same history and who owes whom:\n\n${url}`;
-        out.replaceChildren(
-          h("p", { class: "hint" }, "They don't use My Wallet yet. Send them this link:"),
-          h("a", { class: "btn alt", href: `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`, on: { click: () => track("group_email") } }, icon("mail", "ico sm"), "Open email"),
-          h("button", { type: "button", class: "btn alt", on: { click: () => copyText(url) } }, "Copy link"));
-      } catch (x) { fail(err, x && x.code === "54000" ? "Too many tries. Wait a bit and try again." : "Couldn't send the invite. Try again."); }
+        closeSheet();
+        toast(inviteMessage(r, email));
+        loadGroups(true);
+      } catch (x) { fail(err, x && x.code === "54000" ? "Too many invites today. Try again tomorrow." : "Couldn't send the invite. Try again."); }
     }
     async function addGuest() {
       const name = f.guest.trim().replace(/\s+/g, " ");
@@ -3626,6 +3690,18 @@
         share.append(h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `Make a link that shows ${p.name} only their own balance and history.`),
           h("button", { type: "button", class: "row-btn", on: { click: () => { putMany([{ t: "people", r: { ...p, share_token: newToken(), skey: toUrl(b64u8(rand(32))) } }, ...history.map(e => ({ t: "loan_entries", r: { ...e } }))]); draw(); } } }, "Create private link"));
       }
+      if (!link && !connected) {
+        const pe = { email: "" };
+        const perr = h("p", { class: "form-err", role: "alert" });
+        share.append(h("div", { class: "email-req" },
+          h("label", { class: "field" }, h("span", null, `${p.name}'s email (optional)`), h("input", { id: "p-email", class: "input", type: "email", inputmode: "email", autocomplete: "off", autocapitalize: "none", placeholder: "name@example.com", on: { input: e => { pe.email = e.target.value; } } })),
+          h("small", { class: "hint" }, `We send ${p.name} a request. If they accept, you both see this loan in your apps and get notified on every change.`),
+          h("button", { type: "button", class: "btn alt", on: { click: () => {
+            const email = pe.email.trim().toLowerCase();
+            if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail(perr, "Enter a valid email.", document.getElementById("p-email"));
+            personToGroup(p, email);
+          } } }, "Send request"), perr));
+      }
       if (!link && !connected) addKids(share, h("button", { type: "button", class: "row-btn", on: { click: () => {
         if (armed !== "togroup") { armed = "togroup"; draw(); return; }
         armed = null;
@@ -3685,7 +3761,7 @@
   }
 
   function newPersonSheet() {
-    const f = { name: "", direction: "owes_me", currency: mainCur(), amount: "", phone: "" };
+    const f = { name: "", direction: "owes_me", currency: mainCur(), amount: "", phone: "", email: "" };
     const body = h("form", { class: "form", novalidate: true });
     const err = h("p", { class: "form-err", role: "alert" });
     const draw = () => {
@@ -3695,6 +3771,8 @@
         h("div", { class: "field" }, h("span", { class: "label" }, "Currency"), curSelect("f-ncur", f.currency, k => { f.currency = k; draw(); })),
         h("label", { class: "field" }, h("span", null, `Amount owed now (${curSymbol(f.currency)})`), h("input", { id: "f-namt", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.amount, on: { input: e => { f.amount = e.target.value; } } })),
         h("label", { class: "field" }, h("span", null, "WhatsApp number (optional)"), h("input", { id: "f-nphone", class: "input", type: "tel", autocomplete: "off", placeholder: "70 123 456", value: f.phone, on: { input: e => { f.phone = e.target.value; } } })),
+        h("label", { class: "field" }, h("span", null, "Email (optional)"), h("input", { id: "f-nemail", class: "input", type: "email", inputmode: "email", autocomplete: "off", autocapitalize: "none", placeholder: "name@example.com", value: f.email, on: { input: e => { f.email = e.target.value; } } }),
+          h("small", { class: "hint" }, "If you add it, they get a request to share this loan with you in their app.")),
         err,
         h("button", { type: "submit", class: "btn" }, "Add person")));
     };
@@ -3707,10 +3785,13 @@
       if (start === null) { fail(err, "Enter the amount as a number, like 2000."); return; }
       const phone = f.phone.trim() ? cleanPhone(f.phone) : null;
       if (phone && !PHONE_RE.test(phone)) { fail(err, "Enter a number like 70 123 456, or +33 6 12 34 56 78 outside Lebanon."); return; }
+      const email = f.email.trim().toLowerCase();
+      if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { fail(err, "Enter a valid email, or leave it empty."); return; }
       const person = { id: newId(), name, direction: f.direction, currency: f.currency, phone, share_token: null, sort: Math.max(-1, ...rows("people").map(r => r.sort || 0)) + 1 };
       const items = [{ t: "people", r: person }];
       if (start) items.push({ t: "loan_entries", r: { id: newId(), person_id: person.id, amount: roundCur(start, f.currency), note: "Starting balance", occurred_on: today(), created_at: new Date().toISOString() } });
       putMany(items);
+      if (email && navigator.onLine) { closeSheet(); toast("Sending the request…"); personToGroup(S.data.people.get(person.id), email); return; }
       personSheet(S.data.people.get(person.id));
     });
     draw();
