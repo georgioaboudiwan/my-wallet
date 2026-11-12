@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.19.2";
+  const VERSION = "3.20.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -510,6 +510,38 @@
     return changed;
   }
 
+  const LIVE = { ch: null, uid: null, timers: {}, again: false, retry: 0 };
+  function startLive() {
+    if (!sb || !S.session || !VAULT.key || typeof sb.channel !== "function") return;
+    if (LIVE.ch && LIVE.uid === S.uid) return;
+    stopLive();
+    LIVE.uid = S.uid;
+    LIVE.ch = sb.channel("live-" + S.uid)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "sync_events", filter: `user_id=eq.${S.uid}` }, p => liveEvent(p && p.new && p.new.kind))
+      .subscribe(status => {
+        if (status === "SUBSCRIBED") { LIVE.retry = 0; return; }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          stopLive();
+          LIVE.retry = Math.min(LIVE.retry + 1, 6);
+          setTimeout(startLive, 1000 * Math.pow(2, LIVE.retry));
+        }
+      });
+  }
+  function stopLive() {
+    if (LIVE.ch) { try { sb.removeChannel(LIVE.ch); } catch { } }
+    LIVE.ch = null; LIVE.uid = null;
+  }
+  function liveEvent(kind) {
+    const k = ["data", "group", "loan", "inbox"].includes(kind) ? kind : "data";
+    clearTimeout(LIVE.timers[k]);
+    LIVE.timers[k] = setTimeout(() => {
+      if (k === "data") { if (S.syncing) LIVE.again = true; else sync(); }
+      else if (k === "group") loadGroups();
+      else if (k === "loan") { importShared(); loadLinked(); }
+      else (INBOX.loading ? INBOX.p : Promise.resolve()).then(() => loadInbox(true));
+    }, 150);
+  }
+
   async function sync() {
     if (S.syncing || !sb || !S.session || !VAULT.key || !navigator.onLine) return renderStatus();
     S.syncing = true;
@@ -536,6 +568,8 @@
     } finally {
       S.syncing = false;
       renderStatus();
+      startLive();
+      if (LIVE.again) { LIVE.again = false; setTimeout(sync, 50); }
     }
   }
 
@@ -1748,6 +1782,9 @@
   }
 
   const CHANGES = [
+    { v: "3.20.0", items: [
+      ["swap", "Everything updates live", "Changes from your other devices and from the people you share with show up right away, without reopening the app."]
+    ] },
     { v: "3.19.0", items: [
       ["mail", "Requests by email", "Add someone's email, even for people already on your list. They get an email and, if they use the app, a notification to accept."],
       ["people", "Their history follows them", "When they accept, everything you recorded for them counts for their account."]
@@ -2686,7 +2723,7 @@
       try { await flush(); } catch { }
       for (const t of LINKS.pings) pingLoan(t);
       LINKS.pings.clear();
-    }, 2500);
+    }, 500);
   }
   async function loadLinked() {
     if (!sb || !S.session || !navigator.onLine || LINKS.loading) return;
@@ -2902,7 +2939,8 @@
   const groupKey = async id => { const raw = GROUPS.keys.get(id); return raw ? aesKey(raw) : null; };
 
   async function loadGroups(quiet) {
-    if (GROUPS.loading || !sb || !S.session || !navigator.onLine || !VAULT.key) return;
+    if (GROUPS.loading) { GROUPS.again = true; return; }
+    if (!sb || !S.session || !navigator.onLine || !VAULT.key) return;
     GROUPS.loading = true;
     try {
       await myKeys();
@@ -2964,7 +3002,10 @@
       cleanGroupMoney();
       if (!GROUPS.resolving) { GROUPS.resolving = true; resolveEmailInvites().finally(() => { GROUPS.resolving = false; }); }
       if (GROUPS.open) GROUPS.open();
-    } catch { } finally { GROUPS.loading = false; }
+    } catch { } finally {
+      GROUPS.loading = false;
+      if (GROUPS.again) { GROUPS.again = false; setTimeout(() => loadGroups(true), 50); }
+    }
   }
   async function setGroupProfile(id, name) {
     const key = await groupKey(id);
@@ -5296,6 +5337,7 @@
 
   async function signOut() {
     S.armed = null;
+    stopLive();
     try { await sb.auth.signOut({ scope: "local" }); } catch { }
     try {
       const prefix = `wallet:v1:${S.uid}:`;

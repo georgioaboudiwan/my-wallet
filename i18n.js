@@ -935,3 +935,7 @@ Object.assign(window.WALLET_I18N.words, {
   "Tap again to delete the group and its entries": ["Touchez encore pour supprimer le groupe et ses opérations", "اضغط مجددًا لحذف المجموعة وقيودها"]
 });
 window.WALLET_I18N.patterns.push(["^(.+) was deleted\\.$", "$1 a été supprimé.", "تم حذف $1."]);
+Object.assign(window.WALLET_I18N.words, {
+  "Everything updates live": ["Tout se met à jour en direct", "كل شيء يتحدّث مباشرة"],
+  "Changes from your other devices and from the people you share with show up right away, without reopening the app.": ["Les changements de vos autres appareils et des personnes avec qui vous partagez apparaissent tout de suite, sans rouvrir l'app.", "تظهر التغييرات من أجهزتك الأخرى ومن الأشخاص الذين تشاركهم فورًا، دون إعادة فتح التطبيق."]
+});
