@@ -29,9 +29,33 @@ Deno.serve(async req => {
     const { data: k } = await sb.from("push_keys").select("cron_secret").eq("id", 1).single();
     if (!k || k.cron_secret !== cron) return json({ error: "unauthorized" }, 401);
     if (!mailer) return json({ emailed: false, reason: "setup" });
+    let test: Record<string, unknown> = {};
+    try { test = await req.json(); } catch { test = {}; }
+    const previews = Array.isArray(test.previews) ? (test.previews as Record<string, unknown>[]).slice(0, 10) : [];
+    const names = Array.isArray(test.templates) ? (test.templates as unknown[]).map(String).filter(n => /^[a-z_]{3,30}$/.test(n)).slice(0, 10) : [];
+    const sample = (t: string) => t.replace(/\{\{ \.ConfirmationURL \}\}/g, APP_URL).replace(/\{\{ \.Email \}\}/g, GMAIL_USER).replace(/\{\{ \.NewEmail \}\}/g, "new.address@example.com").replace(/\{\{ \.Token \}\}/g, "482913");
+    for (const n of names) {
+      const base = `${APP_URL}supabase/email-templates/${n}`;
+      const [h, sub] = await Promise.all([fetch(`${base}.html`).then(r => r.ok ? r.text() : ""), fetch(`${base}.subject.txt`).then(r => r.ok ? r.text() : n)]);
+      if (h) previews.push({ subject: `[Preview] ${sub.trim()}`, html: sample(h) });
+    }
+    if (test.invites === true) {
+      const t = await fetch(`${APP_URL}supabase/email-templates/group_invite.template.html`).then(r => r.ok ? r.text() : "");
+      for (const has of [true, false]) if (t) {
+        const v: Record<string, string> = {
+          name: "Georgio", title: "Georgio invited you",
+          intro: `<b>Georgio</b> <span style="color:#6d7f77;">(${esc(GMAIL_USER)})</span> wants to share expenses and loans with you on BudgetSplit. You'll both see the same history and who owes whom, and get notified when something changes.`,
+          button: has ? "Open BudgetSplit" : "Create my account", url: APP_URL,
+          steps: `<p class="tl-muted" style="margin:0 0 8px;font-size:15px;line-height:23px;color:#4f6159;">${has ? "Open BudgetSplit and go to <b>Split</b>. You'll see the invite there. Tap <b>Accept</b> to join." : "Sign up with <b>roudy@example.com</b>. The invite shows up in <b>Split</b> right after."}</p>`,
+          reason: "Georgio sent this invite to roudy@example.com. If you don't know them, you can ignore this email."
+        };
+        previews.push({ subject: `[Preview] Georgio invited you to BudgetSplit (${has ? "has the app" : "new user"})`, html: t.replace(/\$\{(\w+)\}/g, (_, k) => v[k] ?? "") });
+      }
+    }
     try {
-      await mailer.sendMail({ from: { name: "BudgetSplit", address: GMAIL_USER }, to: GMAIL_USER, subject: "BudgetSplit email test", text: "Invites from BudgetSplit will be sent from this address." });
-      return json({ emailed: true });
+      if (!previews.length) await mailer.sendMail({ from: { name: "BudgetSplit", address: GMAIL_USER }, to: GMAIL_USER, subject: "BudgetSplit email test", text: "Invites from BudgetSplit will be sent from this address." });
+      for (const p of previews) await mailer.sendMail({ from: { name: "BudgetSplit", address: GMAIL_USER }, to: GMAIL_USER, subject: clean(p.subject, 120), html: String(p.html ?? "").slice(0, 60000) });
+      return json({ emailed: true, count: previews.length || 1 });
     } catch (e) { return json({ emailed: false, reason: "send", detail: String((e as Error)?.message || e).slice(0, 200) }); }
   }
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
