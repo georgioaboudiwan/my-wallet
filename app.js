@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.22.0";
+  const VERSION = "3.22.1";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -3198,6 +3198,7 @@
           groupToLoan(g);
         } } }, armed === "toloan" ? `Tap again to turn it into a loan with ${other.name}` : "Turn back into a loan"),
           armed === "toloan" ? h("p", { class: "hint" }, other.guest ? `${other.name} goes back to Your loans with the same history and balance.` : `${other.name} goes back to Your loans with the same history and balance, and stops seeing this group in their app.`) : null);
+        if (kids[kids.length - 1] === null) kids.pop();
       }
       const alone = g.members.filter(m => m.joined).length === 1;
       kids.push(h("button", { type: "button", class: "btn danger" + (armed === "leave" ? " sure" : ""), on: { click: async () => {
