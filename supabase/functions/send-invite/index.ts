@@ -30,7 +30,7 @@ Deno.serve(async req => {
     if (!k || k.cron_secret !== cron) return json({ error: "unauthorized" }, 401);
     if (!mailer) return json({ emailed: false, reason: "setup" });
     try {
-      await mailer.sendMail({ from: { name: "My Wallet", address: GMAIL_USER }, to: GMAIL_USER, subject: "My Wallet email test", text: "Invites from My Wallet will be sent from this address." });
+      await mailer.sendMail({ from: { name: "Tallyloop", address: GMAIL_USER }, to: GMAIL_USER, subject: "Tallyloop email test", text: "Invites from Tallyloop will be sent from this address." });
       return json({ emailed: true });
     } catch (e) { return json({ emailed: false, reason: "send", detail: String((e as Error)?.message || e).slice(0, 200) }); }
   }
@@ -52,18 +52,18 @@ Deno.serve(async req => {
   const from = clean(who.user.email, 254);
   const existing = body.existing === true;
   const steps = existing
-    ? "Open My Wallet and go to People. You'll see the invite there. Tap Accept to join."
+    ? "Open Tallyloop and go to People. You'll see the invite there. Tap Accept to join."
     : `Create your free account with this email address (${email}) and you'll see the invite in People.`;
-  const text = `Hi,\n\n${name}${from ? ` (${from})` : ""} invited you to share expenses and loans with them on My Wallet.\n\n${steps}\n\n${APP_URL}\n\nEverything in the group is encrypted. Only the people in it can read the amounts and notes.\n\nIf you don't know ${name}, you can ignore this email.`;
+  const text = `Hi,\n\n${name}${from ? ` (${from})` : ""} invited you to share expenses and loans with them on Tallyloop.\n\n${steps}\n\n${APP_URL}\n\nEverything in the group is encrypted. Only the people in it can read the amounts and notes.\n\nIf you don't know ${name}, you can ignore this email.`;
   const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:16px;line-height:1.5;color:#14231d;max-width:520px">
 <p>Hi,</p>
-<p><b>${esc(name)}</b>${from ? ` (${esc(from)})` : ""} invited you to share expenses and loans with them on <b>My Wallet</b>.</p>
+<p><b>${esc(name)}</b>${from ? ` (${esc(from)})` : ""} invited you to share expenses and loans with them on <b>Tallyloop</b>.</p>
 <p>${esc(steps)}</p>
-<p><a href="${APP_URL}" style="display:inline-block;background:#0f7a5c;color:#fff;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:600">Open My Wallet</a></p>
+<p><a href="${APP_URL}" style="display:inline-block;background:#0f7a5c;color:#fff;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:600">Open Tallyloop</a></p>
 <p style="color:#5b6b64;font-size:14px">Everything in the group is encrypted. Only the people in it can read the amounts and notes.<br>If you don't know ${esc(name)}, you can ignore this email.</p>
 </div>`;
   try {
-    await mailer.sendMail({ from: { name: "My Wallet", address: GMAIL_USER }, to: email, replyTo: from || undefined, subject: `${name} invited you to My Wallet`, text, html });
+    await mailer.sendMail({ from: { name: "Tallyloop", address: GMAIL_USER }, to: email, replyTo: from || undefined, subject: `${name} invited you to Tallyloop`, text, html });
   } catch (e) {
     console.error("mail failed", String((e as Error)?.message || e).slice(0, 200));
     return json({ emailed: false, reason: "send" });

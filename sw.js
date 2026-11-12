@@ -1,4 +1,4 @@
-const CACHE = "wallet-shell-v75";
+const CACHE = "wallet-shell-v76";
 const ASSETS = [
   "./",
   "./index.html",
@@ -69,7 +69,7 @@ self.addEventListener("fetch", event => {
 self.addEventListener("push", event => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch { data = {}; }
-  const title = typeof data.title === "string" ? data.title.slice(0, 80) : "My Wallet";
+  const title = typeof data.title === "string" ? data.title.slice(0, 80) : "Tallyloop";
   const body = typeof data.body === "string" ? data.body.slice(0, 200) : "Tap to log what you spent today.";
   event.waitUntil(self.registration.showNotification(title, {
     body,

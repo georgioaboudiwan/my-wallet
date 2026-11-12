@@ -1,7 +1,7 @@
 {
-  "name": "My Wallet",
-  "short_name": "Wallet",
-  "description": "Your money in dollars and lira: balances, spending, budgets and plans.",
+  "name": "Tallyloop",
+  "short_name": "Tallyloop",
+  "description": "Track spending, plan your month, lend and borrow, and share expenses with others. Dollars, lira and more.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
