@@ -24,6 +24,16 @@ const mailer = GMAIL_USER && GMAIL_PASS ? nodemailer.createTransport({ host: "sm
 Deno.serve(async req => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (req.method !== "POST") return json({ error: "method" }, 405);
+  const cron = req.headers.get("x-cron-secret");
+  if (cron) {
+    const { data: k } = await sb.from("push_keys").select("cron_secret").eq("id", 1).single();
+    if (!k || k.cron_secret !== cron) return json({ error: "unauthorized" }, 401);
+    if (!mailer) return json({ emailed: false, reason: "setup" });
+    try {
+      await mailer.sendMail({ from: { name: "My Wallet", address: GMAIL_USER }, to: GMAIL_USER, subject: "My Wallet email test", text: "Invites from My Wallet will be sent from this address." });
+      return json({ emailed: true });
+    } catch (e) { return json({ emailed: false, reason: "send", detail: String((e as Error)?.message || e).slice(0, 200) }); }
+  }
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (!token) return json({ error: "unauthorized" }, 401);
   const { data: who } = await sb.auth.getUser(token);
