@@ -939,3 +939,4 @@ Object.assign(window.WALLET_I18N.words, {
   "Everything updates live": ["Tout se met à jour en direct", "كل شيء يتحدّث مباشرة"],
   "Changes from your other devices and from the people you share with show up right away, without reopening the app.": ["Les changements de vos autres appareils et des personnes avec qui vous partagez apparaissent tout de suite, sans rouvrir l'app.", "تظهر التغييرات من أجهزتك الأخرى ومن الأشخاص الذين تشاركهم فورًا، دون إعادة فتح التطبيق."]
 });
+Object.assign(window.WALLET_I18N.words, { "Everything saves and updates by itself. This icon only shows up when you're offline or something is waiting to be saved.": ["Tout s'enregistre et se met à jour seul. Cette icône n'apparaît que hors ligne ou quand quelque chose attend d'être enregistré.", "كل شيء يُحفظ ويتحدّث تلقائيًا. تظهر هذه الأيقونة فقط عند انقطاع الاتصال أو عند وجود شيء بانتظار الحفظ."] });

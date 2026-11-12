@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.20.0";
+  const VERSION = "3.20.1";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -826,7 +826,7 @@
     } else {
       label = S.syncedAt ? `Synced ${ago(S.syncedAt)}. Tap to sync now.` : "Tap to sync now.";
     }
-    el.className = cls;
+    el.className = cls + (!text && !(!navigator.onLine || S.offline) ? " quiet" : "");
     el.setAttribute("aria-label", tr(label));
     el.title = tr(label);
     el.replaceChildren(icon(ic), ...(text ? [h("span", null, text)] : []));
@@ -1662,7 +1662,6 @@
     home: [
       [".hero", "Total balance", "Everything you have across all your accounts, in your main currency. The small pills show each currency separately."],
       [".eye-btn", "Hide amounts", "Tap the eye to hide every number, for example when someone is looking at your screen."],
-      [".top .status", "Sync", "Shows whether your data is saved online. Tap it to save now."],
       [".gear-btn", "Settings", "Accounts, categories, reminders, language, security and backups."],
       [".acts", "Quick actions", "Expense is money you spent. Income is money you received. Transfer moves money between your own accounts. Plan shows how your income is divided."],
       [".tiles", "Your day and month", "What you spent today and this month, and how much you can still spend per day to stay on plan."],
@@ -1871,7 +1870,7 @@
       part("chart", "Insights", "Where your money went, your plan and budgets, goals and net worth."),
       part("people", "People", "Money you lend or borrow, with WhatsApp reminders and a private page for each person."),
       part("eye", "Eye", "Hides every amount on screen."),
-      part("sync", "Sync", "Saves your data online so it's on all your devices."),
+      part("sync", "Sync", "Everything saves and updates by itself. This icon only shows up when you're offline or something is waiting to be saved."),
       part("gear", "Settings", "Accounts, categories, reminders, language, security and backups.")),
       h("div", { class: "help-foot" },
         h("button", { type: "button", class: "btn", on: { click: () => { closeSheet(); setTimeout(() => { if (S.view !== cur) go(cur); setTimeout(() => startTour(cur), 450); }, 350); } } }, cur === "home" ? "Start the tour" : "Tour of this screen"),
