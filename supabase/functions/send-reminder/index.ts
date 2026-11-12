@@ -196,6 +196,32 @@ Deno.serve(async req => {
     const statuses = await Promise.all(((subs ?? []) as Sub[]).map(sub => push(keys, sub, msg).catch(() => 0)));
     return json({ sent: statuses.filter(s => s >= 200 && s < 300).length });
   }
+  if (body.action === "group_ping") {
+    const gid = String(body.group_id ?? "");
+    if (!/^[0-9a-f-]{36}$/i.test(gid)) return json({ error: "Bad group." }, 400);
+    const { data: members } = await sb.from("group_members").select("user_id, joined, pinged_at").eq("group_id", gid);
+    const me = (members ?? []).find(m => m.user_id === who.user.id);
+    if (!me || !me.joined) return json({ error: "Not allowed." }, 403);
+    const invitee = body.invitee ? String(body.invitee) : null;
+    const name = String(body.name ?? "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 30) || "Someone";
+    let targets: string[];
+    let msg: { title: string; body: string };
+    if (invitee) {
+      const row = (members ?? []).find(m => m.user_id === invitee && !m.joined);
+      if (!row) return json({ sent: 0 });
+      targets = [invitee];
+      msg = { title: `${name} invited you to a shared group`.slice(0, 60), body: "Open the app to accept or decline." };
+    } else {
+      if (me.pinged_at && Date.now() - new Date(me.pinged_at).getTime() < 30000) return json({ sent: 0, throttled: true });
+      await sb.from("group_members").update({ pinged_at: new Date().toISOString() }).eq("group_id", gid).eq("user_id", who.user.id);
+      targets = (members ?? []).filter(m => m.joined && m.user_id !== who.user.id).map(m => m.user_id);
+      msg = { title: `${name} updated a shared group`.slice(0, 60), body: "Open the app to see the change." };
+    }
+    if (!targets.length) return json({ sent: 0 });
+    const { data: subs } = await sb.from("push_subs").select("id, user_id, endpoint, p256dh, auth, remind_at, tz, last_sent").eq("enabled", true).in("user_id", targets);
+    const statuses = await Promise.all(((subs ?? []) as Sub[]).map(sub => push(keys, sub, msg).catch(() => 0)));
+    return json({ sent: statuses.filter(s => s >= 200 && s < 300).length });
+  }
   if (body.action === "broadcast") {
     const { data: admin } = await sb.from("admins").select("user_id").eq("user_id", who.user.id).maybeSingle();
     if (!admin) return json({ error: "Not allowed." }, 403);

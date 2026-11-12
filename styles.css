@@ -1218,3 +1218,14 @@ input[type="month"].input::-webkit-date-and-time-value, input[type="date"].input
 .join-card { margin-top: 14px; display: grid; gap: 10px; text-align: start; }
 .join-card h2 { margin: 0; font-size: 18px; }
 .join-card .hint { margin: 0; }
+.actions.three { grid-template-columns: repeat(3, 1fr); }
+.actions.three .action { flex-direction: column; gap: 6px; padding: 12px 6px; font-size: 14px; }
+.invite-row { align-items: center; }
+.inv-btns { display: flex; gap: 6px; flex: none; }
+.chips.wrap { flex-wrap: wrap; overflow: visible; }
+.chip.on { background: var(--accent); color: #fff; border-color: transparent; }
+.row.me .row-title { font-weight: 700; }
+.input.big-amt { font-size: 24px; font-weight: 700; }
+.invite-out { display: grid; gap: 8px; }
+.invite-out:empty { display: none; }
+.groups-card .row-end { font-variant-numeric: tabular-nums; }
