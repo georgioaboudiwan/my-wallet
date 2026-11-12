@@ -1,4 +1,4 @@
-const CACHE = "wallet-shell-v78";
+const CACHE = "wallet-shell-v79";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,8 +8,8 @@ const ASSETS = [
   "./config.js",
   "./vendor/supabase.js",
   "./manifest.webmanifest",
-  "./icons/icon-192.png",
-  "./icons/apple-touch-icon.png"
+  "./icons/icon-192-bs.png",
+  "./icons/apple-touch-icon-bs.png"
 ];
 
 self.addEventListener("install", event => {
@@ -73,8 +73,8 @@ self.addEventListener("push", event => {
   const body = typeof data.body === "string" ? data.body.slice(0, 200) : "Tap to log what you spent today.";
   event.waitUntil(self.registration.showNotification(title, {
     body,
-    icon: "icons/icon-192.png",
-    badge: "icons/icon-192.png",
+    icon: "icons/icon-192-bs.png",
+    badge: "icons/icon-192-bs.png",
     tag: "daily-reminder",
     renotify: true,
     data: { url: self.registration.scope }

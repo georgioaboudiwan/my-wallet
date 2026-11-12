@@ -9,18 +9,18 @@
   "background_color": "#edf2ee",
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "icons/icon-192-bs.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "icons/icon-512-bs.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-maskable.png",
+      "src": "icons/icon-maskable-bs.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
