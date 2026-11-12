@@ -1176,3 +1176,17 @@ textarea.input { font: inherit; line-height: 1.4; resize: vertical; }
 @media (max-width: 360px) { .top h1 { font-size: 24px; } .top .tool .icon-btn { width: 32px; } }
 .ftile-bal { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ftile-bal.low { color: var(--neg); }
+.bud-dot { position: relative; }
+.bud-count { position: absolute; top: -4px; inset-inline-end: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--warn); color: var(--card); font: 700 11px/18px var(--nums); text-align: center; }
+.bud-list { display: grid; gap: 10px; }
+.bud-list > .btn { margin-top: 6px; }
+.bud-item { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: var(--r-sm); background: var(--card); box-shadow: var(--shadow); }
+.bud-item .cat-ico.sm { width: 36px; height: 36px; border-radius: 12px; flex: none; }
+.bud-main { display: grid; gap: 6px; flex: 1; min-width: 0; }
+.bud-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.bud-top strong { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bud-amt { font-size: 14px; font-weight: 700; color: var(--muted); flex: none; }
+.bud-amt.over { color: var(--warn); }
+.bud-main small { font-size: 12px; color: var(--muted); }
+.bud-main .bar { height: 6px; }
+.bar span.soft-over { background: var(--warn) !important; }

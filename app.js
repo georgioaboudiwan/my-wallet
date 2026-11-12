@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.12.2";
+  const VERSION = "3.12.3";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -1198,6 +1198,21 @@
       on ? icon("fwd") : h("span", { class: "pill-cta" }, "Turn on"));
   }
 
+  function budgetSheet(alerts) {
+    openSheet("Budgets to check", h("div", { class: "bud-list" },
+      alerts.map(a => {
+        const over = a.spent > a.budget;
+        const pct = Math.min(100, a.spent / a.budget * 100);
+        return h("div", { class: "bud-item" },
+          h("span", { class: "cat-ico sm", style: { background: a.c.color } }, catGlyph(a.c, "ico sm")),
+          h("span", { class: "bud-main" },
+            h("span", { class: "bud-top" }, h("strong", null, a.c.name), h("span", { class: "num bud-amt" + (over ? " over" : "") }, over ? `+${money(a.spent - a.budget, { whole: true })}` : `${Math.round(a.spent / a.budget * 100)}%`)),
+            h("span", { class: "bar" }, h("span", { class: over ? "soft-over" : "", style: { width: pct + "%" } })),
+            h("small", null, `${money(a.spent, { whole: true })} of ${money(a.budget, { whole: true })}`)));
+      }),
+      h("button", { type: "button", class: "btn alt", on: { click: () => { closeSheet(); setTimeout(() => go("insights"), 300); } } }, "Open Insights")));
+  }
+
   function recapCard() {
     const pm = shiftMonth(thisMonth(), -1);
     if (Number(today().slice(8)) > 10 || store.get("recapSeen", "") === pm || !monthStats(pm).count) return null;
@@ -1900,12 +1915,14 @@
       .map(c => ({ c, spent: s.byCat.get(c.id) || 0, budget: Number(c.budget) }))
       .filter(a => a.spent >= a.budget * 0.8)
       .sort((a, b) => b.spent / b.budget - a.spent / a.budget);
-    for (const a of alerts.slice(0, 3)) {
-      const over = a.spent > a.budget;
-      out.append(h("div", { class: "alert" + (over ? " bad" : "") }, icon("warn"),
-        h("span", null, over
-          ? `${a.c.name} is ${money(a.spent - a.budget, { whole: true })} over its ${money(a.budget, { whole: true })} budget.`
-          : `${a.c.name}: ${money(a.spent, { whole: true })} of ${money(a.budget, { whole: true })} used.`)));
+    if (alerts.length) {
+      const nOver = alerts.filter(a => a.spent > a.budget).length;
+      const nNear = alerts.length - nOver;
+      out.append(h("button", { type: "button", class: "remind-pill budget-pill", on: { click: () => budgetSheet(alerts) } },
+        h("span", { class: "dot neutral bud-dot" }, icon("chart", "ico sm"), h("span", { class: "bud-count" }, String(alerts.length))),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Budgets to check"),
+          h("span", { class: "row-sub" }, [nOver ? `${nOver} over budget` : null, nNear ? `${nNear} almost used` : null].filter(Boolean).join(" · "))),
+        icon("fwd")));
     }
 
     if (!txns.length) {

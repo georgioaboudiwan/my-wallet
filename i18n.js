@@ -708,3 +708,8 @@ Object.assign(window.WALLET_I18N.words, {
 Object.assign(window.WALLET_I18N.words, { "Loading…": ["Chargement…", "جارٍ التحميل…"] });
 window.WALLET_I18N.patterns.push(["^(.+) available$", "$1 disponible", "$1 متاح"]);
 Object.assign(window.WALLET_I18N.words, { "Available": ["Disponible", "متاح"] });
+Object.assign(window.WALLET_I18N.words, {
+  "Budgets to check": ["Budgets à vérifier", "ميزانيات للمراجعة"],
+  "Open Insights": ["Ouvrir Analyses", "افتح التحليلات"]
+});
+window.WALLET_I18N.patterns.push(["^(\\d+) over budget · (\\d+) almost used$", "$1 au-dessus du budget · $2 presque atteints", "$1 فوق الميزانية · $2 شبه مستنفدة"], ["^(\\d+) over budget$", "$1 au-dessus du budget", "$1 فوق الميزانية"], ["^(\\d+) almost used$", "$1 presque atteints", "$1 شبه مستنفدة"]);
