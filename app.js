@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.19.1";
+  const VERSION = "3.19.2";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -2094,8 +2094,8 @@
 
     const lb = loanBalances();
     const people = rows("people");
-    if (people.length) {
-      let owed = 0, owe = 0;
+    if (people.length || GROUPS.list.size) {
+      let { owed, owe } = groupTotals();
       for (const p of people) { const v = toMain(lb.get(p.id) || 0, p.currency); if (owesMe(p)) owed += v; else owe += v; }
       const card = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "People"), h("button", { type: "button", class: "link-btn", on: { click: () => go("people") } }, "See all")));
       card.append(h("p", { class: "row-note" }, [owed ? `Owed to you ${money(owed, { whole: true })}` : null, owe ? `You owe ${money(owe, { whole: true })}` : null].filter(Boolean).join(" · ") || "All settled"));
@@ -3007,6 +3007,15 @@
     return out.filter(x => x.amount > 0);
   }
   const myGroupBalance = g => gBalances(g).get(memberKey(S.uid)) || 0;
+  function groupTotals() {
+    let owed = 0, owe = 0;
+    for (const g of GROUPS.list.values()) {
+      if (!g.joined) continue;
+      const v = toMain(myGroupBalance(g), g.meta.currency);
+      if (v > 0.005) owed += v; else if (v < -0.005) owe -= v;
+    }
+    return { owed, owe };
+  }
 
   function groupsCard() {
     const list = [...GROUPS.list.values()];
@@ -3576,7 +3585,7 @@
     const st = settings();
     const bal = loanBalances();
     const people = rows("people").sort(bySort);
-    let owed = 0, owe = 0;
+    let { owed, owe } = groupTotals();
     for (const p of people) {
       const v = toMain(bal.get(p.id) || 0, p.currency);
       if (owesMe(p)) owed += v; else owe += v;
