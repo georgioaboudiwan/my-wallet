@@ -930,3 +930,8 @@ window.WALLET_I18N.patterns.push(
   ["^Invite (.+) \\(optional\\)$", "Inviter $1 (facultatif)", "ادعُ $1 (اختياري)"],
   ["^(.+)'s email \\(optional\\)$", "Email de $1 (facultatif)", "بريد $1 (اختياري)"]
 );
+Object.assign(window.WALLET_I18N.words, {
+  "Delete group": ["Supprimer le groupe", "احذف المجموعة"],
+  "Tap again to delete the group and its entries": ["Touchez encore pour supprimer le groupe et ses opérations", "اضغط مجددًا لحذف المجموعة وقيودها"]
+});
+window.WALLET_I18N.patterns.push(["^(.+) was deleted\\.$", "$1 a été supprimé.", "تم حذف $1."]);

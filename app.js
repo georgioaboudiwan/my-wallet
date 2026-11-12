@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.19.0";
+  const VERSION = "3.19.1";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -3134,13 +3134,20 @@
       }
       for (const m of g.members.filter(x => !x.joined)) mem.append(h("div", { class: "row pending" }, h("span", { class: "dot neutral" }, "?"), h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Invited"), h("span", { class: "row-sub" }, "Hasn't answered yet"))));
       kids.push(mem);
+      const alone = g.members.filter(m => m.joined).length === 1;
       kids.push(h("button", { type: "button", class: "btn danger" + (armed === "leave" ? " sure" : ""), on: { click: async () => {
         if (armed !== "leave") { armed = "leave"; draw(); return; }
-        if (Math.abs(mine) > 0.005) { armed = null; draw(); return toast("Settle your balance before leaving the group.", "error"); }
+        if (!alone && Math.abs(mine) > 0.005) { armed = null; draw(); return toast("Settle your balance before leaving the group.", "error"); }
         const { error } = await sb.rpc("leave_group", { p_group: g.id });
-        if (error) return toast("Couldn't leave. Try again.", "error");
-        GROUPS.list.delete(g.id); GROUPS.keys.delete(g.id); cacheGroups(); closeSheet(); toast(`You left ${g.meta.name}.`); scheduleRender();
-      } } }, armed === "leave" ? "Tap again to leave the group" : "Leave group"));
+        if (error) return toast("Couldn't do that. Try again.", "error");
+        if (alone) {
+          const map = store.get("gxGroup", {}) || {};
+          const ids = new Set(g.entries.map(e => e.id));
+          const gone = rows("transactions").filter(x => { const m = String(x.id).match(/^gx-(ge-[A-Za-z0-9_-]+?)(-o)?$/); return m && (ids.has(m[1]) || map[x.id] === g.id); }).map(x => ({ t: "transactions", r: { ...x, deleted_at: new Date().toISOString() } }));
+          if (gone.length) putMany(gone);
+        }
+        GROUPS.list.delete(g.id); GROUPS.keys.delete(g.id); cacheGroups(); closeSheet(); toast(alone ? `${g.meta.name} was deleted.` : `You left ${g.meta.name}.`); scheduleRender();
+      } } }, armed === "leave" ? (alone ? "Tap again to delete the group and its entries" : "Tap again to leave the group") : (alone ? "Delete group" : "Leave group")));
       keepFocus(() => body.replaceChildren(...kids));
     };
     GROUPS.open = draw;
@@ -3251,7 +3258,7 @@
     else if (S.data.transactions.has("gx-" + e.id)) body.append(h("p", { class: "hint" }, icon("check", "ico sm"), " Recorded in your accounts."));
     const btn = voted
       ? h("button", { type: "button", class: "btn alt", on: { click: () => act("unvote_delete", "Your delete request was withdrawn.") } }, "Keep it, withdraw my request")
-      : h("button", { type: "button", class: "btn danger", on: { click: () => act("vote_delete", e.votes.length ? "You agreed to delete it." : "Delete requested. Everyone else needs to agree.") } }, e.votes.length ? "Agree to delete" : "Ask to delete");
+      : h("button", { type: "button", class: "btn danger", on: { click: () => act("vote_delete", e.votes.length ? "You agreed to delete it." : "Delete requested. Everyone else needs to agree.") } }, need === 1 ? "Delete" : e.votes.length ? "Agree to delete" : "Ask to delete");
     openSheet(e.note || kindLabel(e.kind), body, btn);
   }
 
