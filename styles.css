@@ -1190,3 +1190,6 @@ textarea.input { font: inherit; line-height: 1.4; resize: vertical; }
 .bud-main small { font-size: 12px; color: var(--muted); }
 .bud-main .bar { height: 6px; }
 .bar span.soft-over { background: var(--warn) !important; }
+input[type="month"].input, input[type="date"].input { -webkit-appearance: none; appearance: none; min-width: 0; max-width: 100%; width: 100%; box-sizing: border-box; text-align: start; display: block; }
+input[type="month"].input::-webkit-date-and-time-value, input[type="date"].input::-webkit-date-and-time-value { text-align: start; }
+.goal-link { display: flex; align-items: center; gap: 6px; margin: 2px 0 0; }

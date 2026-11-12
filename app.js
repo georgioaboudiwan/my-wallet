@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.12.3";
+  const VERSION = "3.13.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -374,7 +374,7 @@
       noteRequired: d.noteRequired !== false,
       manualRates: Array.isArray(d.manualRates) ? d.manualRates.filter(c => CUR_RE.test(c)) : [],
       ratesAt: DATE_RE.test(d.ratesAt || "") ? d.ratesAt : "",
-      goals: Array.isArray(d.goals) ? d.goals.filter(g => g && typeof g.id === "string" && Number(g.target) > 0).slice(0, 12).map((g, i) => ({ id: g.id.slice(0, 40), name: String(g.name || "Goal").slice(0, 40), target: Number(g.target), saved: Math.max(0, Number(g.saved) || 0), by: /^\d{4}-\d{2}$/.test(g.by || "") ? g.by : "", color: /^#[0-9a-f]{6}$/i.test(g.color) ? g.color : COLORS[i % COLORS.length] })) : [],
+      goals: Array.isArray(d.goals) ? d.goals.filter(g => g && typeof g.id === "string" && Number(g.target) > 0).slice(0, 12).map((g, i) => ({ id: g.id.slice(0, 40), name: String(g.name || "Goal").slice(0, 40), target: Number(g.target), saved: Math.max(0, Number(g.saved) || 0), account: typeof g.account === "string" ? g.account.slice(0, 64) : "", by: /^\d{4}-\d{2}$/.test(g.by || "") ? g.by : "", color: /^#[0-9a-f]{6}$/i.test(g.color) ? g.color : COLORS[i % COLORS.length] })) : [],
       buckets: Array.isArray(d.buckets) && d.buckets.length
         ? d.buckets.filter(b => b && BUCKET_ID.test(b.id)).slice(0, 8).map((b, i) => ({ id: b.id, name: String(b.name || "Group").slice(0, 24), pct: Math.max(0, Math.min(100, Math.round(Number(b.pct) || 0))), color: /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : BUCKET_COLORS[i % BUCKET_COLORS.length], save: !!b.save }))
         : DEFAULT_BUCKETS.map(b => ({ ...b, pct: d.plan && Number.isFinite(d.plan[b.id]) ? d.plan[b.id] : b.pct })),
@@ -1023,8 +1023,10 @@
   }
 
   const monthsUntil = by => { const [y1, m1] = thisMonth().split("-").map(Number); const [y2, m2] = by.split("-").map(Number); return (y2 - y1) * 12 + (m2 - m1); };
+  const goalAcc = g => { const a = g.account ? acc(g.account) : null; return a && !a.deleted_at ? a : null; };
+  const goalSaved = g => { const a = goalAcc(g); return a ? Math.max(0, toMain(balances().get(a.id) || 0, a.currency)) : g.saved; };
   const goalNeed = g => {
-    const left = Math.max(0, g.target - g.saved);
+    const left = Math.max(0, g.target - goalSaved(g));
     if (!left) return { left: 0, perMonth: 0, months: 0, late: false };
     if (!g.by) return { left, perMonth: 0, months: 0, late: false };
     const months = monthsUntil(g.by) + 1;
@@ -1038,9 +1040,10 @@
     const card = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Savings goals"), h("button", { type: "button", class: "link-btn", on: { click: () => goalSheet(null) } }, "Add")));
     for (const g of goals) {
       const n = goalNeed(g);
-      const pct = Math.min(100, g.saved / g.target * 100);
+      const saved = goalSaved(g);
+      const pct = Math.min(100, saved / g.target * 100);
       card.append(h("button", { type: "button", class: "cat-row", on: { click: () => goalSheet(g) } },
-        h("div", { class: "cat-line" }, h("span", { class: "swatch", style: { background: g.color } }), h("span", { class: "name" }, g.name), h("span", { class: "val" }, `${money(g.saved, { whole: true })} / ${money(g.target, { whole: true })}`)),
+        h("div", { class: "cat-line" }, h("span", { class: "swatch", style: { background: g.color } }), h("span", { class: "name" }, g.name), h("span", { class: "val" }, `${money(saved, { whole: true })} / ${money(g.target, { whole: true })}`)),
         h("div", { class: "bar" }, h("span", { style: { width: pct + "%", background: g.color } })),
         h("span", { class: "goal-sub" + (n.late ? " neg" : "") }, !n.left ? "Goal reached" : n.late ? `${money(n.left, { whole: true })} to go · target date passed` : g.by ? `${money(n.perMonth, { whole: true })} a month until ${monthLabel(g.by)}` : `${money(n.left, { whole: true })} to go`)));
     }
@@ -1051,7 +1054,16 @@
   function goalSheet(g) {
     const st = settings();
     const cur = mainCur();
-    const f = { name: g ? g.name : "", target: g ? String(g.target) : "", by: g ? g.by : "" };
+    const accounts = rows("accounts").filter(a => !a.archived).sort(bySort);
+    const linked = g ? goalAcc(g) : null;
+    const f = { name: g ? g.name : "", target: g ? String(g.target) : "", by: g ? g.by : "", account: g ? (linked ? linked.id : "") : (accounts.find(a => a.kind === "savings") || {}).id || "" };
+    const otherAcc = a => accounts.find(o => o.id !== a.id && o.currency === a.currency && o.kind !== "savings") || accounts.find(o => o.id !== a.id);
+    const moveLinked = sign => {
+      const a = linked, o = otherAcc(a);
+      if (!o) { toast("Add another account to move money from."); return; }
+      closeSheet();
+      setTimeout(() => txnSheet(null, sign > 0 ? { kind: "transfer", account: o.id, to: a.id, note: g.name } : { kind: "transfer", account: a.id, to: o.id, note: g.name }), 320);
+    };
     const err = h("p", { class: "form-err", role: "alert" });
     const body = h("form", { class: "form", id: "goal-form", novalidate: true });
     const move = sign => amountSheet({
@@ -1068,18 +1080,25 @@
     });
     if (g) {
       const n = goalNeed(g);
+      const saved = goalSaved(g);
       body.append(h("div", { class: "goal-top" },
-        h("p", { class: "income-big num" }, fmt(g.saved, cur, { whole: true })),
+        h("p", { class: "income-big num" }, fmt(saved, cur, { whole: true })),
         h("p", { class: "hint" }, `of ${fmt(g.target, cur, { whole: true, show: true })}${n.left ? ` · ${fmt(n.left, cur, { whole: true, show: true })} to go` : " · reached"}`),
-        h("div", { class: "bar" }, h("span", { style: { width: Math.min(100, g.saved / g.target * 100) + "%", background: g.color } })),
+        h("div", { class: "bar" }, h("span", { style: { width: Math.min(100, saved / g.target * 100) + "%", background: g.color } })),
+        linked ? h("p", { class: "hint goal-link" }, icon("swap", "ico sm"), `Follows the balance of ${linked.name}`) : null,
         h("div", { class: "inline" },
-          h("button", { type: "button", class: "btn", on: { click: () => move(1) } }, "Add money"),
-          h("button", { type: "button", class: "btn alt", disabled: !(g.saved > 0), on: { click: () => move(-1) } }, "Take out"))));
+          h("button", { type: "button", class: "btn", on: { click: () => linked ? moveLinked(1) : move(1) } }, linked ? `Move money in` : "Add money"),
+          h("button", { type: "button", class: "btn alt", disabled: !(saved > 0), on: { click: () => linked ? moveLinked(-1) : move(-1) } }, "Take out"))));
     }
     body.append(
       h("label", { class: "field" }, h("span", null, "Name"), h("input", { id: "g-name", class: "input", maxlength: "40", autocomplete: "off", placeholder: "e.g. Emergency fund", value: f.name, on: { input: e => { f.name = e.target.value; } } })),
       h("label", { class: "field" }, h("span", null, `Target amount (${curSymbol(cur)})`), h("input", { id: "g-target", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "e.g. 5000", value: f.target, on: { input: e => { f.target = e.target.value; } } })),
       h("label", { class: "field" }, h("span", null, "Target month (optional)"), h("input", { id: "g-by", class: "input", type: "month", min: thisMonth(), value: f.by, on: { input: e => { f.by = e.target.value; } } })),
+      h("label", { class: "field" }, h("span", null, "Linked account"),
+        h("select", { id: "g-acc", class: "input", on: { change: e => { f.account = e.target.value; } } },
+          h("option", { value: "", selected: !f.account }, "None, I'll add money by hand"),
+          accounts.map(a => h("option", { value: a.id, selected: f.account === a.id }, `${a.name} · ${fmt(balances().get(a.id) || 0, a.currency)}`))),
+        h("small", { class: "hint" }, "When linked, the goal follows that account's balance.")),
       err);
     let armed = false;
     const del = g ? h("button", { type: "button", class: "btn danger", on: { click: () => {
@@ -1096,8 +1115,8 @@
       if (f.by && !/^\d{4}-\d{2}$/.test(f.by)) return fail(err, "Pick a target month.", document.getElementById("g-by"));
       if (!g && st.goals.length >= 12) return fail(err, "You can have up to 12 goals.");
       const next = g
-        ? st.goals.map(x => x.id === g.id ? { ...x, name, target, by: f.by } : x)
-        : [...st.goals, { id: newId(), name, target, saved: 0, by: f.by, color: COLORS[st.goals.length % COLORS.length] }];
+        ? st.goals.map(x => x.id === g.id ? { ...x, name, target, by: f.by, account: f.account } : x)
+        : [...st.goals, { id: newId(), name, target, saved: 0, by: f.by, account: f.account, color: COLORS[st.goals.length % COLORS.length] }];
       saveGoals(next);
       closeSheet();
       toast(g ? "Goal saved." : "Goal added.");

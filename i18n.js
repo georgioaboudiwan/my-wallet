@@ -713,3 +713,11 @@ Object.assign(window.WALLET_I18N.words, {
   "Open Insights": ["Ouvrir Analyses", "افتح التحليلات"]
 });
 window.WALLET_I18N.patterns.push(["^(\\d+) over budget · (\\d+) almost used$", "$1 au-dessus du budget · $2 presque atteints", "$1 فوق الميزانية · $2 شبه مستنفدة"], ["^(\\d+) over budget$", "$1 au-dessus du budget", "$1 فوق الميزانية"], ["^(\\d+) almost used$", "$1 presque atteints", "$1 شبه مستنفدة"]);
+Object.assign(window.WALLET_I18N.words, {
+  "Linked account": ["Compte lié", "الحساب المرتبط"],
+  "None, I'll add money by hand": ["Aucun, j'ajoute l'argent moi-même", "لا شيء، سأضيف المال يدويًا"],
+  "When linked, the goal follows that account's balance.": ["Une fois lié, l'objectif suit le solde de ce compte.", "عند الربط، يتبع الهدف رصيد ذلك الحساب."],
+  "Move money in": ["Ajouter de l'argent", "انقل المال إليه"],
+  "Add another account to move money from.": ["Ajoutez un autre compte d'où transférer l'argent.", "أضف حسابًا آخر لتنقل المال منه."]
+});
+window.WALLET_I18N.patterns.push(["^Follows the balance of (.+)$", "Suit le solde de $1", "يتبع رصيد $1"]);
