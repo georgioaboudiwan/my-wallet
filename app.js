@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.13.0";
+  const VERSION = "3.14.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -410,6 +410,8 @@
 
   const putMany = items => {
     for (const { t, r } of items) {
+      const what = { transactions: "entry", people: "person", loan_entries: "loan", accounts: "account", categories: "category", rules: "repeat" }[t];
+      if (what && !(r.rule_id && !S.data[t].has(r.id))) track(r.deleted_at ? "delete" : S.data[t].has(r.id) ? "edit" : "add", t === "transactions" && r.kind ? r.kind : what);
       const full = { ...r, user_id: S.uid };
       if (full.deleted_at) S.data[t].delete(full.id); else S.data[t].set(full.id, full);
       S.outbox = S.outbox.filter(o => !(o.t === t && o.r.id === full.id));
@@ -537,7 +539,9 @@
       .forEach(([k, name, currency, kind], i) => items.push({ t: "accounts", r: { id: `${p}:acc:${k}`, name, currency, kind, opening_balance: 0, sort: i, archived: false } }));
     DEFAULT_CATS.forEach(([k, name, kind, bucket, color], i) => items.push({ t: "categories", r: { id: `${p}:cat:${k}`, name, kind, bucket, color, budget: null, sort: i } }));
     items.push({ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), seeded: true } } });
+    TRACK.mute = true;
     putMany(items);
+    TRACK.mute = false;
   }
 
   function runRules() {
@@ -683,6 +687,7 @@
 
   function go(view) {
     S.view = view;
+    track("view", view);
     S.armed = null;
     if (view === "settings") { PUSH.state = null; S.setPage = null; }
     if (view === "insights" || view === "plan") S.month = S.month || thisMonth();
@@ -1052,6 +1057,7 @@
   }
 
   function goalSheet(g) {
+    track("goal", g ? "open" : "new");
     const st = settings();
     const cur = mainCur();
     const accounts = rows("accounts").filter(a => !a.archived).sort(bySort);
@@ -1218,6 +1224,7 @@
   }
 
   function budgetSheet(alerts) {
+    track("budgets");
     openSheet("Budgets to check", h("div", { class: "bud-list" },
       alerts.map(a => {
         const over = a.spent > a.budget;
@@ -1712,6 +1719,7 @@
   }
 
   function startTour(view) {
+    track("tour", view);
     const list = TOURS[view];
     if (!list || TOUR.el) return;
     const steps = list.filter(([sel]) => tourTarget(sel));
@@ -1741,6 +1749,7 @@
   }
 
   function helpSheet() {
+    track("help");
     const part = (ic, title, text) => h("div", { class: "help-row" }, h("span", { class: "dot neutral" }, icon(ic, "ico sm")), h("div", null, h("h3", null, title), h("p", null, text)));
     const cur = TOURS[S.view] ? S.view : "home";
     openSheet("How it works", h("div", { class: "help-list" },
@@ -1755,6 +1764,36 @@
       h("div", { class: "help-foot" },
         h("button", { type: "button", class: "btn", on: { click: () => { closeSheet(); setTimeout(() => { if (S.view !== cur) go(cur); setTimeout(() => startTour(cur), 450); }, 350); } } }, cur === "home" ? "Start the tour" : "Tour of this screen"),
         cur !== "home" ? h("button", { type: "button", class: "btn alt", on: { click: () => { closeSheet(); setTimeout(() => { go("home"); setTimeout(() => startTour("home"), 500); }, 350); } } }, "Full tour from Home") : null));
+  }
+
+  const TRACK = { q: [], timer: 0, last: "" };
+  const deviceKind = () => {
+    const u = navigator.userAgent;
+    if (/iPad/.test(u) || (/Macintosh/.test(u) && navigator.maxTouchPoints > 1)) return "ipad";
+    if (/iPhone|iPod/.test(u)) return "iphone";
+    if (/Android/.test(u)) return "android";
+    if (/Mac/.test(u)) return "mac";
+    if (/Windows/.test(u)) return "windows";
+    if (/Linux/.test(u)) return "linux";
+    return "other";
+  };
+  function track(event, detail) {
+    if (!S.uid || TRACK.mute) return;
+    const d = detail ? String(detail).toLowerCase().replace(/[^a-z0-9_:.-]/g, "_").slice(0, 40) : null;
+    const key = event + ":" + d;
+    if (event === "view" && TRACK.last === key) return;
+    TRACK.last = key;
+    TRACK.q.push({ event, detail: d });
+    if (TRACK.q.length > 100) TRACK.q.splice(0, TRACK.q.length - 100);
+    clearTimeout(TRACK.timer);
+    TRACK.timer = setTimeout(flushTrack, event === "open" ? 1500 : 10000);
+  }
+  async function flushTrack() {
+    if (!TRACK.q.length || !sb || !S.session || !navigator.onLine) return;
+    const meta = { device: deviceKind(), standalone: isStandalone(), version: VERSION };
+    const batch = TRACK.q.splice(0, 50).map(e => ({ ...e, ...meta }));
+    try { await sb.from("app_events").insert(batch); } catch { }
+    if (TRACK.q.length) TRACK.timer = setTimeout(flushTrack, 2000);
   }
 
   const INBOX = { items: [], loading: false, ok: true, at: 0 };
@@ -1792,6 +1831,7 @@
   }
 
   function inboxSheet() {
+    track("inbox");
     const seen = inboxSeen();
     const box = h("div", { class: "inbox" });
     const when = iso => new Date(iso).toLocaleString(dateLocale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -2435,7 +2475,8 @@
         h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(settings().noteRequired), "aria-label": "Note is required", on: { click: () => saveSettings({ noteRequired: !settings().noteRequired }) } }, h("span", { class: "knob" })))));
     out.append(group("Help",
       h("button", { type: "button", class: "row-btn", on: { click: () => { for (const v of Object.keys(TOURS)) store.set("tour:" + v, 0); go("home"); setTimeout(() => startTour("home"), 500); } } }, "Show the tour again"),
-      h("button", { type: "button", class: "row-btn", on: { click: helpSheet } }, "How each screen works")));
+      h("button", { type: "button", class: "row-btn", on: { click: helpSheet } }, "How each screen works"),
+      h("p", { class: "hint group-note" }, "To improve the app, it counts when you open it and which screens and buttons you use. It never sends your amounts, notes, names or accounts.")));
     out.append(group("Language",
       h("div", { class: "row lang-row" }, seg(Object.entries(LANGS), LANG, setLang, "Language"))));
     out.append(group("Security",
@@ -2510,7 +2551,7 @@
   };
   const shareUrl = p => `${location.origin}${location.pathname}#share=${p.share_token}.${p.skey}`;
   const waUrl = (phone, text) => `https://wa.me/${phone.slice(1)}?text=${encodeURIComponent(text)}`;
-  const waButton = (phone, text, label, cls = "") => h("a", { class: "btn " + cls, href: waUrl(phone, text), target: "_blank", rel: "noopener noreferrer" }, icon("chat"), label);
+  const waButton = (phone, text, label, cls = "") => h("a", { class: "btn " + cls, href: waUrl(phone, text), target: "_blank", rel: "noopener noreferrer", on: { click: () => track("whatsapp") } }, icon("chat"), label);
   const owesMe = p => p.direction === "owes_me";
   const statusText = (p, v) => v === 0 ? "Settled" : owesMe(p) ? "Owes you" : "You owe";
 
@@ -2632,7 +2673,7 @@
           h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `${p.name} sees only their balance and history. No account needed.`),
           h("input", { id: "f-plink", class: "input", readOnly: true, value: url, hidden: true, style: { margin: "0 16px", width: "calc(100% - 32px)" } }),
           h("button", { type: "button", class: "row-btn", on: { click: () => copyText(url, "f-plink") } }, "Copy link"),
-          p.phone ? h("a", { class: "row-btn", style: { display: "block", textDecoration: "none" }, href: waUrl(p.phone, linkMessage(p, p.share_token)), target: "_blank", rel: "noopener noreferrer" }, "Send link on WhatsApp") : null,
+          p.phone ? h("a", { class: "row-btn", style: { display: "block", textDecoration: "none" }, href: waUrl(p.phone, linkMessage(p, p.share_token)), target: "_blank", rel: "noopener noreferrer", on: { click: () => track("whatsapp", "link") } }, "Send link on WhatsApp") : null,
           h("button", { type: "button", class: "row-btn danger", on: { click: () => { if (armed !== "unshare") { armed = "unshare"; draw(); return; } armed = null; putMany([{ t: "people", r: { ...p, share_token: null, skey: null } }, ...history.map(e => ({ t: "loan_entries", r: { ...e } }))]); toast("Link turned off."); draw(); } } }, armed === "unshare" ? "Tap again to turn off the link" : "Turn off link"));
       } else {
         share.append(h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `Make a link that shows ${p.name} only their own balance and history.`),
@@ -2819,11 +2860,81 @@
     openSheet(u ? "Notify this user" : "Notify everyone", body, btn);
   }
 
+  const USAGE = { data: null, error: false, busy: false };
+  async function loadUsage() {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+      const { data, error } = await sb.rpc("admin_usage", { p_days: 30, p_tz: tz });
+      USAGE.error = !!error; if (!error) USAGE.data = data;
+    } catch { USAGE.error = true; }
+  }
+  const DEVICE_NAMES = { iphone: "iPhone", ipad: "iPad", android: "Android", mac: "Mac", windows: "Windows", linux: "Linux", other: "Other" };
+  const SCREENS = { home: "Home", activity: "Activity", insights: "Insights", people: "People", settings: "Settings", plan: "Plan", admin: "Admin" };
+  const THINGS = { expense: "an expense", income: "income", transfer: "a transfer", loan_out: "money lent", loan_in: "money borrowed", entry: "an entry", person: "a person", loan: "a loan entry", account: "an account", category: "a category", repeat: "a repeating entry" };
+  function featureLabel(e, d) {
+    if (e === "view") return `Opened ${SCREENS[d] || d}`;
+    if (e === "add") return `Added ${THINGS[d] || d}`;
+    if (e === "edit") return `Edited ${THINGS[d] || d}`;
+    if (e === "delete") return `Deleted ${THINGS[d] || d}`;
+    if (e === "tour") return `Watched the ${SCREENS[d] || ""} tour`.replace("  ", " ");
+    if (e === "goal") return d === "new" ? "Created a savings goal" : "Opened a savings goal";
+    return { help: "Opened help", inbox: "Read notifications", budgets: "Checked budgets", whatsapp: d === "link" ? "Sent a share link on WhatsApp" : "Sent a WhatsApp reminder" }[e] || [e, d].filter(Boolean).join(" · ");
+  }
+  const emailOf = id => { const u = ADMIN.data && ADMIN.data.users.find(x => x.id === id); return u ? u.email || "No email" : "Deleted user"; };
+
+  function usageCard() {
+    const card = h("section", { class: "card flush usage" }, h("div", { class: "card-head" }, h("h2", null, "Usage, last 30 days")));
+    const u = USAGE.data;
+    if (!u) { card.append(h("p", { class: "empty" }, USAGE.error ? "Run supabase/usage.sql in the Supabase SQL editor once." : "Loading…")); return card; }
+    const a = u.active || {};
+    card.append(h("div", { class: "tiles four" },
+      h("div", { class: "tile" }, h("small", null, "Active today"), h("strong", null, String(a.today ?? 0))),
+      h("div", { class: "tile" }, h("small", null, "This week"), h("strong", null, String(a.week ?? 0))),
+      h("div", { class: "tile" }, h("small", null, "This month"), h("strong", null, String(a.month ?? 0))),
+      h("div", { class: "tile" }, h("small", null, "Opens today"), h("strong", null, String(u.opens_today ?? 0)))));
+    const byDay = new Map((u.days || []).map(d => [d.day, d]));
+    const days = [];
+    for (let i = 13; i >= 0; i--) { const d = ymd(new Date(Date.now() - i * 864e5)); days.push({ day: d, opens: byDay.get(d)?.opens || 0, users: byDay.get(d)?.users || 0 }); }
+    const max = Math.max(1, ...days.map(d => d.opens));
+    card.append(h("div", { class: "usage-chart", role: "img", "aria-label": tr("App opens, last 14 days") },
+      days.map(d => h("div", { class: "uc-col", title: `${d.day}: ${d.opens} opens, ${d.users} people` },
+        h("span", { class: "uc-n num" }, d.opens ? String(d.opens) : ""),
+        h("span", { class: "uc-bar", style: { height: Math.max(3, d.opens / max * 100) + "%" } }),
+        h("small", null, String(Number(d.day.slice(8))))))));
+    card.append(h("p", { class: "hint usage-cap" }, "App opens per day, last 14 days"));
+    const devs = Object.entries(u.devices || {}).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${DEVICE_NAMES[k] || k} ${n}`).join(" · ");
+    if (devs) card.append(h("p", { class: "hint usage-cap" }, `People by device: ${devs}`));
+    const on = !!u.alert_opens;
+    card.append(h("div", { class: "row" }, h("span", { class: "dot " + (on ? "gold" : "neutral") }, icon("bell", "ico sm")),
+      h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Alert me when someone opens the app"), h("span", { class: "row-sub wrap" }, "At most once every 30 minutes per person. Needs notifications on for this device.")),
+      h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(on), "aria-label": "Alert me when someone opens the app", disabled: USAGE.busy, on: { click: async () => {
+        USAGE.busy = true; render();
+        try { const { data, error } = await sb.rpc("admin_set_open_alerts", { p_on: !on }); if (error) throw error; u.alert_opens = !!data; toast(data ? "You'll get a notification when someone opens the app." : "Open alerts turned off."); }
+        catch { toast("Couldn't change that. Try again.", "error"); }
+        USAGE.busy = false; render();
+      } } }, h("span", { class: "knob" }))));
+    const top = (u.top || []).slice(0, 10);
+    const topMax = Math.max(1, ...top.map(t => t.n));
+    card.append(h("div", { class: "card-head sub" }, h("h3", null, "Most used")));
+    card.append(top.length ? h("div", { class: "usage-top" }, top.map(t => h("div", { class: "ut-row" },
+      h("div", { class: "ut-line" }, h("span", null, featureLabel(t.event, t.detail)), h("span", { class: "num" }, `${t.n} · ${t.users} ${t.users === 1 ? "person" : "people"}`)),
+      h("div", { class: "bar" }, h("span", { style: { width: (t.n / topMax * 100) + "%" } })))))
+      : h("p", { class: "empty" }, "Nothing yet. Usage appears as people use the app."));
+    const recent = (u.recent || []).slice(0, 10);
+    card.append(h("div", { class: "card-head sub" }, h("h3", null, "Recently opened")));
+    card.append(recent.length ? h("div", null, recent.map(r => h("div", { class: "row" },
+      h("span", { class: "dot neutral" }, emailOf(r.user_id).charAt(0).toUpperCase()),
+      h("span", { class: "row-main" }, h("span", { class: "row-title" }, emailOf(r.user_id)), h("span", { class: "row-sub" }, [DEVICE_NAMES[r.device] || null, r.standalone ? "Home Screen app" : r.standalone === false ? "Browser" : null, r.version ? `v${r.version}` : null].filter(Boolean).join(" · "))),
+      h("span", { class: "row-end muted" }, ago(r.at)))))
+      : h("p", { class: "empty" }, "No opens recorded yet."));
+    return card;
+  }
+
   async function loadAdmin() {
     if (ADMIN.loading) return;
     ADMIN.loading = true; ADMIN.error = null;
     if (S.view === "admin") render();
-    try { ADMIN.data = await adminCall("overview"); } catch (e) { ADMIN.error = e.message; }
+    try { [ADMIN.data] = await Promise.all([adminCall("overview"), loadUsage()]); } catch (e) { ADMIN.error = e.message; }
     ADMIN.loading = false;
     if (S.view === "admin") render();
   }
@@ -2860,6 +2971,7 @@
       h("div", { class: "row" }, h("span", { class: "dot " + (calls.failed ? "bad" : "ok") }, icon(calls.failed ? "warn" : "check", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Reminder server, last 24 h"), h("span", { class: "row-sub" }, `${calls.ok ?? 0} OK · ${calls.failed ?? 0} failed`)))));
 
+    out.append(usageCard());
     out.append(h("button", { type: "button", class: "btn", on: { click: () => notifySheet(null) } }, icon("bell", "ico sm"), "Send a notification to everyone"));
     if (!INBOX.at) loadInbox(true);
     out.append(sentCard());
@@ -2869,7 +2981,7 @@
       const tags = [u.is_me ? "You · admin" : null, isBlocked(u) ? "Blocked" : null].filter(Boolean).join(" · ");
       list.append(h("button", { type: "button", class: "row", on: { click: () => adminUserSheet(u) } },
         h("span", { class: "dot " + (isBlocked(u) ? "bad" : u.is_me ? "gold" : "neutral") }, (u.email || "?").charAt(0).toUpperCase()),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, u.email || "No email"), h("span", { class: "row-sub" }, [tags, `${st.transactions ?? 0} entries`, `seen ${whenText(u.last_sign_in_at)}`].filter(Boolean).join(" · "))),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, u.email || "No email"), h("span", { class: "row-sub" }, [tags, `${st.transactions ?? 0} entries`, (USAGE.data?.per_user || {})[u.id]?.last ? `active ${ago(USAGE.data.per_user[u.id].last)}` : `seen ${whenText(u.last_sign_in_at)}`].filter(Boolean).join(" · "))),
         icon("fwd")));
     }
     out.append(list, h("p", { class: "hint" }, "To stop new people from creating accounts, turn off “Allow new users to sign up” in Supabase → Authentication → Sign In / Providers."));
@@ -2895,6 +3007,12 @@
           fact("Loan contacts", st.people ?? 0), fact("Reminders on", st.reminders ?? 0)),
           h("p", { class: "hint" }, `Joined ${new Date(u.created_at).toLocaleDateString(dateLocale(), { day: "numeric", month: "short", year: "numeric" })} · last sign-in ${whenText(u.last_sign_in_at)} · last entry ${whenText(st.last_entry)}`))
       ];
+      const us = (USAGE.data?.per_user || {})[u.id];
+      kids.push(h("section", { class: "card" }, h("div", { class: "card-head" }, h("h2", null, "Activity, last 30 days")),
+        us ? [h("div", { class: "facts" }, fact("App opens", us.opens ?? 0), fact("Actions", us.actions ?? 0)),
+          h("p", { class: "hint" }, [`Last active ${ago(us.last)}`, DEVICE_NAMES[us.device] || null, us.version ? `v${us.version}` : null].filter(Boolean).join(" · ")),
+          (us.top || []).length ? h("div", { class: "usage-top" }, us.top.map(t => h("div", { class: "ut-line" }, h("span", null, featureLabel(t.event, t.detail)), h("span", { class: "num" }, String(t.n))))) : null]
+          : h("p", { class: "hint" }, "No activity recorded yet. It's counted from version 3.14.0 on.")));
       kids.push(h("button", { type: "button", class: "btn", disabled: busy, on: { click: () => { closeSheet(); setTimeout(() => notifySheet(u), 350); } } }, icon("bell", "ico sm"), "Send a notification"));
       if (u.is_me) {
         kids.push(h("p", { class: "hint" }, "This is your admin account. You can't block or delete it from here."));
@@ -4201,14 +4319,15 @@
     render();
     if (S.session && lockCfg()) showLock();
     if (S.session && VAULT.key) recoverySheet();
-    if (S.session) sync();
+    if (S.session) { sync(); track("open", "start"); }
     if (S.session && location.hash === "#add") { history.replaceState(null, "", location.pathname); txnSheet(null); }
   }
 
   window.addEventListener("online", () => { if (S.offline || !S.session) recover(); else sync(); renderStatus(); });
   window.addEventListener("offline", renderStatus);
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") { LOCK.hiddenAt = Date.now(); return; }
+    if (document.visibilityState === "hidden") { LOCK.hiddenAt = Date.now(); flushTrack(); return; }
+    if (S.session && LOCK.hiddenAt && Date.now() - LOCK.hiddenAt > 30 * 60000) track("open", "resume");
     if (S.uid && lockCfg() && LOCK.hiddenAt && Date.now() - LOCK.hiddenAt > 60000) showLock();
     if (S.offline) recover(); else sync();
     loadInbox(true);

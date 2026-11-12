@@ -140,6 +140,22 @@ Deno.serve(async req => {
 
   const secret = req.headers.get("x-cron-secret");
   if (secret && secret === keys.cron_secret) {
+    let cronBody: Record<string, unknown> = {};
+    try { cronBody = await req.clone().json(); } catch { cronBody = {}; }
+    if (cronBody.action === "open_alert") {
+      const uid = String(cronBody.user_id || "");
+      if (!/^[0-9a-f-]{36}$/i.test(uid)) return json({ error: "bad user" }, 400);
+      const [{ data: u }, { data: admins }] = await Promise.all([sb.auth.admin.getUserById(uid), sb.from("admins").select("user_id").eq("alert_opens", true)]);
+      const ids = (admins ?? []).map(a => a.user_id).filter(id => id !== uid);
+      if (!ids.length) return json({ sent: 0 });
+      const { data: subs } = await sb.from("push_subs").select("id, user_id, endpoint, p256dh, auth, remind_at, tz, last_sent").eq("enabled", true).in("user_id", ids);
+      const DEVICES: Record<string, string> = { iphone: "iPhone", ipad: "iPad", android: "Android", mac: "Mac", windows: "Windows", linux: "Linux" };
+      const where = DEVICES[String(cronBody.device || "")];
+      const who = u?.user?.email || "Someone";
+      const msg = { title: "App opened", body: `${who} just opened the app${where ? ` on ${where}` : ""}.` };
+      const statuses = await Promise.all(((subs ?? []) as Sub[]).map(sub => push(keys, sub, msg).catch(() => 0)));
+      return json({ sent: statuses.filter(s => s >= 200 && s < 300).length });
+    }
     const { data: subs } = await sb.from("push_subs").select("id, user_id, endpoint, p256dh, auth, remind_at, tz, last_sent").eq("enabled", true);
     let sent = 0;
     for (const sub of (subs ?? []) as Sub[]) {

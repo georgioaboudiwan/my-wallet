@@ -721,3 +721,6 @@ Object.assign(window.WALLET_I18N.words, {
   "Add another account to move money from.": ["Ajoutez un autre compte d'où transférer l'argent.", "أضف حسابًا آخر لتنقل المال منه."]
 });
 window.WALLET_I18N.patterns.push(["^Follows the balance of (.+)$", "Suit le solde de $1", "يتبع رصيد $1"]);
+Object.assign(window.WALLET_I18N.words, {
+  "To improve the app, it counts when you open it and which screens and buttons you use. It never sends your amounts, notes, names or accounts.": ["Pour améliorer l'application, elle compte quand vous l'ouvrez et quels écrans et boutons vous utilisez. Elle n'envoie jamais vos montants, notes, noms ou comptes.", "لتحسين التطبيق، يحسب متى تفتحه وأي الشاشات والأزرار تستخدم. لا يرسل أبدًا مبالغك أو ملاحظاتك أو الأسماء أو الحسابات."]
+});
