@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.18.0";
+  const VERSION = "3.18.1";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -992,6 +992,7 @@
     return same ? same.id : null;
   }
 
+  const addKids = (el, ...kids) => el.append(...kids.flat(Infinity).filter(k => k != null && k !== false));
   const rowDate = d => DATE_RE.test(String(d)) ? new Date(d + "T12:00:00").toLocaleDateString(dateLocale(), { day: "numeric", month: "short", ...(d.slice(0, 4) !== today().slice(0, 4) ? { year: "numeric" } : {}) }) : null;
 
   function txnRow(x) {
@@ -3615,7 +3616,7 @@
           } } }, armed === "disconnect" ? "Tap again to disconnect" : "Disconnect their account"));
       } else if (p.share_token && p.skey) {
         const url = shareUrl(p);
-        share.append(
+        addKids(share, 
           h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `${p.name} sees only their balance and history. No account needed. If ${p.name} uses My Wallet, they can open the link while signed in and add the loan to their app, so you both stay in sync.`),
           h("input", { id: "f-plink", class: "input", readOnly: true, value: url, hidden: true, style: { margin: "0 16px", width: "calc(100% - 32px)" } }),
           h("button", { type: "button", class: "row-btn", on: { click: () => copyText(url, "f-plink") } }, "Copy link"),
@@ -3625,7 +3626,7 @@
         share.append(h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `Make a link that shows ${p.name} only their own balance and history.`),
           h("button", { type: "button", class: "row-btn", on: { click: () => { putMany([{ t: "people", r: { ...p, share_token: newToken(), skey: toUrl(b64u8(rand(32))) } }, ...history.map(e => ({ t: "loan_entries", r: { ...e } }))]); draw(); } } }, "Create private link"));
       }
-      if (!link && !connected) share.append(h("button", { type: "button", class: "row-btn", on: { click: () => {
+      if (!link && !connected) addKids(share, h("button", { type: "button", class: "row-btn", on: { click: () => {
         if (armed !== "togroup") { armed = "togroup"; draw(); return; }
         armed = null;
         personToGroup(p);
