@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.12.1";
+  const VERSION = "3.12.2";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -3119,6 +3119,8 @@
         preview.textContent = conv || "\u00a0";
         const catTile = body.querySelector(".ftile");
         if (catTile && f.kind !== "transfer") catTile.classList.toggle("attn", !!v && needCat);
+        const fromBal = f.kind === "transfer" ? body.querySelector(".ftile-bal") : null;
+        if (fromBal) fromBal.classList.toggle("low", v > (bal.get(f.account) || 0));
         const verb = { expense: "Save expense", income: "Save income", transfer: "Move money", loan: "Save loan" }[f.kind];
         saveBtn.textContent = !v ? tr("Type an amount") : needCat ? tr(f.kind === "loan" ? "Next: choose a person" : "Next: choose a category") : `${tr(verb)} · ${fmt(v, cur, { show: true })}`;
         saveBtn.className = "btn " + f.kind + (!v ? " waiting" : "");
@@ -3127,23 +3129,24 @@
       const yest = ymd(new Date(Date.now() - 864e5));
       const dateText = f.date === today() ? "Today" : f.date === yest ? "Yesterday" : dayLabel(f.date);
       const open = k => { err.textContent = ""; panel = panel === k ? "pad" : k; draw(); };
-      const tile = (k, caption, value, lead, empty) => h("button", { type: "button", class: "ftile" + (empty ? " empty" : "") + (k === "cat" && empty && parseAmt(f.amount) ? " attn" : ""), "aria-expanded": String(panel === k), on: { click: () => open(k) } },
+      const tile = (k, caption, value, lead, empty, extra) => h("button", { type: "button", class: "ftile" + (empty ? " empty" : "") + (k === "cat" && empty && parseAmt(f.amount) ? " attn" : ""), "aria-expanded": String(panel === k), on: { click: () => open(k) } },
         lead || null,
-        h("span", { class: "ftile-text" }, h("small", null, caption), h("strong", null, value)),
+        h("span", { class: "ftile-text" }, h("small", null, caption), h("strong", null, value), extra || null),
         icon("chev", "ico sm"));
       const chosen = f.kind !== "transfer" && f.category ? cat(f.category) : null;
       const extras = [f.repeat ? "Monthly" : null, f.blob || f.receipt ? "Receipt" : null].filter(Boolean);
       const lp = loanPerson();
-      const needNote = settings().noteRequired && !x;
-      const noteHint = f.kind === "expense" ? "What was it for?" : f.kind === "income" ? "Where is it from?" : f.kind === "loan" ? "What is it for?" : "Why are you moving it?";
+      const needNote = settings().noteRequired && !x && f.kind !== "transfer";
+      const avail = (o, check) => { const v = bal.get(o.id) || 0; return h("span", { class: "ftile-bal num" + (check && parseAmt(f.amount) > v ? " low" : ""), title: tr("Available") }, fmt(v, o.currency)); };
+      const noteHint = f.kind === "expense" ? "What was it for?" : f.kind === "income" ? "Where is it from?" : f.kind === "loan" ? "What is it for?" : "Note (optional)";
       const tiles = f.kind === "loan"
         ? [tile("person", "Person", lp ? lp.name : "Choose", h("span", { class: "ftile-ico", style: lp ? { background: COLORS[(lp.sort || 0) % COLORS.length], color: "#fff" } : null }, lp ? lp.name.charAt(0).toUpperCase() : icon("people", "ico sm")), !lp),
           tile("lmode", "What happened", loanLabel(lp), h("span", { class: "ftile-ico" }, icon(loanOut() ? "up" : "down", "ico sm"))),
           tile("acc", loanOut() ? "Paid from" : "Into", a.name, h("span", { class: "cur-tag" }, curTag(a.currency))),
           tile("date", "Date", dateText, h("span", { class: "ftile-ico" }, icon("cal", "ico sm")))]
         : f.kind === "transfer"
-        ? [tile("acc", "From", a.name, h("span", { class: "cur-tag" }, curTag(a.currency))),
-          tile("to", "To", to ? to.name : "Choose", to ? h("span", { class: "cur-tag" }, curTag(to.currency)) : null, !to),
+        ? [tile("acc", "From", a.name, h("span", { class: "cur-tag" }, curTag(a.currency)), false, avail(a, true)),
+          tile("to", "To", to ? to.name : "Choose", to ? h("span", { class: "cur-tag" }, curTag(to.currency)) : null, !to, to ? avail(to) : null),
           tile("date", "Date", dateText, h("span", { class: "ftile-ico" }, icon("cal", "ico sm")))]
         : [tile("cat", "Category", chosen ? chosen.name : "Choose", chosen ? h("span", { class: "ftile-ico", style: { background: chosen.color, color: "#fff" } }, catGlyph(chosen, "ico sm")) : h("span", { class: "ftile-ico" }, icon("plus", "ico sm")), !chosen),
           tile("acc", f.kind === "income" ? "Into" : "Paid from", a.name, h("span", { class: "cur-tag" }, curTag(a.currency))),
@@ -3154,7 +3157,7 @@
         h("button", { type: "button", class: "pick-row", "aria-pressed": String(o.id === value), on: { click: () => onPick(o.id) } },
           h("span", { class: "cur-tag" }, curTag(o.currency)),
           h("span", { class: "pick-name" }, o.name),
-          h("span", { class: "pick-end num" }, fmt(bal.get(o.id) || 0, o.currency, { whole: true })))));
+          h("span", { class: "pick-end num" }, fmt(bal.get(o.id) || 0, o.currency)))));
       let panelEl;
       const lb = f.kind === "loan" ? loanBalances() : null;
       if (panel === "person" && f.kind === "loan") {
@@ -3229,7 +3232,7 @@
       const amount = parseAmt(f.amount);
       if (!amount) { fail(null, "Type the amount on the number pad first.", body.querySelector(".amount-display")); return; }
       if (!DATE_RE.test(f.date)) { fail(err, "Pick a date."); return; }
-      if (settings().noteRequired && !x && !f.note.trim()) { fail(err, "Write a short note so you remember what it was."); const n = document.getElementById("f-note"); if (n) n.focus(); return; }
+      if (settings().noteRequired && !x && f.kind !== "transfer" && !f.note.trim()) { fail(err, "Write a short note so you remember what it was."); const n = document.getElementById("f-note"); if (n) n.focus(); return; }
       if (f.kind === "loan") {
         const p = loanPerson();
         if (!p) { panel = "person"; draw(); return; }

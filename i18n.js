@@ -706,3 +706,5 @@ Object.assign(window.WALLET_I18N.words, {
   "Couldn't load notifications. Check your connection and try again.": ["Impossible de charger les notifications. Vérifiez votre connexion et réessayez.", "تعذّر تحميل الإشعارات. تحقق من اتصالك وحاول مجددًا."]
 });
 Object.assign(window.WALLET_I18N.words, { "Loading…": ["Chargement…", "جارٍ التحميل…"] });
+window.WALLET_I18N.patterns.push(["^(.+) available$", "$1 disponible", "$1 متاح"]);
+Object.assign(window.WALLET_I18N.words, { "Available": ["Disponible", "متاح"] });

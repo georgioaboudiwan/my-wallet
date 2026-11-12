@@ -1174,3 +1174,5 @@ textarea.input { font: inherit; line-height: 1.4; resize: vertical; }
 .note-input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 16px; padding: 8px 0; outline: none; }
 .note-input::placeholder { color: var(--muted); }
 @media (max-width: 360px) { .top h1 { font-size: 24px; } .top .tool .icon-btn { width: 32px; } }
+.ftile-bal { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ftile-bal.low { color: var(--neg); }
