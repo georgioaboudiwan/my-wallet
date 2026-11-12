@@ -59,3 +59,4 @@ grant execute on function public.resolve_email_invites(uuid) to authenticated;
 
 select cron.unschedule('wallet-email-invites-cleanup') where exists (select 1 from cron.job where jobname = 'wallet-email-invites-cleanup');
 select cron.schedule('wallet-email-invites-cleanup', '29 3 * * *', $job$ delete from public.group_email_invites where created_at < now() - interval '60 days' $job$);
+grant select, insert, update, delete on public.groups, public.group_members, public.group_entries, public.group_votes, public.group_links, public.group_email_invites, public.user_keys, public.shared_entries, public.loan_links to service_role;
