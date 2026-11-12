@@ -743,3 +743,35 @@ Object.assign(window.WALLET_I18N.words, {
   "Announce this version": ["Annoncer cette version", "أعلن هذا الإصدار"]
 });
 window.WALLET_I18N.patterns.push(["^What's new in (.+)$", "Nouveautés de la $1", "ما الجديد في $1"], ["^Version (\\d+\\.\\d+\\.\\d+)$", "Version $1", "الإصدار $1"]);
+Object.assign(window.WALLET_I18N.words, {
+  "Shared loan": ["Prêt partagé", "قرض مشترك"],
+  "Shared": ["Partagé", "مشترك"],
+  "Sharing was turned off": ["Le partage a été désactivé", "تم إيقاف المشاركة"],
+  "Check for changes": ["Vérifier les changements", "تحقق من التغييرات"],
+  "Up to date.": ["À jour.", "محدّث."],
+  "Disconnect their account": ["Déconnecter son compte", "افصل حسابه"],
+  "Tap again to disconnect": ["Touchez encore pour déconnecter", "اضغط مجددًا للفصل"],
+  "Couldn't disconnect. Try again.": ["Impossible de déconnecter. Réessayez.", "تعذّر الفصل. حاول مجددًا."],
+  "Add it to your wallet": ["Ajoutez-le à votre portefeuille", "أضفه إلى محفظتك"],
+  "Use My Wallet?": ["Vous utilisez My Wallet ?", "هل تستخدم My Wallet؟"],
+  "Add to my wallet": ["Ajouter à mon portefeuille", "أضف إلى محفظتي"],
+  "Sign in and add it": ["Se connecter et l'ajouter", "سجّل الدخول وأضفه"],
+  "Sign in to My Wallet to keep this loan in your own app and get notified when it changes.": ["Connectez-vous à My Wallet pour garder ce prêt dans votre application et être averti des changements.", "سجّل الدخول إلى My Wallet لتحتفظ بهذا القرض في تطبيقك وتتلقى إشعارًا عند تغييره."],
+  "That's your own link. Send it to the other person.": ["C'est votre propre lien. Envoyez-le à l'autre personne.", "هذا رابطك الخاص. أرسله إلى الشخص الآخر."],
+  "Someone else already added this loan to their app.": ["Quelqu'un a déjà ajouté ce prêt à son application.", "شخص آخر أضاف هذا القرض إلى تطبيقه بالفعل."],
+  "Couldn't add the loan. Open the link again.": ["Impossible d'ajouter le prêt. Rouvrez le lien.", "تعذّرت إضافة القرض. افتح الرابط مجددًا."],
+  "Shared loans": ["Prêts partagés", "قروض مشتركة"],
+  "One history for both": ["Un seul historique pour les deux", "سجل واحد للطرفين"],
+  "Notified on every change": ["Averti à chaque changement", "إشعار عند كل تغيير"],
+  "If the person you lend to or borrow from uses My Wallet, they can open your private link while signed in and add the loan to their app.": ["Si la personne à qui vous prêtez ou empruntez utilise My Wallet, elle peut ouvrir votre lien privé en étant connectée et ajouter le prêt à son application.", "إذا كان الشخص الذي تقرضه أو تقترض منه يستخدم My Wallet، يمكنه فتح رابطك الخاص وهو مسجّل الدخول وإضافة القرض إلى تطبيقه."],
+  "You both see the same entries. Either of you can add one, and it shows up for the other.": ["Vous voyez tous les deux les mêmes opérations. Chacun peut en ajouter une, et elle apparaît chez l'autre.", "ترَيان القيود نفسها. يمكن لأي منكما إضافة قيد ويظهر لدى الآخر."],
+  "When one of you changes a shared loan, the other gets a notification.": ["Quand l'un de vous modifie un prêt partagé, l'autre reçoit une notification.", "عندما يغيّر أحدكما قرضًا مشتركًا، يتلقى الآخر إشعارًا."]
+});
+window.WALLET_I18N.patterns.push(
+  ["^Connected to (.+)'s account$", "Connecté au compte de $1", "متصل بحساب $1"],
+  ["^(.+)'s account is disconnected\\.$", "Le compte de $1 est déconnecté.", "تم فصل حساب $1."],
+  ["^Your loan with (.+) is now in People\\.$", "Votre prêt avec $1 est maintenant dans Personnes.", "قرضك مع $1 أصبح الآن في الأشخاص."],
+  ["^(.+) added an entry to your shared loan\\.$", "$1 a ajouté une opération à votre prêt partagé.", "أضاف $1 قيدًا إلى قرضكما المشترك."],
+  ["^(.+) added (\\d+) entries to your shared loan\\.$", "$1 a ajouté $2 opérations à votre prêt partagé.", "أضاف $1 $2 قيود إلى قرضكما المشترك."],
+  ["^(.+) · sending to (.+)$", "$1 · envoi à $2", "$1 · يُرسل إلى $2"]
+);

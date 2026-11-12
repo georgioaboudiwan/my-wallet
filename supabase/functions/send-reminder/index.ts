@@ -179,6 +179,23 @@ Deno.serve(async req => {
   if (!who?.user) return json({ error: "unauthorized", detail: whoErr?.message || "no user" }, 401);
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { body = {}; }
+  if (body.action === "loan_ping") {
+    const token = String(body.token ?? "");
+    if (!/^[A-Za-z0-9_-]{32,64}$/.test(token)) return json({ error: "Bad link." }, 400);
+    const { data: link } = await sb.from("loan_links").select("token, owner, member, pinged_owner, pinged_member").eq("token", token).maybeSingle();
+    if (!link || (link.owner !== who.user.id && link.member !== who.user.id)) return json({ error: "Not allowed." }, 403);
+    const toOwner = link.member === who.user.id;
+    const target = toOwner ? link.owner : link.member;
+    const col = toOwner ? "pinged_owner" : "pinged_member";
+    const last = link[col] ? new Date(link[col]).getTime() : 0;
+    if (Date.now() - last < 60000) return json({ sent: 0, throttled: true });
+    await sb.from("loan_links").update({ [col]: new Date().toISOString() }).eq("token", token);
+    const name = String(body.name ?? "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 30) || "Your contact";
+    const { data: subs } = await sb.from("push_subs").select("id, user_id, endpoint, p256dh, auth, remind_at, tz, last_sent").eq("enabled", true).eq("user_id", target);
+    const msg = { title: `${name} updated your shared loan`.slice(0, 60), body: "Open the app to see the change." };
+    const statuses = await Promise.all(((subs ?? []) as Sub[]).map(sub => push(keys, sub, msg).catch(() => 0)));
+    return json({ sent: statuses.filter(s => s >= 200 && s < 300).length });
+  }
   if (body.action === "broadcast") {
     const { data: admin } = await sb.from("admins").select("user_id").eq("user_id", who.user.id).maybeSingle();
     if (!admin) return json({ error: "Not allowed." }, 403);

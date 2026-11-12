@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.15.0";
+  const VERSION = "3.16.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -342,6 +342,9 @@
     S.outbox = store.get("outbox", []);
     S.syncedAt = store.get("syncedAt", null);
     S.hidden = store.get("hidden", false);
+    LINKED.clear();
+    const cachedLinks = store.get("linked", []);
+    if (Array.isArray(cachedLinks)) for (const pair of cachedLinks) if (Array.isArray(pair) && pair[1] && Array.isArray(pair[1].entries)) LINKED.set(pair[0], pair[1]);
     ver++;
   };
 
@@ -411,6 +414,7 @@
   const putMany = items => {
     for (const { t, r } of items) {
       const what = { transactions: "entry", people: "person", loan_entries: "loan", accounts: "account", categories: "category", rules: "repeat" }[t];
+      if (t === "loan_entries" && !TRACK.mute) { const lp = S.data.people.get(r.person_id); if (lp && lp.share_token && LINKS.owned.has(lp.share_token)) schedulePing(lp.share_token); }
       if (what && !(r.rule_id && !S.data[t].has(r.id))) track(r.deleted_at ? "delete" : S.data[t].has(r.id) ? "edit" : "add", t === "transactions" && r.kind ? r.kind : what);
       const full = { ...r, user_id: S.uid };
       if (full.deleted_at) S.data[t].delete(full.id); else S.data[t].set(full.id, full);
@@ -521,6 +525,9 @@
       refreshRates();
       ensureEscrow();
       importQuick();
+      importShared();
+      flushSharedOut();
+      loadLinked().then(processPendingJoin);
       if (changed) { save(); scheduleRender(); }
     } catch {
       S.syncError = true;
@@ -966,7 +973,7 @@
   }
 
   const isLoanTx = x => x.kind === "loan_out" || x.kind === "loan_in";
-  const loanOf = x => { const e = S.data.loan_entries.get(String(x.id).replace(/^ln-/, "")); const p = e && S.data.people.get(e.person_id); return { e, p }; };
+  const loanOf = x => { const lid = String(x.id).replace(/^ln-/, ""); const e = S.data.loan_entries.get(lid) || (lid.startsWith("se-") ? virtualEntry(lid) : null); const p = e && S.data.people.get(e.person_id); return { e, p }; };
   function loanTitle(x) {
     const { e, p } = loanOf(x);
     const name = p ? p.name : "someone";
@@ -1257,7 +1264,7 @@
     const accounts = rows("accounts");
     const txns = rows("transactions");
     const people = new Map(rows("people").map(p => [p.id, p]));
-    const loans = rows("loan_entries");
+    const loans = loanRows();
     return months.map(mm => {
       const end = `${mm}-${pad(daysInMonth(mm))}`;
       const b = new Map(accounts.map(a => [a.id, Number(a.opening_balance) || 0]));
@@ -1736,6 +1743,11 @@
   }
 
   const CHANGES = [
+    { v: "3.16.0", items: [
+      ["link", "Shared loans", "If the person you lend to or borrow from uses My Wallet, they can open your private link while signed in and add the loan to their app."],
+      ["people", "One history for both", "You both see the same entries. Either of you can add one, and it shows up for the other."],
+      ["bell", "Notified on every change", "When one of you changes a shared loan, the other gets a notification."]
+    ] },
     { v: "3.15.0", items: [
       ["star", "What's new", "After each update, this screen shows you what changed. You can open it again from Settings → General → Help."],
       ["note", "Notes and dates", "The note sits right under the amount, and every entry now shows its date. Transfers don't need a note."],
@@ -2576,11 +2588,197 @@
     return out;
   }
 
+  const LINK_RE = /^[A-Za-z0-9_-]{32,64}\.[A-Za-z0-9_-]{43}$/;
+  const linkOf = p => p && typeof p.link === "string" && LINK_RE.test(p.link) ? { token: p.link.split(".")[0], skey: p.link.split(".")[1] } : null;
+  const LINKED = new Map();
+  const LINKS = { owned: new Map(), pings: new Set(), timer: 0 };
+  const sharedOut = () => { const q = store.get("sharedOut", []); return Array.isArray(q) ? q : []; };
+  function linkedEntries(p) {
+    const l = LINKED.get(p.id) || {};
+    const list = (l.entries || []).slice();
+    const have = new Set(list.map(e => e.id));
+    for (const e of [...(l.pending || []), ...sharedOut().filter(q => q.person_id === p.id)]) {
+      if (have.has(e.id)) continue;
+      have.add(e.id);
+      list.push({ id: e.id, person_id: p.id, amount: e.amount, note: e.note, occurred_on: e.date || e.occurred_on, created_at: e.created_at, remote: "pending" });
+    }
+    return list;
+  }
+  const loanRows = () => {
+    const list = rows("loan_entries");
+    for (const p of rows("people")) if (linkOf(p)) list.push(...linkedEntries(p));
+    return list;
+  };
+  const virtualEntry = id => { for (const p of rows("people")) if (linkOf(p)) { const e = linkedEntries(p).find(x => x.id === id); if (e) return e; } return null; };
   const loanBalances = () => {
     const b = new Map();
-    for (const e of rows("loan_entries")) b.set(e.person_id, (b.get(e.person_id) || 0) + Number(e.amount));
+    for (const e of loanRows()) b.set(e.person_id, (b.get(e.person_id) || 0) + Number(e.amount));
     return b;
   };
+  const sharedId = () => "se-" + newToken().slice(0, 32);
+  const shortHash = async str => toUrl(b64u8(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str))))).slice(0, 24);
+
+  function saveLoan(p, entry, extra = []) {
+    const link = linkOf(p);
+    if (!link) return putMany([{ t: "loan_entries", r: entry }, ...extra]);
+    if (extra.length) putMany(extra);
+    queueShared(p, link, entry);
+  }
+  function queueShared(p, link, entry) {
+    store.set("sharedOut", [...sharedOut(), { id: entry.id, token: link.token, person_id: p.id, amount: entry.amount, note: entry.note, date: entry.occurred_on, created_at: entry.created_at }]);
+    track("add", "shared_loan");
+    scheduleRender();
+    flushSharedOut();
+  }
+  async function flushSharedOut() {
+    const q = sharedOut();
+    if (!q.length || !sb || !S.session || !navigator.onLine || LINKS.flushing) return;
+    LINKS.flushing = true;
+    const left = [], sent = new Set();
+    for (const item of q) {
+      const p = S.data.people.get(item.person_id);
+      const link = linkOf(p);
+      if (!link || link.token !== item.token) continue;
+      let res;
+      try {
+        const senc = await sealWith(await shareKey(link.skey), { id: item.id, amount: item.amount, note: item.note, date: item.date });
+        res = await sb.from("shared_entries").insert({ id: item.id, token: item.token, senc });
+      } catch { res = { error: {} }; }
+      if (!res.error || res.error.code === "23505") {
+        sent.add(item.token);
+        const l = LINKED.get(item.person_id);
+        if (l) l.pending = [...(l.pending || []).filter(e => e.id !== item.id), { id: item.id, amount: item.amount, note: item.note, date: item.date, created_at: item.created_at }];
+      } else if (!res.error.code) left.push(item);
+    }
+    store.set("sharedOut", left);
+    LINKS.flushing = false;
+    for (const t of sent) pingLoan(t);
+    scheduleRender();
+  }
+  function pingLoan(token) {
+    if (!sb || !S.session || !navigator.onLine) return;
+    sb.functions.invoke("send-reminder", { body: { action: "loan_ping", token, name: settings().name || "" } }).catch(() => { });
+  }
+  function schedulePing(token) {
+    LINKS.pings.add(token);
+    clearTimeout(LINKS.timer);
+    LINKS.timer = setTimeout(async () => {
+      try { await flush(); } catch { }
+      for (const t of LINKS.pings) pingLoan(t);
+      LINKS.pings.clear();
+    }, 2500);
+  }
+  async function loadLinked() {
+    if (!sb || !S.session || !navigator.onLine || LINKS.loading) return;
+    const linked = rows("people").filter(linkOf);
+    if (!linked.length) return;
+    LINKS.loading = true;
+    let changed = false;
+    for (const p of linked) {
+      const { token, skey } = linkOf(p);
+      try {
+        const key = await shareKey(skey);
+        const res = await sb.rpc("shared_ledger", { p_token: token });
+        if (res.error) continue;
+        const prev = LINKED.get(p.id);
+        if (!res.data || !res.data.person) {
+          if (!prev || !prev.off) { LINKED.set(p.id, { ...(prev || { entries: [] }), off: true, pending: [] }); changed = true; }
+          continue;
+        }
+        const info = await openWith(key, res.data.person);
+        const entries = [];
+        for (const sealed of Array.isArray(res.data.history) ? res.data.history : []) {
+          try {
+            const e = await openWith(key, sealed);
+            const amount = Number(e.amount);
+            if (!isFinite(amount) || !amount) continue;
+            entries.push({ id: typeof e.id === "string" && e.id.length <= 120 ? e.id : "x-" + await shortHash(sealed), person_id: p.id, amount, note: typeof e.note === "string" ? e.note.slice(0, 200) : null, occurred_on: DATE_RE.test(String(e.date)) ? e.date : today(), created_at: typeof e.at === "string" ? e.at.slice(0, 40) : "", remote: true });
+          } catch { }
+        }
+        const pending = [];
+        const mine = await sb.from("shared_entries").select("id, senc, created_at").eq("token", token).is("consumed_at", null);
+        for (const r of mine.data || []) {
+          if (entries.some(e => e.id === r.id)) continue;
+          try { const e = await openWith(key, r.senc); pending.push({ id: r.id, amount: Number(e.amount), note: e.note || null, date: e.date, created_at: r.created_at }); } catch { }
+        }
+        const from = typeof info.from === "string" ? info.from.trim().slice(0, 40) : "";
+        const sig = JSON.stringify([entries, pending, from]);
+        if (!prev || prev.sig !== sig) {
+          LINKED.set(p.id, { entries, pending, from, off: false, sig });
+          changed = true;
+        }
+      } catch { }
+    }
+    LINKS.loading = false;
+    if (changed) {
+      store.set("linked", [...LINKED.entries()]);
+      ver++;
+      scheduleRender();
+    }
+  }
+  async function importShared() {
+    if (!sb || !S.session || !navigator.onLine || LINKS.importing) return;
+    const owned = rows("people").filter(p => p.share_token && p.skey);
+    if (!owned.length) { LINKS.owned = new Map(); return; }
+    LINKS.importing = true;
+    try {
+      const { data: links, error } = await sb.from("loan_links").select("token, member").eq("owner", S.uid);
+      if (error) return;
+      LINKS.owned = new Map((links || []).map(l => [l.token, l.member]));
+      const tokens = owned.map(p => p.share_token).filter(t => LINKS.owned.has(t));
+      if (!tokens.length) return;
+      const { data } = await sb.from("shared_entries").select("id, token, senc").in("token", tokens).is("consumed_at", null).limit(200);
+      const items = [], done = [], who = new Map();
+      for (const r of data || []) {
+        const p = owned.find(x => x.share_token === r.token);
+        done.push(r.id);
+        if (!p || !/^se-[A-Za-z0-9_-]{20,40}$/.test(r.id) || S.data.loan_entries.has(r.id)) continue;
+        try {
+          const e = await openWith(await shareKey(p.skey), r.senc);
+          const amount = roundCur(Number(e.amount), p.currency);
+          if (!isFinite(amount) || !amount || Math.abs(amount) > 1e12) continue;
+          items.push({ t: "loan_entries", r: { id: r.id, person_id: p.id, amount, note: typeof e.note === "string" ? e.note.trim().slice(0, 200) || null : null, occurred_on: DATE_RE.test(String(e.date)) ? e.date : today(), created_at: new Date().toISOString() } });
+          who.set(p.name, (who.get(p.name) || 0) + 1);
+        } catch { }
+      }
+      if (items.length) { TRACK.mute = true; putMany(items); TRACK.mute = false; await flush(); }
+      if (done.length) await sb.from("shared_entries").update({ consumed_at: new Date().toISOString() }).in("id", done);
+      for (const [name, n] of who) toast(n === 1 ? `${name} added an entry to your shared loan.` : `${name} added ${n} entries to your shared loan.`);
+    } catch { } finally { LINKS.importing = false; }
+  }
+  async function processPendingJoin() {
+    let pend = null;
+    try { pend = JSON.parse(localStorage.getItem("wallet:joinLink") || "null"); } catch { pend = null; }
+    if (!pend || !LINK_RE.test(String(pend.link)) || !sb || !S.session || !VAULT.key || !navigator.onLine) return;
+    try { localStorage.removeItem("wallet:joinLink"); } catch { }
+    const [token, skey] = pend.link.split(".");
+    const existing = rows("people").find(p => linkOf(p) && linkOf(p).token === token);
+    if (existing) { go("people"); setTimeout(() => personSheet(existing), 300); return; }
+    try {
+      const j = await sb.rpc("join_loan", { p_token: token });
+      if (j.error || !j.data || !j.data.ok) {
+        const why = j.data && j.data.reason;
+        return toast(why === "own" ? "That's your own link. Send it to the other person." : why === "taken" ? "Someone else already added this loan to their app." : "This link doesn't work anymore. Ask for a new one.", "error");
+      }
+      const res = await sb.rpc("shared_ledger", { p_token: token });
+      const info = await openWith(await shareKey(skey), res.data.person);
+      const cur = CUR_RE.test(String(info.currency)) ? info.currency : mainCur();
+      const from = typeof info.from === "string" && info.from.trim() ? info.from.trim().slice(0, 40) : "Shared loan";
+      const person = { id: newId(), name: from, direction: info.direction === "owes_me" ? "i_owe" : "owes_me", currency: cur, phone: null, share_token: null, link: pend.link, sort: Math.max(-1, ...rows("people").map(r => r.sort || 0)) + 1 };
+      put("people", person);
+      track("add", "linked_loan");
+      await loadLinked();
+      go("people");
+      setTimeout(() => personSheet(S.data.people.get(person.id) || person), 350);
+      toast(`Your loan with ${from} is now in People.`);
+    } catch { toast("Couldn't add the loan. Open the link again.", "error"); }
+  }
+  function unlinkMember(p) {
+    const l = linkOf(p);
+    if (l && sb) sb.from("loan_links").delete().eq("token", l.token).then(() => { }, () => { });
+    LINKED.delete(p.id);
+    store.set("linked", [...LINKED.entries()]);
+  }
   const cleanPhone = raw => {
     const s = String(raw || "").trim().replace(/[\s().-]/g, "").replace(/^00/, "+");
     if (/^0\d{6,7}$/.test(s)) return "+961" + s.slice(1);
@@ -2637,7 +2835,7 @@
       const v = bal.get(p.id) || 0;
       list.append(h("button", { type: "button", class: "row", on: { click: () => personSheet(p) } },
         h("span", { class: "dot", style: { background: COLORS[(p.sort || 0) % COLORS.length] } }, p.name.charAt(0).toUpperCase()),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" + (v > 0 && dueInfo(p) && dueInfo(p).late ? " late" : "") }, [statusText(p, v), v > 0 && dueInfo(p) ? dueInfo(p).text : null, p.share_token ? "Has their page" : null].filter(Boolean).join(" · "))),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" + (v > 0 && dueInfo(p) && dueInfo(p).late ? " late" : "") }, [statusText(p, v), v > 0 && dueInfo(p) ? dueInfo(p).text : null, linkOf(p) || (p.share_token && LINKS.owned.has(p.share_token)) ? "Shared" : p.share_token ? "Has their page" : null].filter(Boolean).join(" · "))),
         h("span", { class: "row-end" + (v > 0 && owesMe(p) ? " pos" : v > 0 ? " neg" : "") }, fmt(v, p.currency))));
     }
     if (!people.length) list.append(h("p", { class: "empty" }, "No one yet. Add the people you lend money to or borrow from."));
@@ -2669,15 +2867,16 @@
         },
         onSave: (v, note, accId) => {
           const amount = roundCur(v, cur) * (back ? -1 : 1);
-          const id = newId();
+          const id = linkOf(p) ? sharedId() : newId();
           const now = new Date().toISOString();
-          const items = [{ t: "loan_entries", r: { id, person_id: p.id, amount, note, occurred_on: today(), created_at: now } }];
+          const entry = { id, person_id: p.id, amount, note, occurred_on: today(), created_at: now };
+          const items = [];
           const a = accId && acc(accId);
           if (a) {
             items.push({ t: "transactions", r: { id: `ln-${id}`, kind: moneyOut ? "loan_out" : "loan_in", amount: roundCur(convert(v, cur, a.currency), a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: null, note, occurred_on: today(), rule_id: null, receipt: null, created_at: now } });
             store.set("loanAcc:" + p.id, a.id);
           }
-          putMany(items);
+          saveLoan(p, entry, items);
           const next = balance + amount;
           personSheet(S.data.people.get(p.id) || p, { title: next === 0 ? "Saved. All settled." : `Saved. Balance is now ${fmt(next, cur, { show: true })}.`, message: loanMessage(p, amount, next, note) });
         }
@@ -2687,7 +2886,7 @@
       p = S.data.people.get(p.id) || p;
       const balance = loanBalances().get(p.id) || 0;
       const cur = p.currency;
-      const history = rows("loan_entries").filter(e => e.person_id === p.id).sort(byRecent);
+      const history = loanRows().filter(e => e.person_id === p.id).sort(byRecent);
       const kids = [];
       kids.push(h("div", { class: "hero person-hero" + (balance === 0 ? " settled" : owesMe(p) ? "" : " owe") },
         h("p", { class: "hero-label" }, balance === 0 ? "All settled" : owesMe(p) ? `${p.name} owes you` : `You owe ${p.name}`),
@@ -2710,11 +2909,30 @@
       if (p.phone) kids.push(waButton(p.phone, balanceMessage(p, balance), "Send balance on WhatsApp", "alt wa-alt"));
       if (p.phone && balance > 0 && owesMe(p) && dueInfo(p)) kids.push(waButton(p.phone, `Hi ${p.name}, a friendly reminder that ${fmt(balance, cur, { show: true })} ${dueInfo(p).late ? "was due on" : "is due on"} ${dayLabel(dueOf(p)).toLowerCase()}. Thank you.`, "Send a payment reminder", "alt wa-alt"));
 
-      const share = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Their private page")));
-      if (p.share_token && p.skey) {
+      const link = linkOf(p);
+      const lk = link ? LINKED.get(p.id) || {} : null;
+      const connected = !link && p.share_token && LINKS.owned.has(p.share_token);
+      const share = h("section", { class: "card flush" + (link || connected ? " shared-card" : "") }, h("div", { class: "card-head" }, h("h2", null, link || connected ? "Shared loan" : "Their private page")));
+      if (link) {
+        share.append(
+          h("div", { class: "row" }, h("span", { class: "dot " + (lk.off ? "bad" : "ok") }, icon(lk.off ? "warn" : "link", "ico sm")),
+            h("span", { class: "row-main" }, h("span", { class: "row-title" }, lk.off ? "Sharing was turned off" : `Connected to ${p.name}'s account`),
+              h("span", { class: "row-sub wrap" }, lk.off ? `${p.name} turned off the link. You still see the last entries you got.` : `You both see the same history. What you add is sent to ${p.name}, and you're notified when they change something.`))),
+          h("button", { type: "button", class: "row-btn", on: { click: async () => { await loadLinked(); draw(); toast("Up to date."); } } }, "Check for changes"));
+      } else if (connected) {
+        share.append(
+          h("div", { class: "row" }, h("span", { class: "dot ok" }, icon("link", "ico sm")),
+            h("span", { class: "row-main" }, h("span", { class: "row-title" }, `Connected to ${p.name}'s account`),
+              h("span", { class: "row-sub wrap" }, `${p.name} sees this loan in their own app and can add entries. You both get notified when something changes.`))),
+          h("button", { type: "button", class: "row-btn danger", on: { click: () => {
+            if (armed !== "disconnect") { armed = "disconnect"; draw(); return; }
+            armed = null;
+            sb.from("loan_links").delete().eq("token", p.share_token).then(({ error }) => { if (error) return toast("Couldn't disconnect. Try again.", "error"); LINKS.owned.delete(p.share_token); toast(`${p.name}'s account is disconnected.`); draw(); }, () => toast("Couldn't disconnect. Try again.", "error"));
+          } } }, armed === "disconnect" ? "Tap again to disconnect" : "Disconnect their account"));
+      } else if (p.share_token && p.skey) {
         const url = shareUrl(p);
         share.append(
-          h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `${p.name} sees only their balance and history. No account needed.`),
+          h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `${p.name} sees only their balance and history. No account needed. If ${p.name} uses My Wallet, they can open the link while signed in and add the loan to their app, so you both stay in sync.`),
           h("input", { id: "f-plink", class: "input", readOnly: true, value: url, hidden: true, style: { margin: "0 16px", width: "calc(100% - 32px)" } }),
           h("button", { type: "button", class: "row-btn", on: { click: () => copyText(url, "f-plink") } }, "Copy link"),
           p.phone ? h("a", { class: "row-btn", style: { display: "block", textDecoration: "none" }, href: waUrl(p.phone, linkMessage(p, p.share_token)), target: "_blank", rel: "noopener noreferrer", on: { click: () => track("whatsapp", "link") } }, "Send link on WhatsApp") : null,
@@ -2732,10 +2950,11 @@
         const linkedTx = S.data.transactions.get(`ln-${e.id}`);
         const linkedAcc = linkedTx && acc(linkedTx.account_id);
         const label = linkedAcc ? `${label0} · ${linkedAcc.name}` : label0;
-        hist.append(h("div", { class: "row" },
-          h("span", { class: "row-main" }, h("span", { class: "row-title" }, e.note || label), h("span", { class: "row-sub" }, e.note ? `${label} · ${dayLabel(e.occurred_on)}` : dayLabel(e.occurred_on))),
+        const when = e.remote === "pending" ? `${dayLabel(e.occurred_on)} · sending to ${p.name}` : dayLabel(e.occurred_on);
+        hist.append(h("div", { class: "row" + (e.remote === "pending" ? " pending" : "") },
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, e.note || label), h("span", { class: "row-sub" }, e.note ? `${label} · ${when}` : when)),
           h("span", { class: "row-end" + (v < 0 ? " neg" : " pos") }, (v > 0 ? "+" : "−") + fmt(Math.abs(v), cur)),
-          h("button", { type: "button", class: "icon-btn", "aria-label": armed === e.id ? "Confirm delete" : "Delete entry", style: armed === e.id ? { color: "var(--neg)" } : null,
+          e.remote ? h("span", { class: "row-lock", "aria-hidden": "true" }) : h("button", { type: "button", class: "icon-btn", "aria-label": armed === e.id ? "Confirm delete" : "Delete entry", style: armed === e.id ? { color: "var(--neg)" } : null,
             on: { click: () => { if (armed !== e.id) { armed = e.id; draw(); return; } armed = null; removeRow("loan_entries", e); const linked = S.data.transactions.get(`ln-${e.id}`); if (linked) removeRow("transactions", linked); toast(linked ? "Entry deleted, and the account was corrected." : "Entry deleted."); draw(); } } }, icon(armed === e.id ? "warn" : "close"))));
       }
       if (!history.length) hist.append(h("p", { class: "empty" }, "No entries yet."));
@@ -2763,7 +2982,8 @@
         } } }, "Save details"),
         h("button", { type: "button", class: "btn danger" + (armed === "delete" ? " sure" : ""), on: { click: () => {
           if (armed !== "delete") { armed = "delete"; draw(); return; }
-          const items = [{ t: "people", r: { ...p, share_token: null, deleted_at: new Date().toISOString() } }, ...history.map(e => ({ t: "loan_entries", r: { ...e, deleted_at: new Date().toISOString() } })), ...history.map(e => S.data.transactions.get(`ln-${e.id}`)).filter(Boolean).map(x => ({ t: "transactions", r: { ...x, deleted_at: new Date().toISOString() } }))];
+          const items = [{ t: "people", r: { ...p, share_token: null, deleted_at: new Date().toISOString() } }, ...history.filter(e => !e.remote).map(e => ({ t: "loan_entries", r: { ...e, deleted_at: new Date().toISOString() } })), ...history.map(e => S.data.transactions.get(`ln-${e.id}`)).filter(Boolean).map(x => ({ t: "transactions", r: { ...x, deleted_at: new Date().toISOString() } }))];
+          if (linkOf(p)) unlinkMember(p);
           putMany(items); closeSheet(); toast(`${p.name} removed.`);
         } } }, armed === "delete" ? `Tap again to remove ${p.name} and their history` : "Remove person")));
 
@@ -2851,6 +3071,17 @@
       list,
       h("p", { class: "hint", style: { textAlign: "center" } }, "Only people with this link can see this page."));
     document.title = "Your balance";
+    let session = null;
+    try { session = (await sb.auth.getSession()).data.session; } catch { session = null; }
+    const join = () => {
+      try { localStorage.setItem("wallet:joinLink", JSON.stringify({ link: `${token}.${skey}` })); } catch { }
+      location.hash = "";
+      location.reload();
+    };
+    box.append(h("section", { class: "card join-card" },
+      h("h2", null, session ? "Add it to your wallet" : "Use My Wallet?"),
+      h("p", { class: "hint" }, session ? `See this loan in your own app${from ? ` next to your other entries. You and ${from}` : ". You both"} see the same history and get notified when something changes.` : "Sign in to My Wallet to keep this loan in your own app and get notified when it changes."),
+      h("button", { type: "button", class: "btn", on: { click: join } }, session ? "Add to my wallet" : "Sign in and add it")));
   }
 
   const ADMIN = { allowed: null, data: null, loading: false, error: null };
@@ -3445,10 +3676,9 @@
         const owed = loanBalances().get(p.id) || 0;
         const loanAmt = roundCur(convert(amount, a.currency, p.currency), p.currency);
         if (f.lmode === "back" && loanAmt > owed + 1e-9) { fail(err, owed > 0 ? `That's more than the ${fmt(owed, p.currency, { show: true })} balance.` : `Nothing is owed between you and ${p.name} right now.`); return; }
-        const id = newId(), now = new Date().toISOString(), note = f.note.trim().slice(0, 200) || null;
+        const id = linkOf(p) ? sharedId() : newId(), now = new Date().toISOString(), note = f.note.trim().slice(0, 200) || null;
         const out = loanOut();
-        putMany([
-          { t: "loan_entries", r: { id, person_id: p.id, amount: f.lmode === "back" ? -loanAmt : loanAmt, note, occurred_on: f.date, created_at: now } },
+        saveLoan(p, { id, person_id: p.id, amount: f.lmode === "back" ? -loanAmt : loanAmt, note, occurred_on: f.date, created_at: now }, [
           { t: "transactions", r: { id: `ln-${id}`, kind: out ? "loan_out" : "loan_in", amount: roundCur(amount, a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: null, note, occurred_on: f.date, rule_id: null, receipt: null, created_at: now } }]);
         store.set("lastAcc:loan", a.id);
         store.set("loanAcc:" + p.id, a.id);
@@ -4116,11 +4346,12 @@
     row.senc = undefined;
     if (t === "people") {
       secret.skey = src.skey || null;
+      secret.link = src.link || null;
       row.senc = !src.deleted_at && src.share_token && src.skey ? await sealWith(await shareKey(src.skey), { name: secret.name, currency: row.currency, direction: row.direction, from: settings().name || "" }) : null;
     }
     if (t === "loan_entries") {
       const p = S.data.people.get(src.person_id);
-      row.senc = !src.deleted_at && p && p.share_token && p.skey ? await sealWith(await shareKey(p.skey), { amount: secret.amount, note: secret.note, date: row.occurred_on }) : null;
+      row.senc = !src.deleted_at && p && p.share_token && p.skey ? await sealWith(await shareKey(p.skey), { id: row.id, amount: secret.amount, note: secret.note, date: row.occurred_on, at: src.created_at || null }) : null;
     }
     if (row.senc === undefined) delete row.senc;
     row.enc = await sealWith(VAULT.key, secret);
@@ -4131,7 +4362,7 @@
     try {
       const secret = await openWith(VAULT.key, r.enc);
       for (const k of Object.keys(SECRET[t])) if (k in secret) r[k] = secret[k];
-      if (t === "people") r.skey = typeof secret.skey === "string" ? secret.skey : null;
+      if (t === "people") { r.skey = typeof secret.skey === "string" ? secret.skey : null; r.link = typeof secret.link === "string" ? secret.link : null; }
       delete r.enc; delete r.senc;
       return true;
     } catch { return false; }

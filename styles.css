@@ -1212,3 +1212,9 @@ input[type="month"].input::-webkit-date-and-time-value, input[type="date"].input
 @media (max-width: 380px) { .tiles.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .wn-ver { margin: 6px 0 -2px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .card.announce .btn { margin-top: 12px; width: 100%; }
+.row.pending { opacity: .65; }
+.row-lock { width: 34px; flex: none; }
+.shared-card .row { align-items: flex-start; }
+.join-card { margin-top: 14px; display: grid; gap: 10px; text-align: start; }
+.join-card h2 { margin: 0; font-size: 18px; }
+.join-card .hint { margin: 0; }
