@@ -724,3 +724,22 @@ window.WALLET_I18N.patterns.push(["^Follows the balance of (.+)$", "Suit le sold
 Object.assign(window.WALLET_I18N.words, {
   "To improve the app, it counts when you open it and which screens and buttons you use. It never sends your amounts, notes, names or accounts.": ["Pour améliorer l'application, elle compte quand vous l'ouvrez et quels écrans et boutons vous utilisez. Elle n'envoie jamais vos montants, notes, noms ou comptes.", "لتحسين التطبيق، يحسب متى تفتحه وأي الشاشات والأزرار تستخدم. لا يرسل أبدًا مبالغك أو ملاحظاتك أو الأسماء أو الحسابات."]
 });
+Object.assign(window.WALLET_I18N.words, {
+  "What's new": ["Nouveautés", "ما الجديد"],
+  "Got it": ["Compris", "فهمت"],
+  "After each update, this screen shows you what changed. You can open it again from Settings → General → Help.": ["Après chaque mise à jour, cet écran vous montre ce qui a changé. Vous pouvez le rouvrir dans Réglages → Général → Aide.", "بعد كل تحديث، تعرض لك هذه الشاشة ما تغيّر. يمكنك فتحها مجددًا من الإعدادات ← عام ← مساعدة."],
+  "Notes and dates": ["Notes et dates", "الملاحظات والتواريخ"],
+  "The note sits right under the amount, and every entry now shows its date. Transfers don't need a note.": ["La note est juste sous le montant, et chaque opération affiche sa date. Les virements n'ont pas besoin de note.", "الملاحظة أصبحت تحت المبلغ مباشرة، وكل قيد يُظهر تاريخه الآن. التحويلات لا تحتاج إلى ملاحظة."],
+  "Balances while moving money": ["Soldes pendant les virements", "الأرصدة أثناء نقل المال"],
+  "When you transfer, you see how much each account has. It turns red if you try to move more than you have.": ["Lors d'un virement, vous voyez le solde de chaque compte. Il devient rouge si vous transférez plus que ce que vous avez.", "عند التحويل، ترى رصيد كل حساب. يصبح أحمر إذا حاولت نقل أكثر مما لديك."],
+  "Calmer budget alerts": ["Alertes de budget plus calmes", "تنبيهات ميزانية أهدأ"],
+  "Budget warnings are grouped in one card on Home. Tap it to see each budget.": ["Les alertes de budget sont regroupées dans une carte sur l'Accueil. Touchez-la pour voir chaque budget.", "تحذيرات الميزانية مجمّعة في بطاقة واحدة في الرئيسية. اضغط عليها لرؤية كل ميزانية."],
+  "Goals follow your Savings": ["Les objectifs suivent votre épargne", "الأهداف تتبع مدخراتك"],
+  "Link a savings goal to an account and it follows that balance by itself.": ["Liez un objectif à un compte et il suit ce solde tout seul.", "اربط هدف الادخار بحساب وسيتبع رصيده تلقائيًا."],
+  "Notifications inbox": ["Boîte de notifications", "صندوق الإشعارات"],
+  "Tap the bell at the top to see every message sent to you.": ["Touchez la cloche en haut pour voir tous les messages reçus.", "اضغط على الجرس في الأعلى لرؤية كل الرسائل المرسلة إليك."],
+  "Announced to everyone.": ["Annoncée à tous.", "تم الإعلان للجميع."],
+  "Not announced yet. Tell your users what's new.": ["Pas encore annoncée. Dites à vos utilisateurs ce qui est nouveau.", "لم يُعلن بعد. أخبر مستخدميك بما هو جديد."],
+  "Announce this version": ["Annoncer cette version", "أعلن هذا الإصدار"]
+});
+window.WALLET_I18N.patterns.push(["^What's new in (.+)$", "Nouveautés de la $1", "ما الجديد في $1"], ["^Version (\\d+\\.\\d+\\.\\d+)$", "Version $1", "الإصدار $1"]);

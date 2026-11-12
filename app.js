@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.14.0";
+  const VERSION = "3.15.0";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -821,6 +821,7 @@
     renderStatus();
     paintBell();
     maybeTour();
+    maybeWhatsNew();
   }
 
   function renderSetup() {
@@ -1734,6 +1735,48 @@
     showTourStep();
   }
 
+  const CHANGES = [
+    { v: "3.15.0", items: [
+      ["star", "What's new", "After each update, this screen shows you what changed. You can open it again from Settings → General → Help."],
+      ["note", "Notes and dates", "The note sits right under the amount, and every entry now shows its date. Transfers don't need a note."],
+      ["swap", "Balances while moving money", "When you transfer, you see how much each account has. It turns red if you try to move more than you have."],
+      ["chart", "Calmer budget alerts", "Budget warnings are grouped in one card on Home. Tap it to see each budget."],
+      ["bank", "Goals follow your Savings", "Link a savings goal to an account and it follows that balance by itself."],
+      ["bell", "Notifications inbox", "Tap the bell at the top to see every message sent to you."]
+    ] }
+  ];
+  const cmpVer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); } return 0; };
+  const WHATS = { timer: 0 };
+  const changesSeen = () => { try { return localStorage.getItem("wallet:changesSeen") || ""; } catch { return VERSION; } };
+  const markChangesSeen = () => { try { localStorage.setItem("wallet:changesSeen", VERSION); } catch { } };
+
+  function whatsNewSheet(all) {
+    const seen = changesSeen();
+    const list = all ? CHANGES.slice(0, 4) : CHANGES.filter(c => !seen || cmpVer(c.v, seen) > 0);
+    markChangesSeen();
+    if (!list.length) return;
+    track("whats_new", all ? "menu" : "auto");
+    const body = h("div", { class: "help-list whats-new" },
+      list.map((c, i) => [
+        list.length > 1 || all ? h("p", { class: "wn-ver" }, `Version ${c.v}`) : null,
+        c.items.map(([ic, title, text]) => h("div", { class: "help-row" }, h("span", { class: "dot " + (i ? "neutral" : "gold") }, icon(ic, "ico sm")), h("div", null, h("h3", null, title), h("p", null, text))))
+      ]));
+    openSheet(all ? "What's new" : `What's new in ${VERSION}`, body, h("button", { type: "button", class: "btn", on: { click: closeSheet } }, "Got it"));
+  }
+
+  function maybeWhatsNew() {
+    const seen = changesSeen();
+    if (WHATS.timer || !seen || cmpVer(CHANGES[0].v, seen) <= 0 || !S.session || !VAULT.key || S.onboarding || !storedSettings().onboarded) return;
+    let tries = 0;
+    const attempt = () => {
+      WHATS.timer = 0;
+      if (cmpVer(CHANGES[0].v, changesSeen()) <= 0) return;
+      if (S.onboarding || TOUR.el || document.querySelector(".overlay, .lock, .viewer, .tour")) { if (++tries < 60) WHATS.timer = setTimeout(attempt, 800); return; }
+      whatsNewSheet(false);
+    };
+    WHATS.timer = setTimeout(attempt, 1400);
+  }
+
   function maybeTour() {
     const v = S.view;
     if (!TOURS[v] || tourSeen(v) || TOUR.el || S.onboarding || !S.session || !VAULT.key) return;
@@ -2476,6 +2519,7 @@
     out.append(group("Help",
       h("button", { type: "button", class: "row-btn", on: { click: () => { for (const v of Object.keys(TOURS)) store.set("tour:" + v, 0); go("home"); setTimeout(() => startTour("home"), 500); } } }, "Show the tour again"),
       h("button", { type: "button", class: "row-btn", on: { click: helpSheet } }, "How each screen works"),
+      h("button", { type: "button", class: "row-btn", on: { click: () => whatsNewSheet(true) } }, "What's new"),
       h("p", { class: "hint group-note" }, "To improve the app, it counts when you open it and which screens and buttons you use. It never sends your amounts, notes, names or accounts.")));
     out.append(group("Language",
       h("div", { class: "row lang-row" }, seg(Object.entries(LANGS), LANG, setLang, "Language"))));
@@ -2827,8 +2871,8 @@
     throw new Error(msg);
   }
 
-  function notifySheet(u) {
-    const f = { title: "", body: "" };
+  function notifySheet(u, preset) {
+    const f = { title: preset ? preset.title : "", body: preset ? preset.body : "" };
     const err = h("p", { class: "form-err", role: "alert" });
     const reach = u ? (u.stats && u.stats.reminders) || 0 : (ADMIN.data && ADMIN.data.totals && ADMIN.data.totals.reminders_on) || 0;
     let busy = false;
@@ -2836,8 +2880,8 @@
     const body = h("form", { class: "form", id: "nt-form", novalidate: true },
       h("p", { class: "hint" }, u ? `Goes to ${u.email || "this user"} on every device where they turned on notifications.` : "Goes to every user who turned on notifications in the app."),
       h("p", { class: "hint" }, (reach ? `${reach} ${reach === 1 ? "device gets" : "devices get"} an alert right away.` : "No devices have notifications turned on, so nobody gets an alert.") + " " + (u ? "It also appears in their inbox in the app." : "It also appears in every user's inbox in the app.")),
-      h("label", { class: "field" }, h("span", null, "Title"), h("input", { id: "nt-title", class: "input", maxlength: "60", autocomplete: "off", placeholder: "e.g. New in My Wallet", on: { input: e => { f.title = e.target.value; err.textContent = ""; e.target.classList.remove("invalid"); } } })),
-      h("label", { class: "field" }, h("span", null, "Message"), h("textarea", { id: "nt-body", class: "input", maxlength: "180", rows: "3", placeholder: "Keep it short. Up to 180 characters.", on: { input: e => { f.body = e.target.value; err.textContent = ""; e.target.classList.remove("invalid"); } } })),
+      h("label", { class: "field" }, h("span", null, "Title"), h("input", { id: "nt-title", class: "input", maxlength: "60", autocomplete: "off", value: f.title, placeholder: "e.g. New in My Wallet", on: { input: e => { f.title = e.target.value; err.textContent = ""; e.target.classList.remove("invalid"); } } })),
+      h("label", { class: "field" }, h("span", null, "Message"), h("textarea", { id: "nt-body", class: "input", maxlength: "180", rows: "3", value: f.body, placeholder: "Keep it short. Up to 180 characters.", on: { input: e => { f.body = e.target.value; err.textContent = ""; e.target.classList.remove("invalid"); } } })),
       err);
     body.addEventListener("submit", async ev => {
       ev.preventDefault();
@@ -2972,6 +3016,14 @@
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Reminder server, last 24 h"), h("span", { class: "row-sub" }, `${calls.ok ?? 0} OK · ${calls.failed ?? 0} failed`)))));
 
     out.append(usageCard());
+    const latest = CHANGES[0];
+    const annTitle = `Version ${latest.v} is here`;
+    const announced = INBOX.items.some(n => n.title === annTitle);
+    const annBody = `New: ${latest.items.slice(1).map(x => x[1]).join(", ")}. Open the app to see what changed.`.slice(0, 180);
+    out.append(h("section", { class: "card" + (announced ? "" : " announce") },
+      h("div", { class: "row" }, h("span", { class: "dot " + (announced ? "ok" : "gold") }, icon(announced ? "check" : "star", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, `Version ${latest.v}`), h("span", { class: "row-sub wrap" }, announced ? "Announced to everyone." : "Not announced yet. Tell your users what's new."))),
+      announced ? null : h("button", { type: "button", class: "btn", on: { click: () => notifySheet(null, { title: annTitle, body: annBody }) } }, icon("bell", "ico sm"), "Announce this version")));
     out.append(h("button", { type: "button", class: "btn", on: { click: () => notifySheet(null) } }, icon("bell", "ico sm"), "Send a notification to everyone"));
     if (!INBOX.at) loadInbox(true);
     out.append(sentCard());
@@ -4266,7 +4318,7 @@
     applyLang();
     try {
       const seen = localStorage.getItem("wallet:version");
-      if (seen && seen !== VERSION) setTimeout(() => toast(`${tr("Updated to version")} ${VERSION}`), 1200);
+      if (!localStorage.getItem("wallet:changesSeen")) localStorage.setItem("wallet:changesSeen", seen && cmpVer(seen, VERSION) < 0 ? seen : VERSION);
       localStorage.setItem("wallet:version", VERSION);
     } catch { }
     S.month = thisMonth();
