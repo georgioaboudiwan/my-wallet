@@ -30,7 +30,7 @@ Deno.serve(async req => {
     if (!k || k.cron_secret !== cron) return json({ error: "unauthorized" }, 401);
     if (!mailer) return json({ emailed: false, reason: "setup" });
     try {
-      await mailer.sendMail({ from: { name: "Tallyloop", address: GMAIL_USER }, to: GMAIL_USER, subject: "Tallyloop email test", text: "Invites from Tallyloop will be sent from this address." });
+      await mailer.sendMail({ from: { name: "BudgetSplit", address: GMAIL_USER }, to: GMAIL_USER, subject: "BudgetSplit email test", text: "Invites from BudgetSplit will be sent from this address." });
       return json({ emailed: true });
     } catch (e) { return json({ emailed: false, reason: "send", detail: String((e as Error)?.message || e).slice(0, 200) }); }
   }
@@ -52,18 +52,78 @@ Deno.serve(async req => {
   const from = clean(who.user.email, 254);
   const existing = body.existing === true;
   const steps = existing
-    ? "Open Tallyloop and go to People. You'll see the invite there. Tap Accept to join."
-    : `Create your free account with this email address (${email}) and you'll see the invite in People.`;
-  const text = `Hi,\n\n${name}${from ? ` (${from})` : ""} invited you to share expenses and loans with them on Tallyloop.\n\n${steps}\n\n${APP_URL}\n\nEverything in the group is encrypted. Only the people in it can read the amounts and notes.\n\nIf you don't know ${name}, you can ignore this email.`;
-  const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:16px;line-height:1.5;color:#14231d;max-width:520px">
-<p>Hi,</p>
-<p><b>${esc(name)}</b>${from ? ` (${esc(from)})` : ""} invited you to share expenses and loans with them on <b>Tallyloop</b>.</p>
-<p>${esc(steps)}</p>
-<p><a href="${APP_URL}" style="display:inline-block;background:#0f7a5c;color:#fff;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:600">Open Tallyloop</a></p>
-<p style="color:#5b6b64;font-size:14px">Everything in the group is encrypted. Only the people in it can read the amounts and notes.<br>If you don't know ${esc(name)}, you can ignore this email.</p>
-</div>`;
+    ? "Open BudgetSplit and go to Split. You'll see the invite there. Tap Accept to join."
+    : `Create your free account with this email address (${email}) and you'll see the invite in Split.`;
+  const text = `Hi,\n\n${name}${from ? ` (${from})` : ""} invited you to share expenses and loans with them on BudgetSplit.\n\n${steps}\n\n${APP_URL}\n\nEverything in the group is encrypted. Only the people in it can read the amounts and notes.\n\nIf you don't know ${name}, you can ignore this email.`;
+  const introHtml = `<b>${esc(name)}</b>${from ? ` <span style="color:#6d7f77;">(${esc(from)})</span>` : ""} wants to share expenses and loans with you on BudgetSplit. You'll both see the same history and who owes whom, and get notified when something changes.`;
+  const stepsHtml = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 8px;"><tr><td class="tl-muted" style="font-size:15px;line-height:23px;color:#4f6159;">${existing ? "Open BudgetSplit and go to <b>Split</b>. You'll see the invite there. Tap <b>Accept</b> to join." : `Sign up with <b>${esc(email)}</b>. The invite shows up in <b>Split</b> right after.`}</td></tr></table>`;
+  const reasonHtml = `${esc(name)} sent this invite to ${esc(email)}. If you don't know them, you can ignore this email.`;
+  const html = `<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>${esc(name)} invited you</title>
+<style>
+  body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}
+  table,td{mso-table-lspace:0;mso-table-rspace:0}
+  img{border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic}
+  a.tl-btn:hover{background:#0c7359!important}
+  @media (max-width:600px){
+    .tl-card{border-radius:0!important}
+    .tl-pad{padding-left:24px!important;padding-right:24px!important}
+    .tl-title{font-size:26px!important;line-height:32px!important}
+  }
+  @media (prefers-color-scheme:dark){
+    .tl-bg{background:#0a1412!important}
+    .tl-card{background:#121d1a!important}
+    .tl-ink{color:#eef5f1!important}
+    .tl-muted{color:#9db1a8!important}
+    .tl-box{background:#16251f!important;border-color:#1f3a30!important}
+    .tl-line{border-color:#1f2e29!important}
+  }
+</style>
+</head>
+<body class="tl-bg" style="margin:0;padding:0;background:#eef3f0;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${esc(name)} wants to share with you on BudgetSplit.&#8202;&#847;&#8202;&#847;&#8202;&#847;&#8202;&#847;&#8202;&#847;&#8202;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="tl-bg" style="background:#eef3f0;">
+<tr><td align="center" style="padding:32px 12px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="tl-card" style="max-width:560px;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 12px 40px rgba(11,59,58,.10);">
+    <tr><td style="background:#0b3b3a;background-image:linear-gradient(135deg,#0b3b3a 0%,#0f8a6c 100%);padding:28px 36px 30px;" class="tl-pad">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+        <td style="vertical-align:middle;"><img src="https://georgioaboudiwan.github.io/my-wallet/icons/icon-192.png" width="44" height="44" alt="BudgetSplit" style="display:block;width:44px;height:44px;border-radius:12px;"></td>
+        <td style="vertical-align:middle;padding-left:12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:20px;font-weight:800;letter-spacing:-.3px;color:#ffffff;">BudgetSplit</td>
+      </tr></table>
+      <p style="margin:26px 0 6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:#f6c453;">Shared with you</p>
+      <h1 class="tl-title" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:30px;line-height:36px;font-weight:800;letter-spacing:-.6px;color:#ffffff;">${esc(name)} invited you</h1>
+    </td></tr>
+    <tr><td class="tl-pad" style="padding:32px 36px 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      <p class="tl-ink" style="margin:0 0 24px;font-size:17px;line-height:27px;color:#14231d;">${introHtml}</p>
+      
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;"><tr><td style="border-radius:999px;background:#0f8a6c;">
+        <a class="tl-btn" href="${APP_URL}" target="_blank" style="display:inline-block;padding:16px 34px;border-radius:999px;background:#0f8a6c;font-size:17px;font-weight:700;color:#ffffff;text-decoration:none;">${existing ? "Open BudgetSplit" : "Create my account"}&nbsp;&rarr;</a>
+      </td></tr></table>
+      ${stepsHtml}
+    </td></tr>
+    <tr><td class="tl-pad" style="padding:8px 36px 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="tl-box" style="background:#f3f8f5;border:1px solid #e1ece6;border-radius:16px;"><tr>
+        <td style="padding:16px 18px;font-size:14px;line-height:21px;" class="tl-muted"><span style="font-size:16px;">&#128274;</span>&nbsp; <span class="tl-muted" style="color:#4f6159;">Everything in the group is encrypted. Only the people in it can read the amounts and notes.</span></td>
+      </tr></table>
+    </td></tr>
+    <tr><td class="tl-pad tl-line" style="padding:22px 36px 30px;border-top:1px solid #edf2ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      <p class="tl-muted" style="margin:0 0 6px;font-size:13px;line-height:20px;color:#6d7f77;">${reasonHtml}</p>
+      <p class="tl-muted" style="margin:0;font-size:13px;line-height:20px;color:#6d7f77;"><b style="color:#0f8a6c;">BudgetSplit</b> &middot; Budget, track spending, split bills and loans. &middot; <a href="https://georgioaboudiwan.github.io/my-wallet/" style="color:#0f8a6c;text-decoration:none;">Open the app</a></p>
+    </td></tr>
+  </table>
+</td></tr>
+</table>
+</body>
+</html>
+`;
   try {
-    await mailer.sendMail({ from: { name: "Tallyloop", address: GMAIL_USER }, to: email, replyTo: from || undefined, subject: `${name} invited you to Tallyloop`, text, html });
+    await mailer.sendMail({ from: { name: "BudgetSplit", address: GMAIL_USER }, to: email, replyTo: from || undefined, subject: `${name} invited you to BudgetSplit`, text, html });
   } catch (e) {
     console.error("mail failed", String((e as Error)?.message || e).slice(0, 200));
     return json({ emailed: false, reason: "send" });

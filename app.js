@@ -45,7 +45,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.21.0";
+  const VERSION = "3.21.1";
   const ICONS = {
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -156,7 +156,7 @@
     const pick = k => { LANG = k; trCache.clear(); try { localStorage.setItem("wallet:lang", k); } catch { } applyLang(); render(); };
     root.replaceChildren(h("div", { class: "lang-pick" },
       h("img", { class: "login-logo", src: "icons/icon-192.png", alt: "" }),
-      h("h1", null, "Tallyloop"),
+      h("h1", null, "BudgetSplit"),
       h("p", { lang: "en" }, "Choose your language"),
       h("p", { lang: "fr" }, "Choisissez votre langue"),
       h("p", { lang: "ar", dir: "rtl" }, "اختر لغتك"),
@@ -739,11 +739,11 @@
   }
 
   const VIEWS = {
-    home: { title: "Tallyloop", draw: viewHome },
+    home: { title: "BudgetSplit", draw: viewHome },
     activity: { title: "Activity", draw: viewActivity },
     insights: { title: "Insights", draw: viewInsights },
     plan: { title: "Plan", draw: viewPlan },
-    people: { title: "People", draw: viewPeople },
+    people: { title: "Split & loans", draw: viewPeople },
     admin: { title: "Admin", draw: viewAdmin },
     settings: { title: "Settings", draw: viewSettings }
   };
@@ -757,10 +757,10 @@
     const gear = h("button", { type: "button", class: "icon-btn gear-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, icon("gear"));
     const main = h("main", { class: "view" });
     const tab = (view, label, ic) => h("button", { type: "button", class: "tab", "data-view": view, on: { click: () => go(view) } }, icon(ic), h("span", null, label));
-    const tabs = [tab("home", "Home", "home"), tab("activity", "Activity", "list"), tab("insights", "Insights", "chart"), tab("people", "People", "people")];
+    const tabs = [tab("home", "Home", "home"), tab("activity", "Activity", "list"), tab("insights", "Insights", "chart"), tab("people", "Split", "people")];
     const add = h("button", { type: "button", class: "add-btn", "aria-label": "Add an entry", on: { click: () => txnSheet(null) } }, icon("plus"), h("span", null, "Add"));
     const lens = h("span", { class: "lens", "aria-hidden": "true" });
-    const brand = h("div", { class: "side-brand" }, h("img", { src: "icons/icon-192.png", alt: "" }), h("span", null, "Tallyloop"));
+    const brand = h("div", { class: "side-brand" }, h("img", { src: "icons/icon-192.png", alt: "" }), h("span", null, "BudgetSplit"));
     const sideAdd = h("button", { type: "button", class: "side-add", on: { click: () => txnSheet(null) } }, icon("plus", "ico"), "New entry");
     const sideSettings = h("button", { type: "button", class: "tab side-only", "data-view": "settings", on: { click: () => go("settings") } }, icon("gear"), h("span", null, "Settings"));
     tabs.push(sideSettings);
@@ -995,8 +995,8 @@
       h("header", { class: "login-hero" },
         h("div", { class: "login-brand" },
           h("img", { class: "login-logo", src: "icons/icon-192.png", alt: "" }),
-          h("h1", null, "Tallyloop"),
-          h("p", null, "Spend, plan, lend and share. In any currency.")),
+          h("h1", null, "BudgetSplit"),
+          h("p", null, "Budget, track spending, split bills and loans.")),
         h("div", { class: "login-card", "aria-hidden": "true" },
           h("span", { class: "lc-label" }, "Total balance"),
           h("span", { class: "lc-total num" }, "$2,450"),
@@ -1236,7 +1236,7 @@
     if (PUSH.state !== "off" && PUSH.state !== "install") return null;
     const later = h("button", { type: "button", class: "btn alt", on: { click: () => { store.set("remindAsk", "no"); render(); toast("You can turn it on later in Settings."); } } }, "Not now");
     if (PUSH.state === "install") return h("section", { class: "card remind" },
-      h("div", { class: "remind-top" }, h("span", { class: "dot gold" }, icon("bell", "ico sm")), h("div", null, h("h2", null, "Get a daily reminder"), h("p", null, "Add Tallyloop to your Home Screen first, then open it from there."))),
+      h("div", { class: "remind-top" }, h("span", { class: "dot gold" }, icon("bell", "ico sm")), h("div", null, h("h2", null, "Get a daily reminder"), h("p", null, "Add BudgetSplit to your Home Screen first, then open it from there."))),
       later);
     const timeIn = h("input", { id: "h-remind", class: "input time-input", type: "time", value: PUSH.time || "21:00", "aria-label": "Reminder time", on: { change: e => { if (/^\d{2}:\d{2}$/.test(e.target.value)) PUSH.time = e.target.value; } } });
     return h("section", { class: "card remind" },
@@ -1259,7 +1259,7 @@
     const on = PUSH.state === "on";
     const act = () => {
       if (on) { go("settings"); S.setPage = "reminders"; return render(); }
-      if (PUSH.state === "install") return toast("Add Tallyloop to your Home Screen first, then open it from there.");
+      if (PUSH.state === "install") return toast("Add BudgetSplit to your Home Screen first, then open it from there.");
       if (PUSH.state === "denied") return toast("Notifications are blocked. Allow them in iPhone Settings → Notifications → Wallet.", "error");
       if (PUSH.state === "unsupported") return toast("This browser can't show notifications.", "error");
       reminderSheet();
@@ -1668,7 +1668,7 @@
       [".month-card", "Month plan", "How much of this month's plan is used. Tap it to change your income or your groups."],
       [".quick", "Quick add", "Your most used categories. Tap one to add an expense already filed in that category."],
       [".remind-pill, .remind", "Daily reminder", "A notification every evening so no expense is forgotten."],
-      [".dock .tabs", "Sections", "Home, Activity for every entry, Insights for where your money goes, People for loans. Tap a tab or slide your finger along the bar."],
+      [".dock .tabs", "Sections", "Home, Activity for every entry, Insights for where your money goes, Split for loans and shared expenses. Tap a tab or slide your finger along the bar."],
       [".add-btn, .side-add", "Add anything", "The fastest way to add an expense, income or transfer, from any screen."],
       [".help-btn", "Help anytime", "Tap the question mark to replay this tour or read what each screen does."]
     ],
@@ -1781,8 +1781,8 @@
   }
 
   const CHANGES = [
-    { v: "3.21.0", items: [
-      ["star", "Meet Tallyloop", "My Wallet has a new name and icon. Same app, same data: track what you spend, plan your month, lend and borrow, and share with others."]
+    { v: "3.21.1", items: [
+      ["star", "Meet BudgetSplit", "My Wallet has a new name and icon. Same app, same data: track what you spend, plan your month, lend and borrow, and share with others."]
     ] },
     { v: "3.20.0", items: [
       ["swap", "Everything updates live", "Changes from your other devices and from the people you share with show up right away, without reopening the app."]
@@ -1799,11 +1799,11 @@
     { v: "3.17.0", items: [
       ["people", "Shared groups", "In People, make a group for a trip, the house or a loan to several people. Everyone sees the same history and who owes whom."],
       ["cart", "Expenses, loans and payments", "Add what someone paid and split it, a loan to one or more people, or a payment back. The app works out who owes whom."],
-      ["mail", "Invite by email", "If they use Tallyloop they get a notification to accept. If not, you send them a link by email."],
+      ["mail", "Invite by email", "If they use BudgetSplit they get a notification to accept. If not, you send them a link by email."],
       ["trash", "Deleting needs everyone", "An entry is removed only when everyone in the group agrees."]
     ] },
     { v: "3.16.0", items: [
-      ["link", "Shared loans", "If the person you lend to or borrow from uses Tallyloop, they can open your private link while signed in and add the loan to their app."],
+      ["link", "Shared loans", "If the person you lend to or borrow from uses BudgetSplit, they can open your private link while signed in and add the loan to their app."],
       ["people", "One history for both", "You both see the same entries. Either of you can add one, and it shows up for the other."],
       ["bell", "Notified on every change", "When one of you changes a shared loan, the other gets a notification."]
     ] },
@@ -1871,7 +1871,7 @@
       part("plus", "Add", "The green + adds an expense, income or transfer. Type the amount, pick a category, save."),
       part("list", "Activity", "Every entry, by day. Search, filter, and tap any entry to edit or delete it."),
       part("chart", "Insights", "Where your money went, your plan and budgets, goals and net worth."),
-      part("people", "People", "Money you lend or borrow, with WhatsApp reminders and a private page for each person."),
+      part("people", "Split", "Loans with people and shared groups for trips, the house or any bill you split."),
       part("eye", "Eye", "Hides every amount on screen."),
       part("sync", "Sync", "Everything saves and updates by itself. This icon only shows up when you're offline or something is waiting to be saved."),
       part("gear", "Settings", "Accounts, categories, reminders, language, security and backups.")),
@@ -2136,7 +2136,7 @@
     if (people.length || GROUPS.list.size) {
       let { owed, owe } = groupTotals();
       for (const p of people) { const v = toMain(lb.get(p.id) || 0, p.currency); if (owesMe(p)) owed += v; else owe += v; }
-      const card = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "People"), h("button", { type: "button", class: "link-btn", on: { click: () => go("people") } }, "See all")));
+      const card = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Split & loans"), h("button", { type: "button", class: "link-btn", on: { click: () => go("people") } }, "See all")));
       card.append(h("p", { class: "row-note" }, [owed ? `Owed to you ${money(owed, { whole: true })}` : null, owe ? `You owe ${money(owe, { whole: true })}` : null].filter(Boolean).join(" · ") || "All settled"));
       for (const p of people.slice().sort((x, y) => toMain(lb.get(y.id) || 0, y.currency) - toMain(lb.get(x.id) || 0, x.currency)).slice(0, 3)) {
         const v = lb.get(p.id) || 0;
@@ -2643,7 +2643,7 @@
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), h("span", { class: "row-sub wrap" }, sub)),
         icon("fwd")));
     }
-    out.replaceChildren(menu, h("p", { class: "about" }, `Tallyloop · Version ${VERSION}`));
+    out.replaceChildren(menu, h("p", { class: "about" }, `BudgetSplit · Version ${VERSION}`));
     return out;
   }
 
@@ -2830,7 +2830,7 @@
       await loadLinked();
       go("people");
       setTimeout(() => personSheet(S.data.people.get(person.id) || person), 350);
-      toast(`Your loan with ${from} is now in People.`);
+      toast(`Your loan with ${from} is now in Split.`);
     } catch { toast("Couldn't add the loan. Open the link again.", "error"); }
   }
   function unlinkMember(p) {
@@ -2998,7 +2998,7 @@
         if (g.joined && me && (me.name === "You" || me.name === "Member") && settings().name) setGroupProfile(g.id);
       }
       if (!quiet && news) toast(news === 1 ? "There's a new entry in a shared group." : `There are ${news} new entries in your shared groups.`);
-      if (!quiet && invites) toast("You've been invited to a shared group. Open People to answer.");
+      if (!quiet && invites) toast("You've been invited to a shared group. Open Split to answer.");
       ver++;
       scheduleRender();
       cleanGroupMoney();
@@ -3181,7 +3181,7 @@
       for (const p of gParties(g)) {
         const v = bal.get(p.id) || 0;
         mem.append(h(p.guest ? "button" : "div", { class: "row", type: p.guest ? "button" : null, on: p.guest ? { click: () => guestSheet(g.id, p.id.slice(2)) } : null }, h("span", { class: "dot neutral" }, p.name.charAt(0).toUpperCase()),
-          h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" }, p.guest ? "Name only, no app" : p.me ? "You" : "Uses Tallyloop")),
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" }, p.guest ? "Name only, no app" : p.me ? "You" : "Uses BudgetSplit")),
           h("span", { class: "row-end num" + (v > 0.005 ? " pos" : v < -0.005 ? " neg" : "") }, Math.abs(v) < 0.005 ? "0" : (v > 0 ? "+" : "−") + fmt(Math.abs(v), cur))));
       }
       for (const m of g.members.filter(x => !x.joined)) mem.append(h("div", { class: "row pending" }, h("span", { class: "dot neutral" }, "?"), h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Invited"), h("span", { class: "row-sub" }, "Hasn't answered yet"))));
@@ -3549,7 +3549,7 @@
     const out = h("div", { class: "invite-out" });
     const body = h("div", { class: "form" },
       h("section", { class: "card" }, h("div", { class: "card-head" }, h("h2", null, "Invite by email")),
-        h("p", { class: "hint" }, "If they use Tallyloop, they get a notification and accept in the app. If not, we open an email for you to send them a link."),
+        h("p", { class: "hint" }, "If they use BudgetSplit, they get a notification and accept in the app. If not, we open an email for you to send them a link."),
         h("input", { id: "gi-email", class: "input", type: "email", inputmode: "email", autocomplete: "off", autocapitalize: "none", placeholder: "name@example.com", on: { input: e => { f.email = e.target.value; } } }),
         h("button", { type: "button", class: "btn", on: { click: sendInvite } }, "Send invite"), out),
       h("section", { class: "card" }, h("div", { class: "card-head" }, h("h2", null, "Add a name only")),
@@ -3566,10 +3566,10 @@
         const r = await emailInvite(g, email);
         if (r.self || r.member) return fail(err, inviteMessage(r, email));
         if (!r.emailed && !r.invited) {
-          const text = `Hi! I'm using Tallyloop to keep track of what we share in "${g.meta.name}". Sign up with this email (${email}) and you'll see my request:\n\n${location.origin}${location.pathname}`;
+          const text = `Hi! I'm using BudgetSplit to keep track of what we share in "${g.meta.name}". Sign up with this email (${email}) and you'll see my request:\n\n${location.origin}${location.pathname}`;
           out.replaceChildren(
             h("p", { class: "hint" }, "The email couldn't be sent automatically. Send it yourself:"),
-            h("a", { class: "btn alt", href: `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(`Join "${g.meta.name}" on Tallyloop`)}&body=${encodeURIComponent(text)}` }, icon("mail", "ico sm"), "Open email"));
+            h("a", { class: "btn alt", href: `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(`Join "${g.meta.name}" on BudgetSplit`)}&body=${encodeURIComponent(text)}` }, icon("mail", "ico sm"), "Open email"));
           return;
         }
         closeSheet();
@@ -3740,7 +3740,7 @@
       } else if (p.share_token && p.skey) {
         const url = shareUrl(p);
         addKids(share, 
-          h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `${p.name} sees only their balance and history. No account needed. If ${p.name} uses Tallyloop, they can open the link while signed in and add the loan to their app, so you both stay in sync.`),
+          h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `${p.name} sees only their balance and history. No account needed. If ${p.name} uses BudgetSplit, they can open the link while signed in and add the loan to their app, so you both stay in sync.`),
           h("input", { id: "f-plink", class: "input", readOnly: true, value: url, hidden: true, style: { margin: "0 16px", width: "calc(100% - 32px)" } }),
           h("button", { type: "button", class: "row-btn", on: { click: () => copyText(url, "f-plink") } }, "Copy link"),
           p.phone ? h("a", { class: "row-btn", style: { display: "block", textDecoration: "none" }, href: waUrl(p.phone, linkMessage(p, p.share_token)), target: "_blank", rel: "noopener noreferrer", on: { click: () => track("whatsapp", "link") } }, "Send link on WhatsApp") : null,
@@ -3910,8 +3910,8 @@
       location.reload();
     };
     box.append(h("section", { class: "card join-card" },
-      h("h2", null, session ? "Add it to your wallet" : "Use Tallyloop?"),
-      h("p", { class: "hint" }, session ? `See this loan in your own app${from ? ` next to your other entries. You and ${from}` : ". You both"} see the same history and get notified when something changes.` : "Sign in to Tallyloop to keep this loan in your own app and get notified when it changes."),
+      h("h2", null, session ? "Add it to your wallet" : "Use BudgetSplit?"),
+      h("p", { class: "hint" }, session ? `See this loan in your own app${from ? ` next to your other entries. You and ${from}` : ". You both"} see the same history and get notified when something changes.` : "Sign in to BudgetSplit to keep this loan in your own app and get notified when it changes."),
       h("button", { type: "button", class: "btn", on: { click: join } }, session ? "Add to my wallet" : "Sign in and add it")));
   }
 
@@ -3942,7 +3942,7 @@
     const body = h("form", { class: "form", id: "nt-form", novalidate: true },
       h("p", { class: "hint" }, u ? `Goes to ${u.email || "this user"} on every device where they turned on notifications.` : "Goes to every user who turned on notifications in the app."),
       h("p", { class: "hint" }, (reach ? `${reach} ${reach === 1 ? "device gets" : "devices get"} an alert right away.` : "No devices have notifications turned on, so nobody gets an alert.") + " " + (u ? "It also appears in their inbox in the app." : "It also appears in every user's inbox in the app.")),
-      h("label", { class: "field" }, h("span", null, "Title"), h("input", { id: "nt-title", class: "input", maxlength: "60", autocomplete: "off", value: f.title, placeholder: "e.g. New in Tallyloop", on: { input: e => { f.title = e.target.value; err.textContent = ""; e.target.classList.remove("invalid"); } } })),
+      h("label", { class: "field" }, h("span", null, "Title"), h("input", { id: "nt-title", class: "input", maxlength: "60", autocomplete: "off", value: f.title, placeholder: "e.g. New in BudgetSplit", on: { input: e => { f.title = e.target.value; err.textContent = ""; e.target.classList.remove("invalid"); } } })),
       h("label", { class: "field" }, h("span", null, "Message"), h("textarea", { id: "nt-body", class: "input", maxlength: "180", rows: "3", value: f.body, placeholder: "Keep it short. Up to 180 characters.", on: { input: e => { f.body = e.target.value; err.textContent = ""; e.target.classList.remove("invalid"); } } })),
       err);
     body.addEventListener("submit", async ev => {
@@ -3975,7 +3975,7 @@
     } catch { USAGE.error = true; }
   }
   const DEVICE_NAMES = { iphone: "iPhone", ipad: "iPad", android: "Android", mac: "Mac", windows: "Windows", linux: "Linux", other: "Other" };
-  const SCREENS = { home: "Home", activity: "Activity", insights: "Insights", people: "People", settings: "Settings", plan: "Plan", admin: "Admin" };
+  const SCREENS = { home: "Home", activity: "Activity", insights: "Insights", people: "Split", settings: "Settings", plan: "Plan", admin: "Admin" };
   const THINGS = { expense: "an expense", income: "income", transfer: "a transfer", loan_out: "money lent", loan_in: "money borrowed", entry: "an entry", person: "a person", loan: "a loan entry", account: "an account", category: "a category", repeat: "a repeating entry" };
   function featureLabel(e, d) {
     if (e === "view") return `Opened ${SCREENS[d] || d}`;
@@ -4785,7 +4785,7 @@
       PUSH.state = "on"; PUSH.time = time;
       toast(`Reminder set for ${time} every day.`);
     } catch {
-      toast("Couldn't turn on notifications. Make sure Tallyloop is opened from your Home Screen.", "error");
+      toast("Couldn't turn on notifications. Make sure BudgetSplit is opened from your Home Screen.", "error");
     } finally {
       PUSH.busy = false; render();
     }
@@ -4897,7 +4897,7 @@
     const timeIn = h("input", { id: "s-remind", class: "input time-input", type: "time", value: time, "aria-label": "Reminder time", on: { change: e => setPushTime(e.target.value) } });
     const sub = st === null ? "Checking…"
       : on ? `Every day at ${time}. Tells you if nothing is logged yet.`
-      : st === "install" ? "Add Tallyloop to your Home Screen first, then open it from there."
+      : st === "install" ? "Add BudgetSplit to your Home Screen first, then open it from there."
       : st === "denied" ? "Notifications are blocked. Allow them in iPhone Settings → Notifications → Wallet."
       : st === "unsupported" ? "This browser can't show notifications."
       : "Get a notification to log what you spent.";
@@ -5044,8 +5044,8 @@
     try {
       const cred = await navigator.credentials.create({ publicKey: {
         challenge: crypto.getRandomValues(new Uint8Array(32)),
-        rp: { name: "Tallyloop", id: location.hostname },
-        user: { id: new TextEncoder().encode(S.uid).slice(0, 64), name: S.email || "Tallyloop", displayName: "Tallyloop" },
+        rp: { name: "BudgetSplit", id: location.hostname },
+        user: { id: new TextEncoder().encode(S.uid).slice(0, 64), name: S.email || "BudgetSplit", displayName: "BudgetSplit" },
         pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
         authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", residentKey: "discouraged" },
         timeout: 60000, attestation: "none" } });
@@ -5075,9 +5075,9 @@
       if (!ok) return;
       LOCK.el.remove(); LOCK.el = null; LOCK.hiddenAt = 0;
     };
-    LOCK.el = h("div", { class: "lock", role: "dialog", "aria-modal": "true", "aria-label": "Tallyloop is locked" },
+    LOCK.el = h("div", { class: "lock", role: "dialog", "aria-modal": "true", "aria-label": "BudgetSplit is locked" },
       h("img", { class: "login-logo", src: "icons/icon-192.png", alt: "" }),
-      h("h2", null, "Tallyloop is locked"),
+      h("h2", null, "BudgetSplit is locked"),
       h("p", null, "Unlock with Face ID, Touch ID or your device passcode."),
       h("button", { type: "button", class: "btn", on: { click: tryUnlock } }, icon("lock", "ico"), "Unlock"),
       h("button", { type: "button", class: "link-btn", on: { click: () => { LOCK.el.remove(); LOCK.el = null; signOut(); } } }, "Sign out instead"));

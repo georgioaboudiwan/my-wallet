@@ -1,7 +1,7 @@
 {
-  "name": "Tallyloop",
-  "short_name": "Tallyloop",
-  "description": "Track spending, plan your month, lend and borrow, and share expenses with others. Dollars, lira and more.",
+  "name": "BudgetSplit: Expenses & Loans",
+  "short_name": "BudgetSplit",
+  "description": "Budget planner and expense tracker that also splits bills, tracks loans and IOUs, and shares expenses with friends and family. Dollars, lira and more.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

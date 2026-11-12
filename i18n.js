@@ -6,7 +6,7 @@ window.WALLET_I18N = {
     "People": ["Personnes", "الأشخاص"],
     "Settings": ["Réglages", "الإعدادات"],
     "Wallet": ["Portefeuille", "المحفظة"],
-    "Tallyloop": ["Mon Portefeuille", "محفظتي"],
+    "BudgetSplit": ["Mon Portefeuille", "محفظتي"],
     "Plan": ["Plan", "الخطة"],
     "Admin": ["Admin", "الإدارة"],
     "New entry": ["Nouvelle entrée", "إدخال جديد"],
@@ -191,7 +191,7 @@ window.WALLET_I18N = {
     "Use at least 10 characters.": ["Utilisez au moins 10 caractères.", "استخدم 10 أحرف على الأقل."],
     "Strong password.": ["Mot de passe solide.", "كلمة مرور قوية."],
     "If that email has an account, a reset link is on its way.": ["Si cet e-mail a un compte, un lien vient d'être envoyé.", "إذا كان لهذا البريد حساب، فقد أُرسل رابط إعادة التعيين."],
-    "Tallyloop is locked": ["Mon Portefeuille est verrouillé", "محفظتي مقفلة"],
+    "BudgetSplit is locked": ["Mon Portefeuille est verrouillé", "محفظتي مقفلة"],
     "Unlock with Face ID, Touch ID or your device passcode.": ["Déverrouillez avec Face ID, Touch ID ou le code de l'appareil.", "افتح القفل بـ Face ID أو Touch ID أو رمز الجهاز."],
     "Unlock": ["Déverrouiller", "فتح القفل"],
     "Sign out instead": ["Se déconnecter", "تسجيل الخروج بدلاً من ذلك"],
@@ -248,7 +248,7 @@ window.WALLET_I18N = {
     ["^Expense saved · (.+)$", "Dépense enregistrée · $1", "تم حفظ المصروف · $1"],
     ["^Income saved · (.+)$", "Revenu enregistré · $1", "تم حفظ الدخل · $1"],
     ["^Transfer saved · (.+)$", "Transfert enregistré · $1", "تم حفظ التحويل · $1"],
-    ["^Tallyloop · Version (.+)$", "Mon Portefeuille · Version $1", "محفظتي · الإصدار $1"],
+    ["^BudgetSplit · Version (.+)$", "Mon Portefeuille · Version $1", "محفظتي · الإصدار $1"],
     ["^Step (\\d) of (\\d)$", "Étape $1 sur $2", "الخطوة $1 من $2"]
   ]
 };
@@ -339,7 +339,7 @@ Object.assign(window.WALLET_I18N.words, {
   "Check this matches today's rate. You can change it later in Settings.": ["Vérifiez que cela correspond au taux du jour. Vous pourrez le modifier dans Réglages.", "تأكد من مطابقته لسعر اليوم. يمكنك تغييره لاحقاً من الإعدادات."],
   "Daily reminder": ["Rappel quotidien", "التذكير اليومي"],
   "Notifications are blocked. Allow them in iPhone Settings → Notifications → Wallet.": ["Les notifications sont bloquées. Autorisez-les dans Réglages iPhone → Notifications → Wallet.", "الإشعارات محظورة. اسمح بها من إعدادات iPhone ← الإشعارات ← Wallet."],
-  "Add Tallyloop to your Home Screen first, then open it from there.": ["Ajoutez d'abord Mon Portefeuille à l'écran d'accueil, puis ouvrez-le depuis là.", "أضف محفظتي إلى الشاشة الرئيسية أولاً ثم افتحه من هناك."],
+  "Add BudgetSplit to your Home Screen first, then open it from there.": ["Ajoutez d'abord Mon Portefeuille à l'écran d'accueil, puis ouvrez-le depuis là.", "أضف محفظتي إلى الشاشة الرئيسية أولاً ثم افتحه من هناك."],
   "This browser can't show notifications.": ["Ce navigateur ne peut pas afficher de notifications.", "هذا المتصفح لا يدعم الإشعارات."],
   "Time": ["Heure", "الوقت"],
   "Reminder time": ["Heure du rappel", "وقت التذكير"],
@@ -477,7 +477,7 @@ window.WALLET_I18N.patterns = [
   ["^Next on (.+)$", "Prochaine le $1", "التالي في $1"],
   ["^Showing (.+) only\\. Tap to show all accounts\\.$", "Affichage de $1 uniquement. Touchez pour tout afficher.", "عرض $1 فقط. اضغط لعرض كل الحسابات."],
   ["^Show more \\((\\d+)\\)$", "Afficher plus ($1)", "عرض المزيد ($1)"],
-  ["^Tallyloop · Version (.+)$", "Mon Portefeuille · Version $1", "محفظتي · الإصدار $1"],
+  ["^BudgetSplit · Version (.+)$", "Mon Portefeuille · Version $1", "محفظتي · الإصدار $1"],
   ["^Step (\\d) of (\\d)$", "Étape $1 sur $2", "الخطوة $1 من $2"]
 ];
 Object.assign(window.WALLET_I18N.words, {
@@ -753,24 +753,24 @@ Object.assign(window.WALLET_I18N.words, {
   "Tap again to disconnect": ["Touchez encore pour déconnecter", "اضغط مجددًا للفصل"],
   "Couldn't disconnect. Try again.": ["Impossible de déconnecter. Réessayez.", "تعذّر الفصل. حاول مجددًا."],
   "Add it to your wallet": ["Ajoutez-le à votre portefeuille", "أضفه إلى محفظتك"],
-  "Use Tallyloop?": ["Vous utilisez Tallyloop ?", "هل تستخدم Tallyloop؟"],
+  "Use BudgetSplit?": ["Vous utilisez BudgetSplit ?", "هل تستخدم BudgetSplit؟"],
   "Add to my wallet": ["Ajouter à mon portefeuille", "أضف إلى محفظتي"],
   "Sign in and add it": ["Se connecter et l'ajouter", "سجّل الدخول وأضفه"],
-  "Sign in to Tallyloop to keep this loan in your own app and get notified when it changes.": ["Connectez-vous à Tallyloop pour garder ce prêt dans votre application et être averti des changements.", "سجّل الدخول إلى Tallyloop لتحتفظ بهذا القرض في تطبيقك وتتلقى إشعارًا عند تغييره."],
+  "Sign in to BudgetSplit to keep this loan in your own app and get notified when it changes.": ["Connectez-vous à BudgetSplit pour garder ce prêt dans votre application et être averti des changements.", "سجّل الدخول إلى BudgetSplit لتحتفظ بهذا القرض في تطبيقك وتتلقى إشعارًا عند تغييره."],
   "That's your own link. Send it to the other person.": ["C'est votre propre lien. Envoyez-le à l'autre personne.", "هذا رابطك الخاص. أرسله إلى الشخص الآخر."],
   "Someone else already added this loan to their app.": ["Quelqu'un a déjà ajouté ce prêt à son application.", "شخص آخر أضاف هذا القرض إلى تطبيقه بالفعل."],
   "Couldn't add the loan. Open the link again.": ["Impossible d'ajouter le prêt. Rouvrez le lien.", "تعذّرت إضافة القرض. افتح الرابط مجددًا."],
   "Shared loans": ["Prêts partagés", "قروض مشتركة"],
   "One history for both": ["Un seul historique pour les deux", "سجل واحد للطرفين"],
   "Notified on every change": ["Averti à chaque changement", "إشعار عند كل تغيير"],
-  "If the person you lend to or borrow from uses Tallyloop, they can open your private link while signed in and add the loan to their app.": ["Si la personne à qui vous prêtez ou empruntez utilise Tallyloop, elle peut ouvrir votre lien privé en étant connectée et ajouter le prêt à son application.", "إذا كان الشخص الذي تقرضه أو تقترض منه يستخدم Tallyloop، يمكنه فتح رابطك الخاص وهو مسجّل الدخول وإضافة القرض إلى تطبيقه."],
+  "If the person you lend to or borrow from uses BudgetSplit, they can open your private link while signed in and add the loan to their app.": ["Si la personne à qui vous prêtez ou empruntez utilise BudgetSplit, elle peut ouvrir votre lien privé en étant connectée et ajouter le prêt à son application.", "إذا كان الشخص الذي تقرضه أو تقترض منه يستخدم BudgetSplit، يمكنه فتح رابطك الخاص وهو مسجّل الدخول وإضافة القرض إلى تطبيقه."],
   "You both see the same entries. Either of you can add one, and it shows up for the other.": ["Vous voyez tous les deux les mêmes opérations. Chacun peut en ajouter une, et elle apparaît chez l'autre.", "ترَيان القيود نفسها. يمكن لأي منكما إضافة قيد ويظهر لدى الآخر."],
   "When one of you changes a shared loan, the other gets a notification.": ["Quand l'un de vous modifie un prêt partagé, l'autre reçoit une notification.", "عندما يغيّر أحدكما قرضًا مشتركًا، يتلقى الآخر إشعارًا."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Connected to (.+)'s account$", "Connecté au compte de $1", "متصل بحساب $1"],
   ["^(.+)'s account is disconnected\\.$", "Le compte de $1 est déconnecté.", "تم فصل حساب $1."],
-  ["^Your loan with (.+) is now in People\\.$", "Votre prêt avec $1 est maintenant dans Personnes.", "قرضك مع $1 أصبح الآن في الأشخاص."],
+  ["^Your loan with (.+) is now in Split\\.$", "Votre prêt avec $1 est maintenant dans Personnes.", "قرضك مع $1 أصبح الآن في الأشخاص."],
   ["^(.+) added an entry to your shared loan\\.$", "$1 a ajouté une opération à votre prêt partagé.", "أضاف $1 قيدًا إلى قرضكما المشترك."],
   ["^(.+) added (\\d+) entries to your shared loan\\.$", "$1 a ajouté $2 opérations à votre prêt partagé.", "أضاف $1 $2 قيود إلى قرضكما المشترك."],
   ["^(.+) · sending to (.+)$", "$1 · envoi à $2", "$1 · يُرسل إلى $2"]
@@ -802,7 +802,7 @@ Object.assign(window.WALLET_I18N.words, {
   "No entries yet. Add an expense, a loan or a payment.": ["Aucune opération. Ajoutez une dépense, un prêt ou un paiement.", "لا قيود بعد. أضف مصروفًا أو قرضًا أو دفعة."],
   "People": ["Personnes", "الأشخاص"],
   "Name only, no app": ["Nom seulement, sans l'app", "اسم فقط، بدون التطبيق"],
-  "Uses Tallyloop": ["Utilise Tallyloop", "يستخدم Tallyloop"],
+  "Uses BudgetSplit": ["Utilise BudgetSplit", "يستخدم BudgetSplit"],
   "Invited": ["Invité", "مدعو"],
   "Hasn't answered yet": ["N'a pas encore répondu", "لم يرد بعد"],
   "Leave group": ["Quitter le groupe", "غادر المجموعة"],
@@ -832,14 +832,14 @@ Object.assign(window.WALLET_I18N.words, {
   "Delete requested. Everyone else needs to agree.": ["Suppression demandée. Les autres doivent accepter.", "طُلب الحذف. يجب أن يوافق الآخرون."],
   "Your delete request was withdrawn.": ["Votre demande de suppression a été retirée.", "تم سحب طلب الحذف."],
   "Invite by email": ["Inviter par email", "ادعُ بالبريد الإلكتروني"],
-  "If they use Tallyloop, they get a notification and accept in the app. If not, we open an email for you to send them a link.": ["S'ils utilisent Tallyloop, ils reçoivent une notification et acceptent dans l'app. Sinon, nous ouvrons un email pour leur envoyer un lien.", "إذا كانوا يستخدمون Tallyloop، يتلقون إشعارًا ويقبلون في التطبيق. وإلا نفتح لك بريدًا لترسل لهم رابطًا."],
+  "If they use BudgetSplit, they get a notification and accept in the app. If not, we open an email for you to send them a link.": ["S'ils utilisent BudgetSplit, ils reçoivent une notification et acceptent dans l'app. Sinon, nous ouvrons un email pour leur envoyer un lien.", "إذا كانوا يستخدمون BudgetSplit، يتلقون إشعارًا ويقبلون في التطبيق. وإلا نفتح لك بريدًا لترسل لهم رابطًا."],
   "Send invite": ["Envoyer l'invitation", "أرسل الدعوة"],
   "Add a name only": ["Ajouter un nom seulement", "أضف اسمًا فقط"],
   "For someone without the app. You keep track for them.": ["Pour quelqu'un sans l'app. Vous suivez pour lui.", "لشخص بلا تطبيق. أنت تتابع عنه."],
   "Enter a valid email.": ["Entrez un email valide.", "أدخل بريدًا إلكترونيًا صالحًا."],
   "That's your own email.": ["C'est votre propre email.", "هذا بريدك أنت."],
   "Invite sent. They'll get a notification to accept it.": ["Invitation envoyée. Ils recevront une notification pour l'accepter.", "أُرسلت الدعوة. سيتلقون إشعارًا لقبولها."],
-  "They don't use Tallyloop yet. Send them this link:": ["Ils n'utilisent pas encore Tallyloop. Envoyez-leur ce lien :", "لا يستخدمون Tallyloop بعد. أرسل لهم هذا الرابط:"],
+  "They don't use BudgetSplit yet. Send them this link:": ["Ils n'utilisent pas encore BudgetSplit. Envoyez-leur ce lien :", "لا يستخدمون BudgetSplit بعد. أرسل لهم هذا الرابط:"],
   "Open email": ["Ouvrir l'email", "افتح البريد"],
   "Too many tries. Wait a bit and try again.": ["Trop d'essais. Patientez puis réessayez.", "محاولات كثيرة. انتظر قليلًا وحاول مجددًا."],
   "Couldn't send the invite. Try again.": ["Impossible d'envoyer l'invitation. Réessayez.", "تعذّر إرسال الدعوة. حاول مجددًا."],
@@ -848,7 +848,7 @@ Object.assign(window.WALLET_I18N.words, {
   "Couldn't join the group. Open the link again.": ["Impossible de rejoindre le groupe. Rouvrez le lien.", "تعذّر الانضمام. افتح الرابط مجددًا."],
   "You joined the group.": ["Vous avez rejoint le groupe.", "انضممت إلى المجموعة."],
   "There's a new entry in a shared group.": ["Il y a une nouvelle opération dans un groupe partagé.", "يوجد قيد جديد في مجموعة مشتركة."],
-  "You've been invited to a shared group. Open People to answer.": ["Vous avez été invité à un groupe partagé. Ouvrez Personnes pour répondre.", "تمت دعوتك إلى مجموعة مشتركة. افتح الأشخاص للرد."],
+  "You've been invited to a shared group. Open Split to answer.": ["Vous avez été invité à un groupe partagé. Ouvrez Personnes pour répondre.", "تمت دعوتك إلى مجموعة مشتركة. افتح الأشخاص للرد."],
   "Couldn't answer. Try again.": ["Impossible de répondre. Réessayez.", "تعذّر الرد. حاول مجددًا."],
   "Couldn't do that. Try again.": ["Impossible. Réessayez.", "تعذّر ذلك. حاول مجددًا."],
   "Date": ["Date", "التاريخ"],
@@ -857,7 +857,7 @@ Object.assign(window.WALLET_I18N.words, {
   "Deleting needs everyone": ["Supprimer demande l'accord de tous", "الحذف يحتاج موافقة الجميع"],
   "In People, make a group for a trip, the house or a loan to several people. Everyone sees the same history and who owes whom.": ["Dans Personnes, créez un groupe pour un voyage, la maison ou un prêt à plusieurs personnes. Tout le monde voit le même historique et qui doit quoi.", "في الأشخاص، أنشئ مجموعة لرحلة أو للبيت أو لقرض لعدة أشخاص. الجميع يرى السجل نفسه ومن يدين لمن."],
   "Add what someone paid and split it, a loan to one or more people, or a payment back. The app works out who owes whom.": ["Ajoutez ce que quelqu'un a payé et partagez-le, un prêt à une ou plusieurs personnes, ou un remboursement. L'app calcule qui doit quoi.", "أضف ما دفعه أحدهم وقسّمه، أو قرضًا لشخص أو أكثر، أو دفعة سداد. التطبيق يحسب من يدين لمن."],
-  "If they use Tallyloop they get a notification to accept. If not, you send them a link by email.": ["S'ils utilisent Tallyloop, ils reçoivent une notification. Sinon, vous leur envoyez un lien par email.", "إذا كانوا يستخدمون Tallyloop يتلقون إشعارًا للقبول. وإلا ترسل لهم رابطًا بالبريد."],
+  "If they use BudgetSplit they get a notification to accept. If not, you send them a link by email.": ["S'ils utilisent BudgetSplit, ils reçoivent une notification. Sinon, vous leur envoyez un lien par email.", "إذا كانوا يستخدمون BudgetSplit يتلقون إشعارًا للقبول. وإلا ترسل لهم رابطًا بالبريد."],
   "An entry is removed only when everyone in the group agrees.": ["Une opération n'est supprimée que si tout le groupe est d'accord.", "لا يُحذف القيد إلا عندما يوافق الجميع."]
 });
 window.WALLET_I18N.patterns.push(
@@ -941,7 +941,15 @@ Object.assign(window.WALLET_I18N.words, {
 });
 Object.assign(window.WALLET_I18N.words, { "Everything saves and updates by itself. This icon only shows up when you're offline or something is waiting to be saved.": ["Tout s'enregistre et se met à jour seul. Cette icône n'apparaît que hors ligne ou quand quelque chose attend d'être enregistré.", "كل شيء يُحفظ ويتحدّث تلقائيًا. تظهر هذه الأيقونة فقط عند انقطاع الاتصال أو عند وجود شيء بانتظار الحفظ."] });
 Object.assign(window.WALLET_I18N.words, {
-  "Spend, plan, lend and share. In any currency.": ["Dépenser, planifier, prêter et partager. Dans toutes les devises.", "أنفق، خطّط، أقرض وشارك. بأي عملة."],
-  "Meet Tallyloop": ["Voici Tallyloop", "تعرّف إلى Tallyloop"],
+  "Budget, track spending, split bills and loans.": ["Budget, dépenses, partage de factures et prêts.", "ميزانية، تتبّع الإنفاق، تقسيم الفواتير والقروض."],
+  "Meet BudgetSplit": ["Voici BudgetSplit", "تعرّف إلى BudgetSplit"],
   "My Wallet has a new name and icon. Same app, same data: track what you spend, plan your month, lend and borrow, and share with others.": ["My Wallet change de nom et d'icône. Même app, mêmes données : suivez vos dépenses, planifiez le mois, prêtez, empruntez et partagez.", "My Wallet أصبح باسم وأيقونة جديدين. التطبيق نفسه والبيانات نفسها: تابع إنفاقك، خطّط لشهرك، أقرض واقترض، وشارك مع الآخرين."]
 });
+Object.assign(window.WALLET_I18N.words, {
+  "Split & loans": ["Partage et prêts", "التقسيم والقروض"],
+  "Split": ["Partage", "التقسيم"],
+  "Loans with people and shared groups for trips, the house or any bill you split.": ["Prêts avec des personnes et groupes partagés pour un voyage, la maison ou toute facture à partager.", "قروض مع الأشخاص ومجموعات مشتركة للرحلات أو البيت أو أي فاتورة تقسّمها."],
+  "You've been invited to a shared group. Open Split to answer.": ["Vous avez été invité à un groupe partagé. Ouvrez Partage pour répondre.", "تمت دعوتك إلى مجموعة مشتركة. افتح التقسيم للرد."],
+  "Home, Activity for every entry, Insights for where your money goes, Split for loans and shared expenses. Tap a tab or slide your finger along the bar.": ["Accueil, Activité pour chaque opération, Analyses pour savoir où va votre argent, Partage pour les prêts et dépenses partagées. Touchez un onglet ou glissez le doigt sur la barre.", "الرئيسية، النشاط لكل قيد، التحليلات لمعرفة أين يذهب مالك، التقسيم للقروض والمصاريف المشتركة. اضغط على تبويب أو مرّر إصبعك على الشريط."]
+});
+window.WALLET_I18N.patterns.push(["^Your loan with (.+) is now in Split\\.$", "Votre prêt avec $1 est maintenant dans Partage.", "قرضك مع $1 أصبح الآن في التقسيم."]);
