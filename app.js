@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.43.0";
+  const VERSION = "3.43.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2376,6 +2376,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.43.1", items: [
+      ["", "Plan income list fixed", "The list of monthly income changes in Plan was squeezed into columns with overlapping text. It's one clean row per change again."]
+    ] },
     { v: "3.43.0", items: [
       ["", "Settings redesign", "Profile card with sync status, search across every setting, 4 quick switches (App lock, Daily reminder, Hide amounts, Note required), colored sections: Money, App, Privacy and data, Help, Account."],
       ["", "Swipe back and back button", "Sub-pages slide in, swipe from the left edge (right in Arabic) to go back; Android back button and browser back work too."],
@@ -3163,7 +3166,7 @@
         : `Only ${name} uses this amount. Other months keep their usual setting. ${logged}`));
     const changes = Object.entries(st.incomeSteps).sort();
     if (tab === "fixed" && changes.length) {
-      kids.push(h("div", { class: "steps" }, changes.map(([k, v]) => h("div", { class: "step-row" },
+      kids.push(h("div", { class: "inc-steps" }, changes.map(([k, v]) => h("div", { class: "step-row" },
         h("span", null, `From ${monthLabel(k)}`),
         h("strong", { class: "num" }, money(v, { whole: true })),
         h("button", { type: "button", class: "link-btn", "aria-label": `Remove the change from ${monthLabel(k)}`, on: { click: () => {
