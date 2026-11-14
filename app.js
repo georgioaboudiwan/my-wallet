@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.40.0";
+  const VERSION = "3.41.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -611,11 +611,84 @@
     TRACK.mute = false;
   }
 
+  const isSalaryCat = c => !!c && c.kind === "income" && (/:cat:salary$/.test(c.id) || /salary|salaire|wage|راتب|معاش/i.test(c.name));
+  function settleCards(payday, cardBal) {
+    const src = acc(payday.account_id);
+    if (!src || src.kind === "card") return [];
+    let left = Number(payday.amount) || 0;
+    const out = [];
+    for (const card of rows("accounts").filter(o => o.kind === "card" && !o.archived && o.id !== src.id).sort(bySort)) {
+      const owed = -(cardBal.get(card.id) || 0);
+      if (owed <= 0 || left <= 0) continue;
+      const pay = Math.min(left, roundCur(convert(owed, card.currency, src.currency), src.currency));
+      if (pay <= 0) continue;
+      const id = `${payday.id}~card~${card.id}`.slice(0, 160);
+      if (S.data.transactions.has(id)) continue;
+      const toAmt = card.currency === src.currency ? pay : Math.min(owed, roundCur(convert(pay, src.currency, card.currency), card.currency));
+      out.push({ t: "transactions", r: { id, kind: "transfer", amount: pay, currency: src.currency, rate: rateOf(src.currency), account_id: src.id, to_account_id: card.id, to_amount: toAmt, category_id: null, note: "Card paid from salary", occurred_on: payday.occurred_on, rule_id: null, receipt: null, created_at: new Date().toISOString() } });
+      cardBal.set(card.id, (cardBal.get(card.id) || 0) + toAmt);
+      left = roundCur(left - pay, src.currency);
+    }
+    return out;
+  }
+
+  const isSalaryRule = r => r.kind === "income" && r.remind == null && isSalaryCat(cat(r.category_id));
+  const dueSalary = () => rows("rules").filter(r => r.active && !r.deleted_at && acc(r.account_id) && DATE_RE.test(r.next_on) && r.next_on <= today() && isSalaryRule(r) && store.get("paySnooze:" + r.id, "") !== today()).sort((a, b) => a.next_on < b.next_on ? -1 : 1)[0] || null;
+  function confirmSalary(r, amount) {
+    const a = acc(r.account_id);
+    if (!a) return;
+    const id = `${r.id}@${r.next_on}`;
+    const items = [];
+    if (amount > 0 && !S.data.transactions.has(id)) {
+      const row = { id, kind: "income", amount: roundCur(amount, a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: r.category_id, note: r.note, occurred_on: r.next_on <= today() ? r.next_on : today(), rule_id: r.id, receipt: null, created_at: new Date().toISOString() };
+      items.push({ t: "transactions", r: row }, ...settleCards(row, new Map(balances())));
+    }
+    items.push({ t: "rules", r: { ...r, next_on: nextMonthDay(r.next_on, r.day) } });
+    putMany(items);
+    track("add", amount > 0 ? "salary_yes" : "salary_skip");
+    if (amount > 0) toast(`${fmt(amount, a.currency, { show: true })} added to ${a.name}.${items.length > 2 ? " Your card is paid off." : ""}`);
+  }
+  function salaryOther(r) {
+    const a = acc(r.account_id);
+    const input = h("input", { class: "input num", id: "pay-amt", inputmode: "decimal", value: String(Number(r.amount)), autocomplete: "off" });
+    const err = h("p", { class: "form-err", role: "alert" });
+    const body = h("div", { class: "form" },
+      h("label", { class: "field" }, h("span", null, `How much did you get? (${curSymbol(a.currency)})`), input),
+      h("label", { class: "check" }, h("input", { type: "checkbox", id: "pay-keep" }), h("span", null, "Use this amount every month from now on")),
+      err,
+      h("button", { type: "button", class: "btn alt", on: { click: () => { closeSheet(); confirmSalary(r, 0); toast("Skipped this month."); } } }, "I didn't get it this month"));
+    const save = h("button", { type: "button", class: "btn", on: { click: () => {
+      const v = parseAmt(input.value);
+      if (!v) { err.textContent = tr("Enter an amount above zero."); return; }
+      const keep = document.getElementById("pay-keep").checked;
+      const rule = keep ? { ...r, amount: roundCur(v, a.currency) } : r;
+      closeSheet();
+      confirmSalary(rule, v);
+    } } }, "Add it");
+    openSheet("Your salary", body, save);
+  }
+  function paydayCard() {
+    const r = dueSalary();
+    if (!r) return null;
+    const a = acc(r.account_id), c = cat(r.category_id);
+    const late = r.next_on < today();
+    return h("section", { class: "payday" },
+      h("span", { class: "payday-ico" }, icon(c ? catIconName(c) || "work" : "work")),
+      h("div", { class: "payday-main" },
+        h("strong", null, late ? `Did your ${monthName(r.next_on.slice(0, 7))} salary come in?` : "Payday! Did your salary come in?"),
+        h("small", null, `${fmt(Number(r.amount), r.currency || a.currency, { show: true })} → ${a.name}`)),
+      h("div", { class: "payday-acts" },
+        h("button", { type: "button", class: "btn sm", on: { click: () => confirmSalary(r, Number(r.amount)) } }, "Yes, add it"),
+        h("button", { type: "button", class: "btn sm alt", on: { click: () => salaryOther(r) } }, "Other amount"),
+        h("button", { type: "button", class: "link-btn", on: { click: () => { store.set("paySnooze:" + r.id, today()); render(); } } }, "Not yet")));
+  }
+
   function runRules() {
     const t = today();
     const items = [];
     for (const r of rows("rules")) {
       if (!r.active || !acc(r.account_id) || !DATE_RE.test(r.next_on)) continue;
+      if (isSalaryRule(r)) continue;
       let next = r.next_on;
       let n = 0;
       while (next <= t && n < 24) {
@@ -2253,6 +2326,12 @@
     showTourStep();
   }
 
+  const ADMIN_CHANGES = [
+    { v: "3.41.0", items: [
+      ["", "Hidden: salary confirmation on payday", "Picking Salary under Received turns on Every month by itself. On each payday, Home asks “Did your salary come in?” (Yes, Other amount, Not yet) and only adds it after a yes. Not shown in What's new."],
+      ["", "Hidden: card paid off from salary", "When a salary is confirmed, any credit card owing money is paid off with a transfer from the salary account, up to the salary amount."]
+    ] }
+  ];
   const CHANGES = [
     { v: "3.40.0", items: [
       ["phone", "Quick add sets itself up", "No more copying and pasting a key. Add the Shortcut, tap Connect, and it's linked to your account."]
@@ -2591,6 +2670,8 @@
         [...holds].sort((p, q) => (q[0] === mainCur()) - (p[0] === mainCur()) || toMain(q[1], q[0]) - toMain(p[1], p[0])).map(([c, v]) => h("span", { class: "num", title: curInfo(c).name }, fmt(v, c, { compact: true }))),
         (() => { const t = owedTotals(); return t.owed > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: () => go("people") } }, `+${money(t.owed, { whole: true })} ${tr("owed to you")}`) : null; })())));
 
+    const pay = paydayCard();
+    if (pay) out.append(pay);
     const loans = loansCard();
     if (loans) out.append(loans);
     if (!rows("people").length && !GROUPS.list.size && !store.get("splitTeaserOff", false)) {
@@ -4695,7 +4776,7 @@
   async function mailRelease() {
     const last = storedSettings().releaseMailed;
     if (last === VERSION || !navigator.onLine) return;
-    const notes = CHANGES.filter(c => vnum(c.v) <= vnum(VERSION) && (!last || vnum(c.v) > vnum(last))).slice(0, last ? 12 : 1)
+    const notes = [...CHANGES, ...ADMIN_CHANGES].sort((p, q) => vnum(q.v) - vnum(p.v)).filter(c => vnum(c.v) <= vnum(VERSION) && (!last || vnum(c.v) > vnum(last))).slice(0, last ? 12 : 1)
       .map(c => ({ v: c.v, items: c.items.map(([, title, text]) => ({ title, text })) }));
     if (!notes.length) return saveSettings({ releaseMailed: VERSION });
     try {
@@ -5251,6 +5332,11 @@
         f.to = other ? other.id : null;
       }
       if (f.kind !== "transfer" && f.category && (!cat(f.category) || cat(f.category).kind !== f.kind)) f.category = null;
+      if (!x && !f.repeatTouched) {
+        const sal = f.kind === "income" && isSalaryCat(cat(f.category));
+        if (sal && !f.repeat && !rows("rules").some(r => r.active && isSalaryRule(r))) { f.repeat = true; f.repeatAuto = true; }
+        else if (!sal && f.repeatAuto) { f.repeat = false; f.repeatAuto = false; }
+      }
       if (f.person && !S.data.people.get(f.person)) f.person = null;
     };
     const loanPerson = () => f.kind === "loan" && f.person ? S.data.people.get(f.person) : null;
@@ -5370,7 +5456,7 @@
           on: { input: e => { f.note = e.target.value; if (f.note.trim()) err.textContent = ""; e.target.parentNode.classList.toggle("need", needNote && !f.note.trim()); }, keydown: e => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } } } }),
         camBtn, scanInput, receiptInput);
       const repeatChip = !x && !adj && (f.kind === "expense" || f.kind === "income")
-        ? h("button", { type: "button", class: "tx-mini" + (f.repeat ? " on" : ""), "aria-pressed": String(f.repeat), on: { click: () => { f.repeat = !f.repeat; draw(); } } }, icon("repeat", "ico sm"), "Every month")
+        ? h("button", { type: "button", class: "tx-mini" + (f.repeat ? " on" : ""), "aria-pressed": String(f.repeat), on: { click: () => { f.repeat = !f.repeat; f.repeatTouched = true; draw(); } } }, icon("repeat", "ico sm"), "Every month")
         : null;
 
       const kids = [

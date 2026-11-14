@@ -1341,5 +1341,21 @@ Object.assign(window.WALLET_I18N.words, {
   "Connect again": ["Reconnecter", "اربط مرة أخرى"],
   "As soon as it's set up, you can also say ": ["Une fois prêt, vous pouvez aussi dire ", "بعد إعداده، يمكنك أيضاً قول "],
   "Quick add sets itself up": ["L'ajout rapide se configure tout seul", "الإضافة السريعة تُعدّ نفسها"],
-  "No more copying and pasting a key. Add the Shortcut, tap Connect, and it's linked to your account.": ["Plus besoin de copier-coller une clé. Ajoutez le raccourci, touchez Connecter, et il est lié à votre compte.", "لا حاجة بعد الآن لنسخ ولصق مفتاح. أضف الاختصار، اضغط «اربط»، وسيرتبط بحسابك."]
+  "No more copying and pasting a key. Add the Shortcut, tap Connect, and it's linked to your account.": ["Plus besoin de copier-coller une clé. Ajoutez le raccourci, touchez Connecter, et il est lié à votre compte.", "لا حاجة بعد الآن لنسخ ولصق مفتاح. أضف الاختصار، اضغط «اربط»، وسيرتبط بحسابك."],
+  "Payday! Did your salary come in?": ["Jour de paie ! Votre salaire est arrivé ?", "يوم الراتب! هل وصل راتبك؟"],
+  "Yes, add it": ["Oui, l'ajouter", "نعم، أضفه"],
+  "Other amount": ["Autre montant", "مبلغ آخر"],
+  "Not yet": ["Pas encore", "ليس بعد"],
+  "Your salary": ["Votre salaire", "راتبك"],
+  "Use this amount every month from now on": ["Utiliser ce montant chaque mois désormais", "استخدم هذا المبلغ كل شهر من الآن"],
+  "I didn't get it this month": ["Je ne l'ai pas reçu ce mois-ci", "لم أستلمه هذا الشهر"],
+  "Add it": ["L'ajouter", "أضفه"],
+  "Skipped this month.": ["Ce mois-ci est ignoré.", "تم تخطي هذا الشهر."],
+  "Card paid from salary": ["Carte payée avec le salaire", "تسديد البطاقة من الراتب"],
+  " Your card is paid off.": [" Votre carte est remboursée.", " تم تسديد بطاقتك."]
 });
+window.WALLET_I18N.patterns.push(
+  ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
+  ["^How much did you get\\? \\((.+)\\)$", "Combien avez-vous reçu ? ($1)", "كم استلمت؟ ($1)"],
+  ["^(.+) added to (.+?)\\.( Your card is paid off\\.)?$", "$1 ajouté à $2.", "تمت إضافة $1 إلى $2."]
+);
