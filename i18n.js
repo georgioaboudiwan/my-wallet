@@ -1359,7 +1359,21 @@ Object.assign(window.WALLET_I18N.words, {
   "Pick at least one": ["Choisissez-en au moins un", "اختر واحداً على الأقل"],
   "Paid back from salary": ["Remboursé avec le salaire", "سداد من الراتب"],
   "1 account paid back.": ["1 compte remboursé.", "تم سداد حساب واحد."],
-  "Blank white page? Tap the compass at the bottom right to open it in Safari.": ["Page blanche ? Touchez la boussole en bas à droite pour l'ouvrir dans Safari.", "صفحة بيضاء؟ اضغط على البوصلة أسفل اليمين لفتحها في سفاري."]
+  "Blank white page? Tap the compass at the bottom right to open it in Safari.": ["Page blanche ? Touchez la boussole en bas à droite pour l'ouvrir dans Safari.", "صفحة بيضاء؟ اضغط على البوصلة أسفل اليمين لفتحها في سفاري."],
+  "Step 2: turn on Back Tap": ["Étape 2 : activez Toucher le dos", "الخطوة 2: فعّل النقر على الظهر"],
+  "Step 3: turn on Back Tap": ["Étape 3 : activez Toucher le dos", "الخطوة 3: فعّل النقر على الظهر"],
+  "Touch is under Physical and Motor. Back Tap is at the very bottom of Touch. Pick Double Tap or Triple Tap, whichever you like, then choose “Add expense”.": ["Toucher se trouve sous Physique et moteur. Toucher le dos est tout en bas. Choisissez Toucher deux fois ou trois fois, puis « Add expense ».", "«اللمس» ضمن «البدني والحركي». «النقر على الظهر» في أسفل الصفحة. اختر نقرتين أو ثلاث نقرات، ثم «Add expense»."],
+  "Tap the back of your iPhone (or say “Hey Siri, Add expense”), pick what it was for, type the amount, and it's saved. Takes about a minute to set up.": ["Touchez le dos de votre iPhone (ou dites « Dis Siri, Add expense »), choisissez la catégorie, tapez le montant, c'est enregistré. Environ une minute à configurer.", "انقر على ظهر الآيفون (أو قل «يا سيري، Add expense»)، اختر الفئة، اكتب المبلغ، ويُحفظ. الإعداد يستغرق دقيقة تقريباً."],
+  "Try it now: tap the back of your iPhone the way you chose and type 1. It shows up here the next time you open the app.": ["Essayez : touchez le dos de l'iPhone comme vous l'avez choisi et tapez 1. Ça apparaît ici à la prochaine ouverture.", "جرّبه الآن: انقر على ظهر الآيفون بالطريقة التي اخترتها واكتب 1. سيظهر هنا عند فتح التطبيق."],
+  "No Back Tap? You can also say ": ["Pas de Toucher le dos ? Vous pouvez aussi dire ", "لا تستخدم النقر على الظهر؟ يمكنك أيضاً قول "],
+  "In iPhone Settings → Accessibility → Touch → Back Tap, pick Double Tap or Triple Tap, then “Add expense”.": ["Dans Réglages → Accessibilité → Toucher → Toucher le dos, choisissez deux ou trois fois, puis « Add expense ».", "في الإعدادات → تسهيلات الاستخدام → اللمس → النقر على الظهر، اختر نقرتين أو ثلاث، ثم «Add expense»."],
+  "Tap the back of your iPhone": ["Touchez le dos de votre iPhone", "انقر على ظهر الآيفون"],
+  "The fastest way: tap the back of the phone, from any screen, even with another app open.": ["Le plus rapide : touchez le dos du téléphone, depuis n'importe quel écran.", "الأسرع: انقر على ظهر الهاتف من أي شاشة، حتى مع تطبيق آخر مفتوح."],
+  "Pick Double Tap or Triple Tap, then your “Add expense” Shortcut.": ["Choisissez deux ou trois fois, puis votre raccourci « Add expense ».", "اختر نقرتين أو ثلاث، ثم اختصار «Add expense»."],
+  "Now tap the back of your iPhone, type the amount, and it's saved. It shows up in BudgetSplit the next time you open it.": ["Touchez le dos de l'iPhone, tapez le montant, c'est enregistré. Ça apparaît dans BudgetSplit à la prochaine ouverture.", "الآن انقر على ظهر الآيفون، اكتب المبلغ، ويُحفظ. سيظهر في BudgetSplit عند فتحه."],
+  "Works on iPhone 8 and newer. Use the other one (Double or Triple Tap) for the “Today” Shortcut if you like.": ["Fonctionne sur iPhone 8 et plus récent. Utilisez l'autre geste pour le raccourci « Today » si vous voulez.", "يعمل على آيفون 8 وأحدث. استخدم النقر الآخر لاختصار «Today» إن أردت."],
+  "Tap the back of your iPhone or say “Hey Siri, Add expense”. Takes about a minute to set up.": ["Touchez le dos de l'iPhone ou dites « Dis Siri, Add expense ». Environ une minute à configurer.", "انقر على ظهر الآيفون أو قل «يا سيري، Add expense». الإعداد يستغرق دقيقة تقريباً."],
+  "Tap the back of your iPhone or say “Hey Siri, Add expense”": ["Touchez le dos de l'iPhone ou dites « Dis Siri, Add expense »", "انقر على ظهر الآيفون أو قل «يا سيري، Add expense»"]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],

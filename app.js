@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.42.1";
+  const VERSION = "3.42.2";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2024,10 +2024,10 @@
     const dots = n => h("div", { class: "qwiz-dots" }, Array.from({ length: total }, (_, i) => h("span", { class: i < n ? "on" : "" })));
     const path = items => h("div", { class: "qwiz-path" }, items.map((t, i) => [i ? h("span", { class: "qwiz-sep" }, "›") : null, h("span", { class: "qwiz-chip" + (i === items.length - 1 ? " last" : "") }, t)]));
     const backTap = n => [dots(n),
-      h("h3", { class: "qwiz-title" }, `Step ${n}: turn on double-tap`),
+      h("h3", { class: "qwiz-title" }, `Step ${n}: turn on Back Tap`),
       h("p", { class: "hint" }, "Open the iPhone Settings app and follow this path:"),
-      path(["Settings", "Accessibility", "Touch", "Back Tap", "Double Tap", SHORTCUT_NAME]),
-      h("p", { class: "hint" }, "Touch is under Physical and Motor. Back Tap is at the very bottom of Touch."),
+      path(["Settings", "Accessibility", "Touch", "Back Tap", SHORTCUT_NAME]),
+      h("p", { class: "hint" }, "Touch is under Physical and Motor. Back Tap is at the very bottom of Touch. Pick Double Tap or Triple Tap, whichever you like, then choose “Add expense”."),
       h("button", { type: "button", class: "btn", on: { click: () => { store.set("qwiz", 9); track("add", "shortcut_done"); draw(); } } }, "Done"),
       h("button", { type: "button", class: "btn alt", on: { click: () => { store.set("qwiz", n - 1); draw(); } } }, "Back")];
     const draw = () => {
@@ -2035,7 +2035,7 @@
       const st = Math.max(1, store.get("qwiz", 1));
       let kids;
       if (st === 1) kids = [dots(1),
-        h("p", { class: "hint center" }, "Tap the back of your iPhone twice (or say “Hey Siri, Add expense”), pick what it was for, type the amount, and it's saved. Takes about a minute to set up."),
+        h("p", { class: "hint center" }, "Tap the back of your iPhone (or say “Hey Siri, Add expense”), pick what it was for, type the amount, and it's saved. Takes about a minute to set up."),
         h("h3", { class: "qwiz-title" }, "Step 1: get the Shortcut"),
         auto
           ? h("ol", { class: "qwiz-list" },
@@ -2063,8 +2063,8 @@
       else kids = [
         h("div", { class: "qwiz-hero" }, h("span", { class: "qwiz-big done" }, icon("check")),
           h("h3", null, "You're all set 🎉"),
-          h("p", null, "Try it now: tap the back of your iPhone twice and type 1. It shows up here the next time you open the app.")),
-        h("div", { class: "qwiz-tip" }, icon("chat", "ico sm"), h("span", null, "No double-tap? You can also say ", h("strong", null, "“Hey Siri, Add expense”"), ".")),
+          h("p", null, "Try it now: tap the back of your iPhone the way you chose and type 1. It shows up here the next time you open the app.")),
+        h("div", { class: "qwiz-tip" }, icon("chat", "ico sm"), h("span", null, "No Back Tap? You can also say ", h("strong", null, "“Hey Siri, Add expense”"), ".")),
         h("button", { type: "button", class: "btn", on: { click: closeSheet } }, "Close"),
         auto ? h("button", { type: "button", class: "btn alt", on: { click: () => token && connect(token) } }, "Connect again") : null,
         h("button", { type: "button", class: "link-btn", on: { click: () => { store.set("qwiz", 1); draw(); } } }, "Set it up again")];
@@ -2084,7 +2084,7 @@
       const token = store.get("quickToken", null);
       if (!token) {
         body.replaceChildren(
-          h("p", { class: "hint" }, "Add an expense in two seconds without opening the app: double-tap the back of your iPhone (or use the Lock Screen or the Action Button), type the amount, and it's saved. It appears in BudgetSplit the next time you open it."),
+          h("p", { class: "hint" }, "Add an expense in two seconds without opening the app: tap the back of your iPhone (or use the Lock Screen or the Action Button), type the amount, and it's saved. It appears in BudgetSplit the next time you open it."),
           h("p", { class: "hint" }, "Quick entries wait on the server unencrypted until the app opens and files them, then they are deleted from there."),
           h("button", { type: "button", class: "btn", on: { click: async () => { if (await ensureQuickToken()) { draw(); render(); } } } }, "Turn on quick add"));
         return;
@@ -2095,7 +2095,7 @@
         h("ol", { class: "backtap-steps" },
           h("li", null, "Tap Get the Shortcut below. Your key is copied for you."),
           h("li", null, "Tap Add Shortcut, then paste the key when it asks."),
-          h("li", null, "In iPhone Settings → Accessibility → Touch → Back Tap → Double Tap, pick “Add expense”.")),
+          h("li", null, "In iPhone Settings → Accessibility → Touch → Back Tap, pick Double Tap or Triple Tap, then “Add expense”.")),
         h("button", { type: "button", class: "btn", on: { click: async () => { try { await navigator.clipboard.writeText(token); toast("Key copied. Paste it when the Shortcut asks."); } catch { } openShortcutLink(); } } }, "Get the Shortcut")) : null;
       body.replaceChildren(
         easy,
@@ -2107,13 +2107,13 @@
           step(4, "Optional: pick the category too", "Before “Get Contents of URL”, add the action “Choose from List” with your category names (copy them below). Then add a fourth text field named category and pick the “Chosen Item” result. Entries then arrive already filed."),
           step(5, "Put it where you want", "Add the Shortcut to your Lock Screen (Customize → widgets → Shortcuts), to the Action Button (Settings → Action Button → Shortcut), or to the Home Screen.")),
         h("section", { class: "card backtap" },
-          h("div", { class: "backtap-head" }, h("span", { class: "backtap-ico" }, icon("phone")), h("div", null, h("strong", null, "Double-tap the back of your iPhone"), h("small", null, "The fastest way: tap twice on the back of the phone, from any screen, even with another app open."))),
+          h("div", { class: "backtap-head" }, h("span", { class: "backtap-ico" }, icon("phone")), h("div", null, h("strong", null, "Tap the back of your iPhone"), h("small", null, "The fastest way: tap the back of the phone, from any screen, even with another app open."))),
           h("ol", { class: "backtap-steps" },
             h("li", null, "Open the iPhone Settings app."),
             h("li", null, "Go to Accessibility → Touch → Back Tap."),
-            h("li", null, "Tap Double Tap and pick your “Add expense” Shortcut."),
-            h("li", null, "Now tap the back of your iPhone twice, type the amount, and it's saved. It shows up in BudgetSplit the next time you open it.")),
-          h("p", { class: "hint" }, "Works on iPhone 8 and newer. You can use Triple Tap for the “Today” Shortcut too.")),
+            h("li", null, "Pick Double Tap or Triple Tap, then your “Add expense” Shortcut."),
+            h("li", null, "Now tap the back of your iPhone, type the amount, and it's saved. It shows up in BudgetSplit the next time you open it.")),
+          h("p", { class: "hint" }, "Works on iPhone 8 and newer. Use the other one (Double or Triple Tap) for the “Today” Shortcut if you like.")),
         h("label", { class: "field" }, h("span", null, "Address"), h("input", { class: "input", readOnly: true, value: url, id: "q-url" })),
         h("button", { type: "button", class: "btn alt", on: { click: () => copyText(url, "q-url") } }, "Copy the address"),
         h("label", { class: "field" }, h("span", null, "Your key (keep it private)"), h("input", { class: "input", readOnly: true, value: token, id: "q-token" })),
@@ -2372,6 +2372,9 @@
   const ADMIN_CHANGES = [
     { v: "3.41.0", items: [
       ["", "Hidden: salary confirmation on payday", "Picking Salary under Received turns on Every month by itself. On each payday, Home asks “Did your salary come in?” (Yes, Other amount, Not yet) and only adds it after a yes. Not shown in What's new."],
+    ] },
+    { v: "3.42.2", items: [
+      ["", "Back Tap wording", "Setup texts no longer say double-tap; users pick Double or Triple Tap themselves."]
     ] },
     { v: "3.42.1", items: [
       ["", "Shortcut link opens in Safari", "From the installed app, the Shortcut link now opens in Safari instead of the in-app browser, which showed a white page."]
@@ -2785,7 +2788,7 @@
       out.append(h("section", { class: "bill-teaser tap-teaser" },
         h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("tapTeaserOff", true); render(); } } }, icon("close", "ico sm")),
         h("span", { class: "bill-badge" }, icon("phone", "ico sm")),
-        h("div", null, h("strong", null, "Add without opening the app"), h("small", null, "Double-tap the back of your iPhone or say “Hey Siri, Add expense”. Takes about a minute to set up.")),
+        h("div", null, h("strong", null, "Add without opening the app"), h("small", null, "Tap the back of your iPhone or say “Hey Siri, Add expense”. Takes about a minute to set up.")),
         h("button", { type: "button", class: "btn sm", on: { click: () => quickSheet() } }, "Set it up")));
     }
 
@@ -3302,7 +3305,7 @@
     const quickOn = !!store.get("quickToken", null);
     out.append(group("Quick add",
       h("button", { type: "button", class: "row", on: { click: () => quickSheet() } }, h("span", { class: "dot neutral" }, icon("plus", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Add without opening the app"), h("span", { class: "row-sub wrap" }, quickOn ? "On. Tap to see the setup or turn it off" : "Double-tap the back of your iPhone or say “Hey Siri, Add expense”")), icon("fwd"))));
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Add without opening the app"), h("span", { class: "row-sub wrap" }, quickOn ? "On. Tap to see the setup or turn it off" : "Tap the back of your iPhone or say “Hey Siri, Add expense”")), icon("fwd"))));
 
     out.append(group("Your name", h("div", { class: "row" }, h("span", { class: "row-main" }, nameIn, h("span", { class: "row-sub", style: { marginTop: "6px" } }, "Shown on the private pages you share")))));
 
