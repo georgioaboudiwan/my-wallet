@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.35.1";
+  const VERSION = "3.36.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1854,7 +1854,7 @@
     }, 2500);
   }
 
-  const SHORTCUT_LINK = "";
+  const SHORTCUT_LINK = "https://www.icloud.com/shortcuts/83a3785b861b4f2f9a96dc303b2b1577";
   async function quickSheet() {
     const url = `${CFG.supabaseUrl}/functions/v1/quick-add`;
     const body = h("div", { class: "form" });
@@ -2154,6 +2154,9 @@
   }
 
   const CHANGES = [
+    { v: "3.36.0", items: [
+      ["phone", "Add from the back of your iPhone in 3 taps", "Settings → Add without opening the app → Get the Shortcut. Your key is copied for you. Then turn on Back Tap and double-tap the back of your phone to add an expense."]
+    ] },
     { v: "3.35.0", items: [
       ["phone", "Double-tap to add", "Double-tap the back of your iPhone, type the amount, and it's saved, without opening the app. Set it up in Settings → Add without opening the app."]
     ] },

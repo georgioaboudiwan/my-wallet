@@ -1289,3 +1289,7 @@ Object.assign(window.WALLET_I18N.words, {
   "Get the Shortcut": ["Obtenir le raccourci", "احصل على الاختصار"], "Key copied. Paste it when the Shortcut asks.": ["Clé copiée. Collez-la quand le raccourci la demande.", "نُسخ المفتاح. الصقه عندما يطلبه الاختصار."],
   "Prefer to build it yourself? Here's how:": ["Vous préférez le créer vous-même ? Voici comment :", "تفضّل إنشاءه بنفسك؟ إليك الطريقة:"]
 });
+Object.assign(window.WALLET_I18N.words, {
+  "Add from the back of your iPhone in 3 taps": ["Ajoutez depuis le dos de l'iPhone en 3 gestes", "أضف من ظهر الآيفون في 3 لمسات"],
+  "Settings → Add without opening the app → Get the Shortcut. Your key is copied for you. Then turn on Back Tap and double-tap the back of your phone to add an expense.": ["Réglages → Ajouter sans ouvrir l'app → Obtenir le raccourci. Votre clé est copiée. Activez ensuite Toucher le dos et tapotez deux fois le dos du téléphone.", "الإعدادات ← أضف دون فتح التطبيق ← احصل على الاختصار. يُنسخ مفتاحك تلقائيًا. ثم فعّل النقر على الظهر وانقر مرتين على ظهر الهاتف لإضافة مصروف."]
+});
