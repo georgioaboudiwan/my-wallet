@@ -1455,3 +1455,11 @@ input[type="month"].input::-webkit-date-and-time-value, input[type="date"].input
 .hbar-track { height: 8px; border-radius: 99px; background: var(--sunk); overflow: hidden; }
 .hbar-track span { display: block; height: 100%; border-radius: 99px; background: var(--accent); }
 .icard .facts .fact small + strong + small { font-size: 12px; color: var(--muted); }
+.backtap { gap: 12px; border: 1.5px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+.backtap-head { display: flex; gap: 12px; align-items: flex-start; }
+.backtap-head strong { display: block; font-size: 16px; }
+.backtap-head small { display: block; margin-top: 2px; color: var(--muted); font-size: 13.5px; line-height: 1.4; }
+.backtap-ico { width: 44px; height: 44px; border-radius: 14px; flex: none; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); }
+.backtap-steps { margin: 0; padding-inline-start: 22px; display: grid; gap: 6px; font-size: 14.5px; line-height: 1.4; }
+.tap-teaser { border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+.tap-teaser .bill-badge { background: var(--accent-soft); color: var(--accent); }

@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.34.0";
+  const VERSION = "3.35.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1861,7 +1861,7 @@
       const token = store.get("quickToken", null);
       if (!token) {
         body.replaceChildren(
-          h("p", { class: "hint" }, "iPhone doesn't allow web apps to have widgets, but a Shortcut can do the same job: tap it on the Lock Screen, the Action Button or the Home Screen, type the amount, and it is saved. The entry appears in your wallet the next time the app opens."),
+          h("p", { class: "hint" }, "Add an expense in two seconds without opening the app: double-tap the back of your iPhone (or use the Lock Screen or the Action Button), type the amount, and it's saved. It appears in BudgetSplit the next time you open it."),
           h("p", { class: "hint" }, "Quick entries wait on the server unencrypted until the app opens and files them, then they are deleted from there."),
           h("button", { type: "button", class: "btn", on: { click: async () => {
             if (!navigator.onLine) return toast("Connect to the internet to set this up.", "error");
@@ -1882,6 +1882,14 @@
           step(3, "Send it", "Add the action “Get Contents of URL”. Paste the address below. Set Method to POST and Request Body to JSON, then add three text fields: token (paste your key below), amount (pick the “Ask for Input” result) and, if you want, note."),
           step(4, "Optional: pick the category too", "Before “Get Contents of URL”, add the action “Choose from List” with your category names (copy them below). Then add a fourth text field named category and pick the “Chosen Item” result. Entries then arrive already filed."),
           step(5, "Put it where you want", "Add the Shortcut to your Lock Screen (Customize → widgets → Shortcuts), to the Action Button (Settings → Action Button → Shortcut), or to the Home Screen.")),
+        h("section", { class: "card backtap" },
+          h("div", { class: "backtap-head" }, h("span", { class: "backtap-ico" }, icon("phone")), h("div", null, h("strong", null, "Double-tap the back of your iPhone"), h("small", null, "The fastest way: tap twice on the back of the phone, from any screen, even with another app open."))),
+          h("ol", { class: "backtap-steps" },
+            h("li", null, "Open the iPhone Settings app."),
+            h("li", null, "Go to Accessibility → Touch → Back Tap."),
+            h("li", null, "Tap Double Tap and pick your “Add expense” Shortcut."),
+            h("li", null, "Now tap the back of your iPhone twice, type the amount, and it's saved. It shows up in BudgetSplit the next time you open it.")),
+          h("p", { class: "hint" }, "Works on iPhone 8 and newer. You can use Triple Tap for the “Today” Shortcut too.")),
         h("label", { class: "field" }, h("span", null, "Address"), h("input", { class: "input", readOnly: true, value: url, id: "q-url" })),
         h("button", { type: "button", class: "btn alt", on: { click: () => copyText(url, "q-url") } }, "Copy the address"),
         h("label", { class: "field" }, h("span", null, "Your key (keep it private)"), h("input", { class: "input", readOnly: true, value: token, id: "q-token" })),
@@ -1915,7 +1923,7 @@
         } } }, "Turn off quick add"));
     };
     draw();
-    openSheet("Add from the Lock Screen", body);
+    openSheet("Add without opening the app", body);
   }
 
   function maybeOnboard() {
@@ -2136,6 +2144,9 @@
   }
 
   const CHANGES = [
+    { v: "3.35.0", items: [
+      ["phone", "Double-tap to add", "Double-tap the back of your iPhone, type the amount, and it's saved, without opening the app. Set it up in Settings → Add without opening the app."]
+    ] },
     { v: "3.34.0", items: [
       ["star", "Split is easier to find", "The Share costs with friends card now sits right under your balance, so you see it as soon as you open the app."]
     ] },
@@ -2514,6 +2525,13 @@
     if (recap) out.append(recap);
     const coming = upcomingCard();
     if (coming) out.append(coming);
+    if (/iPhone/.test(navigator.userAgent) && !store.get("quickToken", null) && !store.get("tapTeaserOff", false)) {
+      out.append(h("section", { class: "bill-teaser tap-teaser" },
+        h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("tapTeaserOff", true); render(); } } }, icon("close", "ico sm")),
+        h("span", { class: "bill-badge" }, icon("phone", "ico sm")),
+        h("div", null, h("strong", null, "Add without opening the app"), h("small", null, "Double-tap the back of your iPhone, type the amount, done. Takes 2 minutes to set up.")),
+        h("button", { type: "button", class: "btn sm", on: { click: quickSheet } }, "Set it up")));
+    }
 
     const alerts = rows("categories").filter(c => c.kind === "expense" && Number(c.budget) > 0)
       .map(c => ({ c, spent: s.byCat.get(c.id) || 0, budget: Number(c.budget) }))
@@ -3028,7 +3046,7 @@
     const quickOn = !!store.get("quickToken", null);
     out.append(group("Quick add",
       h("button", { type: "button", class: "row", on: { click: quickSheet } }, h("span", { class: "dot neutral" }, icon("plus", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Add from the Lock Screen"), h("span", { class: "row-sub wrap" }, quickOn ? "On. Tap to see the setup or turn it off" : "Log an expense with an iPhone Shortcut, without opening the app")), icon("fwd"))));
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Add without opening the app"), h("span", { class: "row-sub wrap" }, quickOn ? "On. Tap to see the setup or turn it off" : "Double-tap the back of your iPhone, type the amount, done")), icon("fwd"))));
 
     out.append(group("Your name", h("div", { class: "row" }, h("span", { class: "row-main" }, nameIn, h("span", { class: "row-sub", style: { marginTop: "6px" } }, "Shown on the private pages you share")))));
 

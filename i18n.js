@@ -1265,3 +1265,19 @@ window.WALLET_I18N.patterns.push(
   ["^People drifting away \\((\\d+)\\)$", "Utilisateurs qui s'éloignent ($1)", "مستخدمون يبتعدون ($1)"],
   ["^App errors, last 14 days \\((\\d+)\\)$", "Erreurs de l'app, 14 jours ($1)", "أخطاء التطبيق، آخر 14 يومًا ($1)"]
 );
+Object.assign(window.WALLET_I18N.words, {
+  "Add without opening the app": ["Ajouter sans ouvrir l'app", "أضف دون فتح التطبيق"],
+  "Double-tap the back of your iPhone, type the amount, done": ["Tapotez deux fois l'arrière de l'iPhone, tapez le montant, c'est fait", "انقر مرتين على ظهر الآيفون، اكتب المبلغ، انتهى"],
+  "Double-tap the back of your iPhone, type the amount, done. Takes 2 minutes to set up.": ["Tapotez deux fois l'arrière de l'iPhone, tapez le montant, c'est fait. 2 minutes à configurer.", "انقر مرتين على ظهر الآيفون، اكتب المبلغ، انتهى. الإعداد يستغرق دقيقتين."],
+  "Set it up": ["Configurer", "اضبطه"],
+  "Double-tap the back of your iPhone": ["Tapotez deux fois l'arrière de l'iPhone", "انقر مرتين على ظهر الآيفون"],
+  "The fastest way: tap twice on the back of the phone, from any screen, even with another app open.": ["Le plus rapide : deux tapes au dos du téléphone, depuis n'importe quel écran, même dans une autre app.", "الأسرع: انقر مرتين على ظهر الهاتف من أي شاشة، حتى داخل تطبيق آخر."],
+  "Open the iPhone Settings app.": ["Ouvrez l'app Réglages de l'iPhone.", "افتح تطبيق الإعدادات في الآيفون."],
+  "Go to Accessibility → Touch → Back Tap.": ["Allez dans Accessibilité → Toucher → Toucher le dos.", "اذهب إلى تسهيلات الاستخدام ← اللمس ← النقر على الظهر."],
+  "Tap Double Tap and pick your “Add expense” Shortcut.": ["Touchez Toucher deux fois et choisissez le raccourci « Add expense ».", "اضغط «نقر مزدوج» واختر اختصار «Add expense»."],
+  "Now tap the back of your iPhone twice, type the amount, and it's saved. It shows up in BudgetSplit the next time you open it.": ["Tapotez deux fois le dos de l'iPhone, tapez le montant : c'est enregistré. Ça apparaît dans BudgetSplit à la prochaine ouverture.", "الآن انقر مرتين على ظهر الآيفون واكتب المبلغ فيُحفظ. يظهر في BudgetSplit عند فتحه في المرة القادمة."],
+  "Works on iPhone 8 and newer. You can use Triple Tap for the “Today” Shortcut too.": ["Fonctionne sur iPhone 8 et plus récents. Utilisez Toucher trois fois pour le raccourci « Today ».", "يعمل على آيفون 8 وأحدث. يمكنك استخدام النقر الثلاثي لاختصار «Today» أيضًا."],
+  "Double-tap to add": ["Tapotez pour ajouter", "انقر مرتين للإضافة"],
+  "Double-tap the back of your iPhone, type the amount, and it's saved, without opening the app. Set it up in Settings → Add without opening the app.": ["Tapotez deux fois le dos de l'iPhone, tapez le montant, c'est enregistré sans ouvrir l'app. À configurer dans Réglages → Ajouter sans ouvrir l'app.", "انقر مرتين على ظهر الآيفون واكتب المبلغ فيُحفظ دون فتح التطبيق. اضبطه من الإعدادات ← أضف دون فتح التطبيق."],
+  "Add an expense in two seconds without opening the app: double-tap the back of your iPhone (or use the Lock Screen or the Action Button), type the amount, and it's saved. It appears in BudgetSplit the next time you open it.": ["Ajoutez une dépense en deux secondes sans ouvrir l'app : tapotez deux fois le dos de l'iPhone (ou l'écran verrouillé, ou le bouton Action), tapez le montant, c'est enregistré.", "أضف مصروفًا في ثانيتين دون فتح التطبيق: انقر مرتين على ظهر الآيفون (أو من شاشة القفل أو زر الإجراء)، اكتب المبلغ فيُحفظ."]
+});
