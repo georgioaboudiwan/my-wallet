@@ -1649,3 +1649,9 @@ main.view.set-snap { transition: transform .25s var(--ease); }
 .fan-row .fan-item { width: auto; }
 .fan-item.k-bill { --k: #c98a1a; }
 @media (max-width: 440px) { .fan-row { grid-template-columns: repeat(3, 76px); gap: 14px 10px; padding: 14px; } }
+.note-skip { display: grid; gap: 10px; padding: 4px 16px 16px; }
+.note-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.note-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 6px 12px; border-radius: 99px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink); font: 600 13.5px var(--ui); }
+.note-chip i { width: 9px; height: 9px; border-radius: 50%; background: var(--c, var(--muted)); }
+.note-chip.on { border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: var(--accent-soft); color: var(--accent); }
+.note-chip .ico.sm { width: 15px; height: 15px; }

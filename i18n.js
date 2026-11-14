@@ -1477,7 +1477,11 @@ Object.assign(window.WALLET_I18N.words, {
   "Everyone in the group sees this list in their app. Tap Share to send it to people who don't use BudgetSplit.": ["Tout le groupe voit cette liste dans l'app. Touchez Partager pour l'envoyer à ceux qui n'utilisent pas BudgetSplit.", "يرى كل أعضاء المجموعة هذه القائمة في التطبيق. اضغط «شارك» لإرسالها لمن لا يستخدم BudgetSplit."],
   "A bill to pay every month": ["Une facture à payer chaque mois", "فاتورة تُدفع كل شهر"],
   "Generator, internet, rent… with a reminder": ["Générateur, internet, loyer… avec un rappel", "مولّد، إنترنت، إيجار… مع تذكير"],
-  "Bill": ["Facture", "فاتورة"]
+  "Bill": ["Facture", "فاتورة"],
+  "No note needed for these. Tap to change:": ["Pas de note pour celles-ci. Touchez pour changer :", "لا حاجة لملاحظة لهذه الفئات. اضغط للتغيير:"],
+  "Fewer notes to write": ["Moins de notes à écrire", "ملاحظات أقل"],
+  "Everyday things like groceries, fuel or bills no longer need a note. Pick which categories need one in Settings → Entries and defaults.": ["Les dépenses courantes comme les courses, l'essence ou les factures n'ont plus besoin de note. Choisissez lesquelles en demandent dans Réglages → Opérations.", "الأشياء اليومية مثل البقالة والوقود والفواتير لم تعد تحتاج ملاحظة. اختر الفئات التي تحتاجها من الإعدادات ← العمليات."],
+  "Asked for every category except the ones ticked below": ["Demandée pour toutes les catégories sauf celles cochées ci-dessous", "مطلوبة لكل الفئات ما عدا المحددة أدناه"]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],

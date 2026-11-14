@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.45.3";
+  const VERSION = "3.46.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -617,6 +617,13 @@
     TRACK.mute = false;
   }
 
+  const NOTE_SKIP_DEFAULT = ["groceries", "home", "bills", "generator", "transport", "subs", "salary", "debt"];
+  function noteSkipSet() {
+    const v = storedSettings().noteSkip;
+    if (Array.isArray(v)) return new Set(v);
+    return new Set(rows("categories").filter(c => NOTE_SKIP_DEFAULT.includes(String(c.id).split(":cat:")[1])).map(c => c.id));
+  }
+  const noteNeeded = catId => settings().noteRequired && !(catId && noteSkipSet().has(catId));
   const isSalaryCat = c => !!c && c.kind === "income" && (/:cat:salary$/.test(c.id) || /salary|salaire|wage|راتب|معاش/i.test(c.name));
   function settlePlan(payday) {
     const src = acc(payday.account_id);
@@ -2451,6 +2458,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.46.0", items: [
+      ["", "Notes only where they help", "Note required now skips everyday categories (Groceries, Rent & home, Bills, Generator, Fuel, Subscriptions, Salary, Loan repayments). Users change the list in Settings → Entries and defaults."]
+    ] },
     { v: "3.45.3", items: [
       ["", "Bill in the + screen", "Tap + → More → A bill to pay every month."]
     ] },
@@ -2495,6 +2505,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.46.0", items: [
+      ["note", "Fewer notes to write", "Everyday things like groceries, fuel or bills no longer need a note. Pick which categories need one in Settings → Entries and defaults."]
+    ] },
     { v: "3.44.0", items: [
       ["work", "Your salary, added on payday", "Set your salary once and on payday the app asks if it came in. Tap yes and it's added to your account."]
     ] },
@@ -3463,8 +3476,14 @@
         h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(!storedSettings().reportOff), "aria-label": "Monthly report by email", on: { click: () => saveSettings({ reportOff: !storedSettings().reportOff }) } }, h("span", { class: "knob" })))));
     out.append(group("Entries",
       h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("note", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Note is required"), h("span", { class: "row-sub wrap" }, settings().noteRequired ? "Every new entry needs a short note" : "Notes are optional")),
-        h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(settings().noteRequired), "aria-label": "Note is required", on: { click: () => saveSettings({ noteRequired: !settings().noteRequired }) } }, h("span", { class: "knob" })))));
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Note is required"), h("span", { class: "row-sub wrap" }, settings().noteRequired ? "Asked for every category except the ones ticked below" : "Notes are optional")),
+        h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(settings().noteRequired), "aria-label": "Note is required", on: { click: () => saveSettings({ noteRequired: !settings().noteRequired }) } }, h("span", { class: "knob" }))),
+      settings().noteRequired ? h("div", { class: "note-skip" },
+        h("p", { class: "row-sub wrap" }, "No note needed for these. Tap to change:"),
+        h("div", { class: "note-chips" }, rows("categories").filter(c => c.kind === "expense" || c.kind === "income").sort((p, q) => (p.kind === q.kind ? 0 : p.kind === "expense" ? -1 : 1) || bySort(p, q)).map(c => {
+          const off = noteSkipSet().has(c.id);
+          return h("button", { type: "button", class: "note-chip" + (off ? " on" : ""), "aria-pressed": String(off), style: { "--c": c.color }, on: { click: () => { const set = noteSkipSet(); if (off) set.delete(c.id); else set.add(c.id); saveSettings({ noteSkip: [...set] }); } } }, h("i"), c.name, off ? icon("check", "ico sm") : null);
+        }))) : null));
     out.append(group("Help",
       h("button", { type: "button", class: "row-btn", on: { click: () => { for (const v of Object.keys(TOURS)) store.set("tour:" + v, 0); go("home"); setTimeout(() => startTour("home"), 500); } } }, "Show the tour again"),
       h("button", { type: "button", class: "row-btn", on: { click: helpSheet } }, "How each screen works"),
@@ -5788,7 +5807,7 @@
       const yest = ymd(new Date(Date.now() - 864e5));
       const dateText = f.date === today() ? "Today" : f.date === yest ? "Yesterday" : dayLabel(f.date);
       const lp = loanPerson();
-      const needNote = (settings().noteRequired || !!f.adjust) && !x && f.kind !== "transfer";
+      const needNote = (noteNeeded(f.kind === "loan" ? null : f.category) || !!f.adjust) && !x && f.kind !== "transfer";
       const noteHint = f.kind === "expense" ? "Add a note, like what you bought" : f.kind === "income" ? "Add a note, like who sent it" : f.kind === "loan" ? "What is it for?" : "Add a note";
       const open = k => { err.textContent = ""; panel = panel === k ? "none" : k; draw(); };
       const accDot = o => h("span", { class: "tx-dot k-" + (KIND_ICON[o.kind] ? o.kind : "cash") }, icon(KIND_ICON[o.kind] || "cash", "ico sm"));
@@ -5905,7 +5924,7 @@
       if ((f.kind === "expense" || f.kind === "income") && !f.category) { attn = true; draw(); fail(err, f.kind === "expense" ? "Pick what it was for." : "Pick where it came from.", body.querySelector(".tx-pick")); return; }
       if (f.kind === "loan" && !loanPerson()) { attn = true; draw(); fail(err, "Pick who it's with.", body.querySelector(".tx-pick")); return; }
       if (!DATE_RE.test(f.date)) { fail(err, "Pick a date."); return; }
-      if ((settings().noteRequired || f.adjust) && !x && f.kind !== "transfer" && !f.note.trim()) { fail(err, f.adjust ? (f.kind === "income" ? "Write where this money came from." : "Write what this money was used for.") : "Write a short note so you remember what it was."); const n = document.getElementById("f-note"); if (n) n.focus(); return; }
+      if ((noteNeeded(f.kind === "loan" ? null : f.category) || f.adjust) && !x && f.kind !== "transfer" && !f.note.trim()) { fail(err, f.adjust ? (f.kind === "income" ? "Write where this money came from." : "Write what this money was used for.") : "Write a short note so you remember what it was."); const n = document.getElementById("f-note"); if (n) n.focus(); return; }
       if (f.adjust && !x && !f.category) { attn = true; draw(); fail(err, f.kind === "income" ? "Pick what kind of money this is." : "Pick what it was spent on."); return; }
       if (f.kind === "loan") {
         const p = loanPerson();
