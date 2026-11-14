@@ -1463,3 +1463,32 @@ input[type="month"].input::-webkit-date-and-time-value, input[type="date"].input
 .backtap-steps { margin: 0; padding-inline-start: 22px; display: grid; gap: 6px; font-size: 14.5px; line-height: 1.4; }
 .tap-teaser { border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
 .tap-teaser .bill-badge { background: var(--accent-soft); color: var(--accent); }
+.qwiz { gap: 14px; }
+.qwiz-hero { display: grid; justify-items: center; gap: 8px; text-align: center; padding-top: 4px; }
+.qwiz-hero h3 { font-size: 22px; line-height: 1.2; letter-spacing: -.01em; }
+.qwiz-hero p { color: var(--muted); font-size: 15.5px; line-height: 1.45; max-width: 320px; }
+.qwiz-big { width: 72px; height: 72px; border-radius: 22px; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 35%, transparent); }
+.qwiz-big .ico { width: 34px; height: 34px; }
+.qwiz-big.done { border-radius: 50%; }
+.qwiz-demo { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 14px; border-radius: 18px; background: var(--card); box-shadow: var(--shadow); font-size: 14px; color: var(--muted); }
+.qwiz-demo strong { font: 750 20px var(--nums); color: var(--ink); }
+.qwiz-tap { font-size: 18px; }
+.qwiz-ok { padding: 4px 10px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.center { text-align: center; }
+.qwiz-dots { display: flex; justify-content: center; gap: 6px; }
+.qwiz-dots span { width: 28px; height: 5px; border-radius: 99px; background: var(--line); }
+.qwiz-dots span.on { background: var(--accent); }
+.qwiz-title { font-size: 21px; text-align: center; }
+.qwiz-list { margin: 0; padding-inline-start: 22px; display: grid; gap: 10px; font-size: 16px; line-height: 1.4; }
+.qwiz-mock { display: grid; gap: 8px; padding: 14px; border-radius: 18px; background: var(--card); box-shadow: var(--shadow); }
+.qwiz-mock small { font-size: 13px; color: var(--muted); font-weight: 600; }
+.qwiz-field { display: flex; align-items: center; min-height: 40px; padding: 0 10px; border-radius: 10px; background: var(--sunk); }
+.qwiz-paste { padding: 5px 12px; border-radius: 8px; background: #2c2c2e; color: #fff; font-size: 13px; font-weight: 600; }
+.qwiz-add { justify-self: center; padding: 8px 18px; border-radius: 99px; background: #0a84ff; color: #fff; font-weight: 700; font-size: 14px; }
+.qwiz-path { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 14px; border-radius: 18px; background: var(--card); box-shadow: var(--shadow); }
+.qwiz-chip { padding: 7px 11px; border-radius: 10px; background: var(--sunk); font-weight: 650; font-size: 14.5px; }
+.qwiz-chip.last { background: var(--accent); color: var(--on-accent); }
+.qwiz-sep { color: var(--muted); font-weight: 700; }
+.qwiz-tip { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 16px; background: var(--sunk); font-size: 14.5px; }
+.qwiz-tip .ico { color: var(--accent); flex: none; }
+.qwiz-more { align-self: center; width: auto; color: var(--muted); font-size: 14px; }

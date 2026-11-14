@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.36.1";
+  const VERSION = "3.37.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1855,7 +1855,60 @@
   }
 
   const SHORTCUT_LINK = "https://www.icloud.com/shortcuts/83a3785b861b4f2f9a96dc303b2b1577";
-  async function quickSheet() {
+  async function ensureQuickToken() {
+    const have = store.get("quickToken", null);
+    if (have) return have;
+    if (!navigator.onLine) { toast("Connect to the internet to set this up.", "error"); return null; }
+    const fresh = toUrl(b64u8(rand(32)));
+    const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", te.encode(fresh)))].map(b => b.toString(16).padStart(2, "0")).join("");
+    const { error } = await sb.from("quick_tokens").upsert({ user_id: S.uid, token_hash: hash }, { onConflict: "user_id" });
+    if (error) { toast("Couldn't set this up. Try again.", "error"); return null; }
+    store.set("quickToken", fresh);
+    return fresh;
+  }
+
+  function quickWizard() {
+    const body = h("div", { class: "form qwiz" });
+    const getIt = token => { navigator.clipboard && navigator.clipboard.writeText(token).catch(() => { }); window.open(SHORTCUT_LINK, "_blank", "noopener"); store.set("qwiz", 2); track("add", "shortcut_get"); setTimeout(draw, 600); };
+    const dots = n => h("div", { class: "qwiz-dots" }, [1, 2].map(i => h("span", { class: i <= n ? "on" : "" })));
+    const path = items => h("div", { class: "qwiz-path" }, items.map((t, i) => [i ? h("span", { class: "qwiz-sep" }, "›") : null, h("span", { class: "qwiz-chip" + (i === items.length - 1 ? " last" : "") }, t)]));
+    const draw = () => {
+      const token = store.get("quickToken", null);
+      const st = Math.max(1, store.get("qwiz", 1));
+      let kids;
+      if (st === 1) kids = [dots(1),
+        h("p", { class: "hint center" }, "Tap the back of your iPhone twice, type the amount, and it's saved. Takes about a minute to set up."),
+        h("h3", { class: "qwiz-title" }, "Step 1: get the Shortcut"),
+        h("ol", { class: "qwiz-list" },
+          h("li", null, h("strong", null, "Tap the green button below."), " Your personal key is copied for you."),
+          h("li", null, "On the screen that opens, tap the empty box and choose ", h("strong", null, "Paste"), "."),
+          h("li", null, "Tap ", h("strong", null, "Add Shortcut"), ".")),
+        h("div", { class: "qwiz-mock" }, h("small", null, "Paste your BudgetSplit key"), h("span", { class: "qwiz-field" }, h("span", { class: "qwiz-paste" }, "Paste")), h("span", { class: "qwiz-add" }, "Add Shortcut")),
+        h("button", { type: "button", class: "btn", disabled: !token, on: { click: () => token && getIt(token) } }, token ? "Get the Shortcut" : "One moment…"),
+        h("button", { type: "button", class: "btn alt", on: { click: () => { store.set("qwiz", 2); draw(); } } }, "I already added it")];
+      else if (st === 2) kids = [dots(2),
+        h("h3", { class: "qwiz-title" }, "Step 2: turn on double-tap"),
+        h("p", { class: "hint" }, "Open the iPhone Settings app and follow this path:"),
+        path(["Settings", "Accessibility", "Touch", "Back Tap", "Double Tap", "Add expense"]),
+        h("p", { class: "hint" }, "Touch is under Physical and Motor. Back Tap is at the very bottom of Touch."),
+        h("button", { type: "button", class: "btn", on: { click: () => { store.set("qwiz", 3); track("add", "shortcut_done"); draw(); } } }, "Done"),
+        h("button", { type: "button", class: "btn alt", on: { click: () => { store.set("qwiz", 1); draw(); } } }, "Back to step 1")];
+      else kids = [
+        h("div", { class: "qwiz-hero" }, h("span", { class: "qwiz-big done" }, icon("check")),
+          h("h3", null, "You're all set 🎉"),
+          h("p", null, "Try it now: tap the back of your iPhone twice and type 1. It shows up here the next time you open the app.")),
+        h("div", { class: "qwiz-tip" }, icon("chat", "ico sm"), h("span", null, "No double-tap? You can also say ", h("strong", null, "“Hey Siri, Add expense”"), ".")),
+        h("button", { type: "button", class: "btn", on: { click: closeSheet } }, "Close"),
+        h("button", { type: "button", class: "link-btn", on: { click: () => { store.set("qwiz", 1); draw(); } } }, "Set it up again")];
+      body.replaceChildren(...kids.filter(Boolean), h("button", { type: "button", class: "link-btn qwiz-more", on: { click: () => { closeSheet(); setTimeout(() => quickSheet(true), 330); } } }, "More options"));
+    };
+    draw();
+    openSheet("Add without opening the app", body);
+    if (!store.get("quickToken", null)) ensureQuickToken().then(() => { draw(); render(); });
+  }
+
+  async function quickSheet(advanced) {
+    if (!advanced && SHORTCUT_LINK && /iPhone|iPad|iPod/.test(navigator.userAgent)) return quickWizard();
     const url = `${CFG.supabaseUrl}/functions/v1/quick-add`;
     const body = h("div", { class: "form" });
     const draw = () => {
@@ -1864,15 +1917,7 @@
         body.replaceChildren(
           h("p", { class: "hint" }, "Add an expense in two seconds without opening the app: double-tap the back of your iPhone (or use the Lock Screen or the Action Button), type the amount, and it's saved. It appears in BudgetSplit the next time you open it."),
           h("p", { class: "hint" }, "Quick entries wait on the server unencrypted until the app opens and files them, then they are deleted from there."),
-          h("button", { type: "button", class: "btn", on: { click: async () => {
-            if (!navigator.onLine) return toast("Connect to the internet to set this up.", "error");
-            const fresh = toUrl(b64u8(rand(32)));
-            const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", te.encode(fresh)))].map(b => b.toString(16).padStart(2, "0")).join("");
-            const { error } = await sb.from("quick_tokens").upsert({ user_id: S.uid, token_hash: hash }, { onConflict: "user_id" });
-            if (error) return toast("Couldn't set this up. Try again.", "error");
-            store.set("quickToken", fresh);
-            draw(); render();
-          } } }, "Turn on quick add"));
+          h("button", { type: "button", class: "btn", on: { click: async () => { if (await ensureQuickToken()) { draw(); render(); } } } }, "Turn on quick add"));
         return;
       }
       const step = (n, t, d) => h("div", { class: "prose-part" }, h("h3", null, `${n}. ${t}`), h("p", null, d));
@@ -1927,7 +1972,7 @@
           saveSettings({ quickSummary: false });
           const { error } = await sb.from("quick_tokens").delete().eq("user_id", S.uid);
           if (error) return toast("Couldn't turn it off. Try again.", "error");
-          try { localStorage.removeItem(lsKey("quickToken")); } catch { }
+          try { localStorage.removeItem(lsKey("quickToken")); localStorage.removeItem(lsKey("qwiz")); } catch { }
           draw(); render();
           toast("Quick add turned off. The old key no longer works.");
         } } }, "Turn off quick add"));
@@ -2154,6 +2199,9 @@
   }
 
   const CHANGES = [
+    { v: "3.37.0", items: [
+      ["phone", "Easier double-tap setup", "A simple 2-step guide: get the Shortcut (your key is pasted in for you), then turn on Back Tap. Find it on Home or in Settings."]
+    ] },
     { v: "3.36.0", items: [
       ["phone", "Add by tapping the back of your iPhone", "Settings → Add without opening the app → Get the Shortcut. Your key is copied for you. Then turn on Back Tap and double-tap the back of your phone to add an expense."]
     ] },
@@ -2538,12 +2586,12 @@
     if (recap) out.append(recap);
     const coming = upcomingCard();
     if (coming) out.append(coming);
-    if (/iPhone/.test(navigator.userAgent) && !store.get("quickToken", null) && !store.get("tapTeaserOff", false)) {
+    if (/iPhone/.test(navigator.userAgent) && store.get("qwiz", 0) < 3 && !store.get("tapTeaserOff", false)) {
       out.append(h("section", { class: "bill-teaser tap-teaser" },
         h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("tapTeaserOff", true); render(); } } }, icon("close", "ico sm")),
         h("span", { class: "bill-badge" }, icon("phone", "ico sm")),
         h("div", null, h("strong", null, "Add without opening the app"), h("small", null, "Double-tap the back of your iPhone, type the amount, done. Takes about a minute to set up.")),
-        h("button", { type: "button", class: "btn sm", on: { click: quickSheet } }, "Set it up")));
+        h("button", { type: "button", class: "btn sm", on: { click: () => quickSheet() } }, "Set it up")));
     }
 
     const alerts = rows("categories").filter(c => c.kind === "expense" && Number(c.budget) > 0)
@@ -3058,7 +3106,7 @@
     out.append(reminderGroup(group));
     const quickOn = !!store.get("quickToken", null);
     out.append(group("Quick add",
-      h("button", { type: "button", class: "row", on: { click: quickSheet } }, h("span", { class: "dot neutral" }, icon("plus", "ico sm")),
+      h("button", { type: "button", class: "row", on: { click: () => quickSheet() } }, h("span", { class: "dot neutral" }, icon("plus", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Add without opening the app"), h("span", { class: "row-sub wrap" }, quickOn ? "On. Tap to see the setup or turn it off" : "Double-tap the back of your iPhone, type the amount, done")), icon("fwd"))));
 
     out.append(group("Your name", h("div", { class: "row" }, h("span", { class: "row-main" }, nameIn, h("span", { class: "row-sub", style: { marginTop: "6px" } }, "Shown on the private pages you share")))));

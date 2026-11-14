@@ -1293,3 +1293,26 @@ Object.assign(window.WALLET_I18N.words, {
   "Add by tapping the back of your iPhone": ["Ajoutez en tapotant le dos de l'iPhone", "أضف بالنقر على ظهر الآيفون"],
   "Settings → Add without opening the app → Get the Shortcut. Your key is copied for you. Then turn on Back Tap and double-tap the back of your phone to add an expense.": ["Réglages → Ajouter sans ouvrir l'app → Obtenir le raccourci. Votre clé est copiée. Activez ensuite Toucher le dos et tapotez deux fois le dos du téléphone.", "الإعدادات ← أضف دون فتح التطبيق ← احصل على الاختصار. يُنسخ مفتاحك تلقائيًا. ثم فعّل النقر على الظهر وانقر مرتين على ظهر الهاتف لإضافة مصروف."]
 });
+Object.assign(window.WALLET_I18N.words, {
+  "Add an expense without opening the app": ["Ajoutez une dépense sans ouvrir l'app", "أضف مصروفًا دون فتح التطبيق"],
+  "Tap the back of your iPhone twice, type the amount, and it's saved.": ["Tapotez deux fois le dos de l'iPhone, tapez le montant : c'est enregistré.", "انقر مرتين على ظهر الآيفون، اكتب المبلغ، فيُحفظ."],
+  "How much?": ["Combien ?", "كم؟"], "Saved ✓": ["Enregistré ✓", "تم الحفظ ✓"],
+  "Takes about a minute. Only 2 steps.": ["Environ une minute. Seulement 2 étapes.", "دقيقة تقريبًا. خطوتان فقط."],
+  "Step 1: get the Shortcut": ["Étape 1 : obtenez le raccourci", "الخطوة 1: احصل على الاختصار"],
+  "Tap the green button below.": ["Touchez le bouton vert ci-dessous.", "اضغط الزر الأخضر أدناه."],
+  " Your personal key is copied for you.": [" Votre clé personnelle est copiée.", " يُنسخ مفتاحك الشخصي تلقائيًا."],
+  "On the screen that opens, tap the empty box and choose ": ["Sur l'écran qui s'ouvre, touchez la case vide et choisissez ", "في الشاشة التي تفتح، اضغط الخانة الفارغة واختر "],
+  "Paste": ["Coller", "لصق"], "Tap ": ["Touchez ", "اضغط "], "Add Shortcut": ["Ajouter le raccourci", "إضافة اختصار"],
+  "Paste your BudgetSplit key": ["Collez votre clé BudgetSplit", "الصق مفتاح BudgetSplit"],
+  "I already added it": ["Je l'ai déjà ajouté", "أضفته بالفعل"],
+  "Step 2: turn on double-tap": ["Étape 2 : activez le double toucher", "الخطوة 2: فعّل النقر المزدوج"],
+  "Open the iPhone Settings app and follow this path:": ["Ouvrez Réglages et suivez ce chemin :", "افتح الإعدادات واتبع هذا المسار:"],
+  "Settings": ["Réglages", "الإعدادات"], "Accessibility": ["Accessibilité", "تسهيلات الاستخدام"], "Touch": ["Toucher", "اللمس"], "Back Tap": ["Toucher le dos", "النقر على الظهر"], "Double Tap": ["Toucher deux fois", "نقر مزدوج"], "Add expense": ["Add expense", "Add expense"],
+  "Touch is under Physical and Motor. Back Tap is at the very bottom of Touch.": ["Toucher est sous Physique et moteur. Toucher le dos est tout en bas.", "«اللمس» ضمن «البدني والحركي». «النقر على الظهر» في أسفل صفحة اللمس."],
+  "Done": ["Terminé", "تم"], "Back to step 1": ["Retour à l'étape 1", "العودة للخطوة 1"],
+  "You're all set 🎉": ["Tout est prêt 🎉", "كل شيء جاهز 🎉"],
+  "Try it now: tap the back of your iPhone twice and type 1. It shows up here the next time you open the app.": ["Essayez : tapotez deux fois le dos de l'iPhone et tapez 1. Ça apparaîtra ici à la prochaine ouverture.", "جرّبه الآن: انقر مرتين على ظهر الآيفون واكتب 1. سيظهر هنا عند فتح التطبيق."],
+  "No double-tap? You can also say ": ["Pas de double toucher ? Dites aussi ", "لا يعمل النقر المزدوج؟ يمكنك أيضًا قول "],
+  "Close": ["Fermer", "إغلاق"], "Set it up again": ["Recommencer", "أعد الإعداد"], "More options": ["Plus d'options", "خيارات أكثر"], "One moment…": ["Un instant…", "لحظة…"]
+});
+Object.assign(window.WALLET_I18N.words, { "Tap the back of your iPhone twice, type the amount, and it's saved. Takes about a minute to set up.": ["Tapotez deux fois le dos de l'iPhone, tapez le montant : c'est enregistré. Environ une minute à configurer.", "انقر مرتين على ظهر الآيفون، اكتب المبلغ، فيُحفظ. الإعداد يستغرق دقيقة تقريبًا."] });
