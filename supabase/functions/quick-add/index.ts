@@ -14,6 +14,15 @@ Deno.serve(async req => {
   try { body = await req.json(); } catch { return json({ error: "Send JSON." }, 400); }
   const token = String(body.token || "");
   if (!/^[A-Za-z0-9_-]{40,64}$/.test(token)) return json({ error: "Not allowed." }, 401);
+  if (body.action === "categories" || body.action === "accounts") {
+    const { data: who } = await sb.from("quick_tokens").select("user_id").eq("token_hash", await sha256(token)).maybeSingle();
+    if (!who) return json({ error: "Not allowed." }, 401);
+    const { data: lists } = await sb.from("quick_lists").select("cats, accounts").eq("user_id", who.user_id).maybeSingle();
+    const pick = (v: unknown) => Array.isArray(v) ? v.map(x => String(x).slice(0, 60)).filter(Boolean) : [];
+    const out = body.action === "categories" ? pick(lists?.cats) : pick(lists?.accounts);
+    if (out.length) return json(out);
+    return json(body.action === "categories" ? ["Groceries", "Eating out & coffee", "Fuel & transport", "Bills & internet", "Shopping", "Health", "Other"] : ["Cash (dollars)"]);
+  }
   if (body.action === "today") {
     const { data: who } = await sb.from("quick_tokens").select("user_id").eq("token_hash", await sha256(token)).maybeSingle();
     if (!who) return json({ error: "Not allowed." }, 401);
@@ -26,11 +35,12 @@ Deno.serve(async req => {
   if (!Number.isFinite(amount) || amount <= 0 || amount >= 1e15) return json({ error: "Enter an amount above zero." }, 400);
   const note = String(body.note ?? "").trim().slice(0, 200) || null;
   const category = String(body.category ?? "").trim().slice(0, 60) || null;
+  const account = String(body.account ?? "").trim().slice(0, 60) || null;
 
   const { data: owner } = await sb.from("quick_tokens").select("user_id").eq("token_hash", await sha256(token)).maybeSingle();
   if (!owner) return json({ error: "Not allowed." }, 401);
   const { count } = await sb.from("quick_inbox").select("id", { count: "exact", head: true }).eq("user_id", owner.user_id);
   if ((count ?? 0) >= 200) return json({ error: "Open the app first: too many entries are waiting." }, 429);
-  const { error } = await sb.from("quick_inbox").insert({ user_id: owner.user_id, amount, note, category });
+  const { error } = await sb.from("quick_inbox").insert({ user_id: owner.user_id, amount, note, category, account });
   return error ? json({ error: "Couldn't save. Try again." }, 500) : json({ ok: true, saved: amount });
 });

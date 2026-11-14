@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.37.0";
+  const VERSION = "3.38.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -938,6 +938,7 @@
     maybeWhatsNew();
     maybeMonthlyReport();
     queueQuickSummary();
+    queueQuickLists();
   }
 
   function renderSetup() {
@@ -1814,7 +1815,7 @@
     if (!sb || !S.session || !VAULT.key || !navigator.onLine || S.quickBusy) return;
     S.quickBusy = true;
     try {
-      const { data, error } = await sb.from("quick_inbox").select("id, amount, note, category, created_at").order("created_at", { ascending: true }).limit(100);
+      const { data, error } = await sb.from("quick_inbox").select("id, amount, note, category, account, created_at").order("created_at", { ascending: true }).limit(100);
       if (error || !Array.isArray(data) || !data.length) return;
       const accounts = rows("accounts").filter(a => !a.archived).sort(bySort);
       if (!accounts.length) return;
@@ -1828,12 +1829,32 @@
         const hit = cats.find(c => norm(c.name) === n) || cats.find(c => norm(tr(c.name)) === n) || cats.find(c => norm(c.name).startsWith(n) || n.startsWith(norm(c.name))) || cats.find(c => norm(c.name).includes(n));
         return hit ? hit.id : null;
       };
-      const items = data.filter(q => Number(q.amount) > 0).map(q => ({ t: "transactions", r: { id: `q-${q.id}`, kind: "expense", amount: roundCur(Number(q.amount), a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: findCat(q.category), note: typeof q.note === "string" && q.note ? q.note.slice(0, 200) : null, occurred_on: ymd(new Date(q.created_at)), rule_id: null, receipt: null, created_at: q.created_at } }));
+      const findAcc = name => { const n = norm(name); return n ? accounts.find(o => norm(o.name) === n) || accounts.find(o => norm(tr(o.name)) === n) || null : null; };
+      const items = data.filter(q => Number(q.amount) > 0).map(q => { const qa = findAcc(q.account) || a; return { t: "transactions", r: { id: `q-${q.id}`, kind: "expense", amount: roundCur(Number(q.amount), qa.currency), currency: qa.currency, rate: rateOf(qa.currency), account_id: qa.id, to_account_id: null, to_amount: null, category_id: findCat(q.category), note: typeof q.note === "string" && q.note ? q.note.slice(0, 200) : null, occurred_on: ymd(new Date(q.created_at)), rule_id: null, receipt: null, created_at: q.created_at } }; });
       if (items.length) putMany(items);
       await sb.from("quick_inbox").delete().in("id", data.map(q => q.id));
       const loose = items.filter(i => !i.r.category_id).length;
-      if (items.length) toast(`${items.length} quick ${items.length === 1 ? "entry" : "entries"} added to ${a.name}.${loose ? " Tap it on Home to set the category." : ""}`);
+      if (items.length) toast(`${items.length} quick ${items.length === 1 ? "entry" : "entries"} added.${loose ? " Tap it on Home to set the category." : ""}`);
     } catch { } finally { S.quickBusy = false; }
+  }
+
+  let qlTimer = null;
+  function queueQuickLists() {
+    if (!store.get("quickToken", null) || !sb || !S.session) return;
+    clearTimeout(qlTimer);
+    qlTimer = setTimeout(async () => {
+      if (!navigator.onLine) return;
+      const cutoff = ymd(new Date(Date.now() - 90 * 864e5));
+      const use = new Map();
+      for (const t of rows("transactions")) if (t.kind === "expense" && t.category_id && t.occurred_on >= cutoff) use.set(t.category_id, (use.get(t.category_id) || 0) + 1);
+      const cats = rows("categories").filter(c => c.kind === "expense").sort((p, q) => (use.get(q.id) || 0) - (use.get(p.id) || 0) || bySort(p, q)).map(c => tr(c.name).slice(0, 60)).slice(0, 60);
+      const last = rows("transactions").filter(t => t.kind === "expense" && acc(t.account_id)).sort(byRecent)[0];
+      const accs = rows("accounts").filter(o => !o.archived).sort((p, q) => (last && q.id === last.account_id) - (last && p.id === last.account_id) || bySort(p, q)).map(o => tr(o.name).slice(0, 60)).slice(0, 30);
+      const key = JSON.stringify([cats, accs]);
+      if (store.get("qlLast", "") === key) return;
+      const { error } = await sb.from("quick_lists").upsert({ user_id: S.uid, cats, accounts: accs, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+      if (!error) store.set("qlLast", key);
+    }, 3000);
   }
 
   let qsTimer = null;
@@ -1877,7 +1898,7 @@
       const st = Math.max(1, store.get("qwiz", 1));
       let kids;
       if (st === 1) kids = [dots(1),
-        h("p", { class: "hint center" }, "Tap the back of your iPhone twice, type the amount, and it's saved. Takes about a minute to set up."),
+        h("p", { class: "hint center" }, "Tap the back of your iPhone twice (or say “Hey Siri, Add expense”), pick what it was for, type the amount, and it's saved. Takes about a minute to set up."),
         h("h3", { class: "qwiz-title" }, "Step 1: get the Shortcut"),
         h("ol", { class: "qwiz-list" },
           h("li", null, h("strong", null, "Tap the green button below."), " Your personal key is copied for you."),
@@ -1885,6 +1906,7 @@
           h("li", null, "Tap ", h("strong", null, "Add Shortcut"), ".")),
         h("div", { class: "qwiz-mock" }, h("small", null, "Paste your BudgetSplit key"), h("span", { class: "qwiz-field" }, h("span", { class: "qwiz-paste" }, "Paste")), h("span", { class: "qwiz-add" }, "Add Shortcut")),
         h("button", { type: "button", class: "btn", disabled: !token, on: { click: () => token && getIt(token) } }, token ? "Get the Shortcut" : "One moment…"),
+        h("div", { class: "qwiz-tip" }, icon("chat", "ico sm"), h("span", null, "As soon as it's added, you can already say ", h("strong", null, "“Hey Siri, Add expense”"), ".")),
         h("button", { type: "button", class: "btn alt", on: { click: () => { store.set("qwiz", 2); draw(); } } }, "I already added it")];
       else if (st === 2) kids = [dots(2),
         h("h3", { class: "qwiz-title" }, "Step 2: turn on double-tap"),
@@ -1969,6 +1991,8 @@
         h("button", { type: "button", class: "btn danger", on: { click: async () => {
           if (!navigator.onLine) return toast("Connect to the internet to turn this off.", "error");
           await sb.from("quick_summary").delete().eq("user_id", S.uid);
+          await sb.from("quick_lists").delete().eq("user_id", S.uid);
+          store.set("qlLast", "");
           saveSettings({ quickSummary: false });
           const { error } = await sb.from("quick_tokens").delete().eq("user_id", S.uid);
           if (error) return toast("Couldn't turn it off. Try again.", "error");
@@ -2199,6 +2223,9 @@
   }
 
   const CHANGES = [
+    { v: "3.38.0", items: [
+      ["phone", "Quick add asks what it was for", "The iPhone Shortcut now lets you pick the category, the account and add a note. Use it by double-tapping the back of your iPhone or by saying “Hey Siri, Add expense”."]
+    ] },
     { v: "3.37.0", items: [
       ["phone", "Easier double-tap setup", "A simple 2-step guide: get the Shortcut (your key is copied for you), then turn on Back Tap. Find it on Home or in Settings."]
     ] },
@@ -2590,7 +2617,7 @@
       out.append(h("section", { class: "bill-teaser tap-teaser" },
         h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("tapTeaserOff", true); render(); } } }, icon("close", "ico sm")),
         h("span", { class: "bill-badge" }, icon("phone", "ico sm")),
-        h("div", null, h("strong", null, "Add without opening the app"), h("small", null, "Double-tap the back of your iPhone, type the amount, done. Takes about a minute to set up.")),
+        h("div", null, h("strong", null, "Add without opening the app"), h("small", null, "Double-tap the back of your iPhone or say “Hey Siri, Add expense”. Takes about a minute to set up.")),
         h("button", { type: "button", class: "btn sm", on: { click: () => quickSheet() } }, "Set it up")));
     }
 
@@ -3107,7 +3134,7 @@
     const quickOn = !!store.get("quickToken", null);
     out.append(group("Quick add",
       h("button", { type: "button", class: "row", on: { click: () => quickSheet() } }, h("span", { class: "dot neutral" }, icon("plus", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Add without opening the app"), h("span", { class: "row-sub wrap" }, quickOn ? "On. Tap to see the setup or turn it off" : "Double-tap the back of your iPhone, type the amount, done")), icon("fwd"))));
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Add without opening the app"), h("span", { class: "row-sub wrap" }, quickOn ? "On. Tap to see the setup or turn it off" : "Double-tap the back of your iPhone or say “Hey Siri, Add expense”")), icon("fwd"))));
 
     out.append(group("Your name", h("div", { class: "row" }, h("span", { class: "row-main" }, nameIn, h("span", { class: "row-sub", style: { marginTop: "6px" } }, "Shown on the private pages you share")))));
 
