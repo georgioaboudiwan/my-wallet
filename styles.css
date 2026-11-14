@@ -1335,3 +1335,23 @@ input[type="month"].input::-webkit-date-and-time-value, input[type="date"].input
 .split-opt .row-sub.wrap { white-space: normal; }
 .login-switch { text-align: center; font-size: 15px; color: var(--muted); }
 .login-switch .link-btn { display: inline; width: auto; font-weight: 700; padding: 4px 2px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.chips .chip .ico.sm { width: 15px; height: 15px; margin-inline-end: 4px; vertical-align: -2px; }
+.bill-row { position: relative; }
+.bill-row .row-hit { position: absolute; inset: 0; border: 0; background: none; z-index: 0; }
+.bill-row > :not(.row-hit) { position: relative; z-index: 1; pointer-events: none; }
+.bill-row > .pay-chip { pointer-events: auto; }
+.bill-row.due { background: color-mix(in srgb, var(--neg) 6%, transparent); }
+.pay-chip { flex: none; min-height: 36px; padding: 6px 16px; font-weight: 700; }
+.bill-teaser { position: relative; display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: var(--r); background: var(--card); box-shadow: var(--shadow); border: 1.5px solid color-mix(in srgb, var(--gold) 35%, transparent); }
+.bill-teaser > div { flex: 1; min-width: 0; display: grid; gap: 3px; padding-inline-end: 6px; }
+.bill-teaser strong { font-size: 16px; }
+.bill-teaser small { font-size: 13px; color: var(--muted); line-height: 1.35; }
+.bill-teaser .btn.sm { width: auto; min-height: 40px; padding: 8px 14px; font-size: 14.5px; flex: none; align-self: flex-end; }
+.bill-teaser .split-teaser-x { background: var(--sunk); color: var(--muted); }
+.bill-badge { width: 46px; height: 46px; border-radius: 15px; flex: none; display: grid; place-items: center; background: var(--gold-soft); color: var(--gold); }
+.bill-badge .ico.sm { width: 22px; height: 22px; }
+.scan-line { display: flex; justify-content: center; margin-top: -6px; }
+.scan-btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px; border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); background: color-mix(in srgb, var(--accent) 6%, transparent); color: var(--accent); font: 650 14px var(--ui); }
+.scan-btn:disabled { opacity: .8; }
+.scan-btn .spinner { width: 15px; height: 15px; }

@@ -10,7 +10,7 @@
     accounts: ["id", "user_id", "name", "currency", "kind", "opening_balance", "sort", "archived", "enc", "deleted_at"],
     categories: ["id", "user_id", "name", "kind", "bucket", "color", "budget", "sort", "enc", "deleted_at"],
     transactions: ["id", "user_id", "kind", "amount", "currency", "rate", "account_id", "to_account_id", "to_amount", "category_id", "note", "occurred_on", "rule_id", "receipt", "enc", "deleted_at"],
-    rules: ["id", "user_id", "kind", "amount", "currency", "account_id", "category_id", "note", "day", "next_on", "active", "enc", "deleted_at"],
+    rules: ["id", "user_id", "kind", "amount", "currency", "account_id", "category_id", "note", "day", "next_on", "active", "remind", "enc", "deleted_at"],
     settings: ["id", "user_id", "data", "enc", "deleted_at"],
     people: ["id", "user_id", "name", "direction", "currency", "phone", "share_token", "sort", "enc", "senc", "deleted_at"],
     loan_entries: ["id", "user_id", "person_id", "amount", "note", "occurred_on", "enc", "senc", "deleted_at"]
@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.28.1";
+  const VERSION = "3.29.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -889,6 +889,8 @@
     paintBell();
     maybeTour();
     maybeWhatsNew();
+    maybeMonthlyReport();
+    queueQuickSummary();
   }
 
   function renderSetup() {
@@ -1282,23 +1284,91 @@
     openSheet(g ? g.name : "New goal", body, h("button", { type: "submit", class: "btn", form: "goal-form" }, g ? "Save changes" : "Add goal"));
   }
 
+  const isBill = r => r.remind != null && r.kind === "expense";
+  const daysTo = d => Math.round((new Date(d + "T12:00:00") - new Date(today() + "T12:00:00")) / 864e5);
   function upcomingRules(days) {
     const t = today();
     const end = ymd(new Date(Date.now() + days * 864e5));
-    return rows("rules").filter(r => r.active && acc(r.account_id) && DATE_RE.test(r.next_on) && r.next_on > t && r.next_on <= end).sort((a, b) => a.next_on.localeCompare(b.next_on));
+    return rows("rules").filter(r => acc(r.account_id) && DATE_RE.test(r.next_on) && ((isBill(r) && r.next_on <= ymd(new Date(Date.now() + 10 * 864e5))) || (r.active && r.next_on > t && r.next_on <= end))).sort((a, b) => a.next_on.localeCompare(b.next_on));
+  }
+
+  function payBill(r) {
+    txnSheet(null, { kind: "expense", amount: String(Number(r.amount)), account: r.account_id, category: r.category_id, note: r.note || "", bill: r.id });
+  }
+
+  const BILL_TEMPLATES = () => (mainCur() === "USD" || mainCur() === "LBP"
+    ? [["Generator", "generator", "bolt"], ["Electricity (EDL)", "generator", "bolt"], ["Internet", "bills", "wifi"], ["Phone", "bills", "wifi"], ["Rent", "home", "home"], ["School fees", null, "work"], ["Water", "bills", "home"]]
+    : [["Rent", "home", "home"], ["Electricity", "bills", "bolt"], ["Internet", "bills", "wifi"], ["Phone", "bills", "wifi"], ["School fees", null, "work"], ["Water", "bills", "home"]]);
+
+  function billSheet(r) {
+    const accounts = rows("accounts").filter(a => !a.archived).sort(bySort);
+    if (!accounts.length) { toast("Add an account first."); return; }
+    const f = r
+      ? { name: r.note || "", amount: String(Number(r.amount)), day: String(r.day), account: r.account_id, category: r.category_id, remind: r.remind ?? 3, auto: !!r.active }
+      : { name: "", amount: "", day: "", account: (accounts.find(a => a.kind === "cash") || accounts[0]).id, category: null, remind: 3, auto: false };
+    const body = h("form", { class: "form", id: "bill-form", novalidate: true });
+    const err = h("p", { class: "form-err", role: "alert" });
+    let armedDelete = false;
+    const draw = () => {
+      const a = acc(f.account) || accounts[0];
+      const kids = [
+        r ? null : h("div", { class: "chips wrap" }, BILL_TEMPLATES().map(([n, ck, ic]) => h("button", { type: "button", class: "chip", "aria-pressed": String(f.name === tr(n)), on: { click: () => { f.name = tr(n); const c = ck && S.data.categories.get(`${S.uid}:cat:${ck}`); f.category = c ? c.id : f.category; draw(); } } }, icon(ic, "ico sm"), n))),
+        h("label", { class: "field" }, h("span", null, "Bill name"), h("input", { id: "b-name", class: "input", maxlength: "60", autocomplete: "off", placeholder: "e.g. Generator", value: f.name, on: { input: e => { f.name = e.target.value; } } })),
+        h("div", { class: "two" },
+          h("label", { class: "field" }, h("span", null, `Usual amount (${curSymbol(a.currency)})`), h("input", { id: "b-amt", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.amount, on: { input: e => { f.amount = e.target.value; } } })),
+          h("label", { class: "field" }, h("span", null, "Due on day"), h("input", { id: "b-day", class: "input num", inputmode: "numeric", autocomplete: "off", placeholder: "1 to 28", value: f.day, on: { input: e => { f.day = e.target.value; } } }))),
+        h("label", { class: "field" }, h("span", null, "Paid from"), h("select", { id: "b-acc", class: "input", on: { change: e => { f.account = e.target.value; draw(); } } }, accounts.map(o => h("option", { value: o.id, selected: o.id === f.account }, `${o.name} (${o.currency})`)))),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Remind me"), h("div", { class: "chips wrap" }, [[0, "On the day"], [1, "1 day before"], [3, "3 days before"], [7, "A week before"]].map(([d, l]) => h("button", { type: "button", class: "chip", "aria-pressed": String(f.remind === d), on: { click: () => { f.remind = d; draw(); } } }, l)))),
+        h("label", { class: "check" }, h("input", { id: "b-auto", type: "checkbox", checked: f.auto, on: { change: e => { f.auto = e.target.checked; } } }), "The amount is always the same: add the expense automatically"),
+        h("p", { class: "hint" }, f.auto ? "On the due day the expense is added for you." : "On the due day you tap Pay and confirm the real amount."),
+        err,
+        r ? h("button", { type: "button", class: "btn danger" + (armedDelete ? " sure" : ""), on: { click: () => { if (!armedDelete) { armedDelete = true; draw(); return; } removeRow("rules", r); closeSheet(); toast("Bill removed. Past payments stay."); } } }, armedDelete ? "Tap again to remove" : "Remove bill") : null
+      ];
+      keepFocus(() => body.replaceChildren(...kids.filter(Boolean)));
+    };
+    body.addEventListener("submit", ev => {
+      ev.preventDefault();
+      const name = f.name.trim().replace(/\s+/g, " ").slice(0, 60);
+      const amount = parseAmt(f.amount);
+      const day = Number(f.day);
+      const a = acc(f.account);
+      if (!name) return fail(err, "Give the bill a name.", document.getElementById("b-name"));
+      if (!amount) return fail(err, "Enter the usual amount. You can change it when you pay.", document.getElementById("b-amt"));
+      if (!Number.isInteger(day) || day < 1 || day > 28) return fail(err, "Pick a day from 1 to 28.", document.getElementById("b-day"));
+      if (!a) return fail(err, "Pick an account.");
+      const t = today();
+      let next = r && r.day === day ? r.next_on : null;
+      if (!next) { const cand = `${t.slice(0, 7)}-${pad(day)}`; next = cand >= t ? cand : nextMonthDay(cand, day); }
+      put("rules", { ...(r || {}), id: r ? r.id : newId(), kind: "expense", amount: roundCur(amount, a.currency), currency: a.currency, account_id: a.id, category_id: f.category || null, note: name, day, next_on: next, active: f.auto, remind: f.remind });
+      closeSheet();
+      toast(r ? "Bill saved." : `${name} added. We'll remind you ${f.remind === 0 ? "on the day" : f.remind === 1 ? "the day before" : `${f.remind} days before`}.`);
+    });
+    draw();
+    openSheet(r ? f.name || "Bill" : "Add a bill", body, h("button", { type: "submit", class: "btn", form: "bill-form" }, r ? "Save" : "Add bill"));
   }
 
   function upcomingCard() {
     const list = upcomingRules(7);
-    if (!list.length) return null;
-    const card = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Coming up this week")));
-    for (const r of list.slice(0, 4)) {
+    const hasBills = rows("rules").some(isBill);
+    if (!list.length) {
+      if (hasBills || store.get("billTeaserOff", false)) return null;
+      return h("section", { class: "bill-teaser" },
+        h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("billTeaserOff", true); render(); } } }, icon("close", "ico sm")),
+        h("span", { class: "bill-badge" }, icon("bell", "ico sm")),
+        h("div", null, h("strong", null, "Never miss a bill"), h("small", null, (mainCur() === "USD" || mainCur() === "LBP") ? "Generator, internet, rent, school fees… Get a reminder before each one is due." : "Rent, internet, phone, school fees… Get a reminder before each one is due.")),
+        h("button", { type: "button", class: "btn sm", on: { click: () => billSheet(null) } }, "Add a bill"));
+    }
+    const card = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Bills & coming up"), h("button", { type: "button", class: "link-btn", on: { click: () => billSheet(null) } }, "Add bill")));
+    for (const r of list.slice(0, 6)) {
       const c = cat(r.category_id);
-      const days = Math.round((new Date(r.next_on + "T12:00:00") - new Date(today() + "T12:00:00")) / 864e5);
-      card.append(h("button", { type: "button", class: "row", on: { click: () => ruleSheet(r) } },
-        h("span", { class: "dot", style: { background: c ? c.color : "#5b7083" } }, c ? catGlyph(c, "ico sm") : icon("repeat", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, r.note || (c ? c.name : "Repeating entry")), h("span", { class: "row-sub" }, days === 1 ? "Tomorrow" : `In ${days} days · ${dayLabel(r.next_on)}`)),
-        h("span", { class: "row-end " + (r.kind === "income" ? "pos" : "neg") }, (r.kind === "income" ? "+" : "−") + fmt(Number(r.amount), r.currency))));
+      const d = daysTo(r.next_on);
+      const bill = isBill(r);
+      const when = d < 0 ? (d === -1 ? "Due yesterday" : `${-d} days late`) : d === 0 ? "Due today" : d === 1 ? "Tomorrow" : `In ${d} days · ${dayLabel(r.next_on)}`;
+      card.append(h("div", { class: "row bill-row" + (bill && d <= 0 ? " due" : "") },
+        h("button", { type: "button", class: "row-hit", "aria-label": r.note || (c ? c.name : "Bill"), on: { click: () => bill ? billSheet(r) : ruleSheet(r) } }),
+        h("span", { class: "dot", style: { background: c ? c.color : "#5b7083" } }, c ? catGlyph(c, "ico sm") : icon(bill ? "bell" : "repeat", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, r.note || (c ? c.name : "Repeating entry")), h("span", { class: "row-sub" + (bill && d < 0 ? " late" : "") }, `${when} · ${(r.kind === "income" ? "+" : "") + fmt(Number(r.amount), r.currency)}`)),
+        bill && !r.active ? h("button", { type: "button", class: "chip on pay-chip", on: { click: () => payBill(r) } }, "Pay") : h("span", { class: "row-end " + (r.kind === "income" ? "pos" : "neg") }, (r.kind === "income" ? "+" : "−") + fmt(Number(r.amount), r.currency))));
     }
     return card;
   }
@@ -1470,6 +1540,63 @@
     const days = Math.round((new Date(d + "T12:00:00") - new Date(today() + "T12:00:00")) / 864e5);
     return { late: days < 0, text: days < 0 ? `Overdue by ${-days} day${days === -1 ? "" : "s"}` : days === 0 ? "Due today" : days === 1 ? "Due tomorrow" : `Due ${dayLabel(d).toLowerCase()}` };
   };
+
+  const OCR = { p: null };
+  const loadOcr = () => OCR.p || (OCR.p = new Promise((resolve, reject) => {
+    if (window.Tesseract) return resolve(window.Tesseract);
+    const el = document.createElement("script");
+    el.src = "vendor/ocr/tesseract.min.js";
+    el.onload = () => window.Tesseract ? resolve(window.Tesseract) : reject(new Error("ocr"));
+    el.onerror = () => { OCR.p = null; reject(new Error("ocr")); };
+    document.head.append(el);
+  }));
+
+  function parseReceipt(text) {
+    const lines = String(text || "").split(/\r?\n/).map(l => l.replace(/\s+/g, " ").trim()).filter(Boolean);
+    const numsIn = l => [...l.matchAll(/(?<![\d.,])(\d{1,3}(?:[ ,.]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?![\d])/g)].map(m => {
+      let v = m[1].replace(/ /g, "");
+      if (/[.,]\d{1,2}$/.test(v)) { const dec = v.slice(-3).replace(/^[.,]/, "."); v = v.slice(0, -3).replace(/[.,]/g, "") + (dec.startsWith(".") ? dec : "." + dec.replace(/[.,]/, "")); }
+      else v = v.replace(/[.,]/g, "");
+      return Number(v);
+    }).filter(n => Number.isFinite(n) && n > 0 && n < 1e10);
+    const curOf = l => /\bLBP\b|L\.L|ل\.ل|ليرة/i.test(l) ? "LBP" : /\$|USD/i.test(l) ? "USD" : /€|EUR/i.test(l) ? "EUR" : null;
+    let amount = null, currency = null;
+    const totalRe = /(grand\s*total|total\s*(ttc|due|to pay|amount)?|amount\s*due|net\s*(amount|total|to pay)|to\s*pay|montant|à payer|الإجمالي|المجموع|المبلغ)/i;
+    const cands = lines.map((l, i) => ({ l, i })).filter(({ l }) => totalRe.test(l) && !/sub\s*-?\s*total|tax|vat|tva|change|cash\s*(given|tendered)|discount/i.test(l));
+    for (const { l, i } of cands.reverse()) {
+      const n = numsIn(l);
+      const pick = n.length ? n[n.length - 1] : (numsIn(lines[i + 1] || "")[0] || null);
+      if (pick) { amount = pick; currency = curOf(l) || curOf(lines[i + 1] || ""); if (/grand/i.test(l)) break; break; }
+    }
+    if (!amount) {
+      const all = lines.filter(l => !/tel|phone|fax|vat\s*no|mof|invoice\s*no|receipt\s*no|#/i.test(l)).flatMap(l => numsIn(l).filter(n => /[.,]\d{2}\b|\$|LBP|L\.L/.test(l) || n >= 1000).map(n => ({ n, l })));
+      const best = all.sort((a, b) => b.n - a.n)[0];
+      if (best) { amount = best.n; currency = curOf(best.l); }
+    }
+    if (!currency) currency = lines.map(curOf).find(Boolean) || null;
+    let date = null;
+    const MON = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+    const ok = (y, m, d) => { if (y < 100) y += 2000; if (m < 1 || m > 12 || d < 1 || d > 31) return null; const s2 = `${y}-${pad(m)}-${pad(d)}`; const t = today(); return s2 <= t && s2 >= ymd(new Date(Date.now() - 366 * 864e5)) ? s2 : null; };
+    for (const l of lines) {
+      let m = l.match(/\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/);
+      if (m && (date = ok(+m[1], +m[2], +m[3]))) break;
+      m = l.match(/\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\b/);
+      if (m && (date = ok(+m[3], +m[2], +m[1]) || ok(+m[3], +m[1], +m[2]))) break;
+      m = l.match(/\b(\d{1,2})[ -]?([A-Za-z]{3})[a-z]*[ -,]*(\d{2,4})\b/);
+      if (m && MON[m[2].toLowerCase()] && (date = ok(+m[3], MON[m[2].toLowerCase()], +m[1]))) break;
+    }
+    const shop = lines.slice(0, 6).find(l => /[A-Za-z\u0600-\u06FF]{3,}/.test(l) && !/receipt|invoice|tel|phone|date|welcome|cashier|table|order|vat|tva|mof|www|http|@/i.test(l)) || null;
+    return { amount, currency, date, shop: shop ? shop.replace(/[^\p{L}\p{N} &'.-]/gu, "").trim().slice(0, 60) : null };
+  }
+
+  async function readReceipt(file) {
+    const T = await loadOcr();
+    const worker = await T.createWorker("eng", 1, { workerPath: "vendor/ocr/worker.min.js", corePath: "vendor/ocr", langPath: "vendor/ocr", gzip: true, workerBlobURL: false });
+    try {
+      const { data } = await worker.recognize(file);
+      return parseReceipt(data && data.text);
+    } finally { worker.terminate().catch(() => { }); }
+  }
 
   async function shrinkImage(file) {
     if (!file || !/^image\//.test(file.type) || file.size > 25e6) return null;
@@ -1662,6 +1789,24 @@
     } catch { } finally { S.quickBusy = false; }
   }
 
+  let qsTimer = null;
+  function queueQuickSummary() {
+    if (!storedSettings().quickSummary || !store.get("quickToken", null) || !sb || !S.session) return;
+    clearTimeout(qsTimer);
+    qsTimer = setTimeout(async () => {
+      if (!navigator.onLine) return;
+      const m = thisMonth(), s = monthStats(m), plan = planFor(m), safe = safeToSpend();
+      const d = new Date().toLocaleDateString("en-US", { day: "numeric", month: "short" });
+      const lines = [`Spent today (${d}): ${money(s.days.get(today()) || 0, { whole: true, show: true })}`,
+        plan.base > 0 ? `${monthShort(m)}: ${money(s.spent, { whole: true, show: true })} of ${money(plan.base, { whole: true, show: true })} (${money(Math.abs(plan.base - s.spent), { whole: true, show: true })} ${plan.base >= s.spent ? "left" : "over"})` : `${monthShort(m)}: ${money(s.spent, { whole: true, show: true })} spent`,
+        safe ? `Safe to spend: ${money(safe.perDay, { whole: true, show: true })} a day` : null].filter(Boolean);
+      const text = lines.join("\n").slice(0, 300);
+      if (store.get("qsLast", "") === text) return;
+      const { error } = await sb.from("quick_summary").upsert({ user_id: S.uid, text, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+      if (!error) store.set("qsLast", text);
+    }, 2500);
+  }
+
   async function quickSheet() {
     const url = `${CFG.supabaseUrl}/functions/v1/quick-add`;
     const body = h("div", { class: "form" });
@@ -1696,8 +1841,25 @@
         h("button", { type: "button", class: "btn alt", on: { click: () => copyText(token, "q-token") } }, "Copy the key"),
         h("label", { class: "field" }, h("span", null, "Your categories, one per line"), h("textarea", { class: "input", readOnly: true, rows: "4", id: "q-cats" }, rows("categories").filter(c => c.kind === "expense").sort(bySort).map(c => c.name).join("\n"))),
         h("button", { type: "button", class: "btn alt", on: { click: () => copyText(rows("categories").filter(c => c.kind === "expense").sort(bySort).map(c => c.name).join("\n"), "q-cats") } }, "Copy the categories"),
+        h("section", { class: "card qs-card" },
+          h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("chart", "ico sm")),
+            h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Today's spending in a Shortcut"), h("span", { class: "row-sub wrap" }, storedSettings().quickSummary ? "On" : "See what you spent today and what's left, without opening the app")),
+            h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(!!storedSettings().quickSummary), "aria-label": "Today's spending in a Shortcut", on: { click: async () => {
+              const on = !storedSettings().quickSummary;
+              saveSettings({ quickSummary: on });
+              if (!on) { store.set("qsLast", ""); await sb.from("quick_summary").delete().eq("user_id", S.uid); }
+              else queueQuickSummary();
+              draw();
+            } } }, h("span", { class: "knob" }))),
+          storedSettings().quickSummary ? h("div", { class: "prose" },
+            step(1, "Create a second Shortcut", "Name it “Today”. Add “Get Contents of URL” with the same address and key as above, Method POST, Request Body JSON, and two text fields: token (your key) and action (type today)."),
+            step(2, "Show the answer", "Add “Get Dictionary Value”, set the key to text, then add “Show Notification” (or “Show Result”) with the Dictionary Value."),
+            step(3, "Put it on your Home Screen", "Long-press the Home Screen → Edit → Add Widget → Shortcuts, and pick “Today”. One tap shows today's spending and what's left this month.")) : null,
+          h("p", { class: "hint" }, "When this is on, the app saves a one-line summary (today's total, this month's total and what's left) on the server so the Shortcut can read it. Your entries stay encrypted.")),
         h("button", { type: "button", class: "btn danger", on: { click: async () => {
           if (!navigator.onLine) return toast("Connect to the internet to turn this off.", "error");
+          await sb.from("quick_summary").delete().eq("user_id", S.uid);
+          saveSettings({ quickSummary: false });
           const { error } = await sb.from("quick_tokens").delete().eq("user_id", S.uid);
           if (error) return toast("Couldn't turn it off. Try again.", "error");
           try { localStorage.removeItem(lsKey("quickToken")); } catch { }
@@ -1927,6 +2089,12 @@
   }
 
   const CHANGES = [
+    { v: "3.29.0", items: [
+      ["bell", "Bill reminders", "Add your generator, internet, rent or school fees. You get a notification before each one is due, and a Pay button on Home."],
+      ["mail", "Monthly report by email", "On the 1st of each month, open the app and you get a summary of last month by email: what came in, what went out and where it went."],
+      ["cam", "Scan a receipt", "When adding an expense, tap Scan a receipt. The total, date and shop are filled in for you. It's optional and works on your phone."],
+      ["chart", "Today's spending in a Shortcut", "See what you spent today and what's left from a Home Screen Shortcut. Turn it on in Settings → Add from the Lock Screen."]
+    ] },
     { v: "3.28.0", items: [
       ["users", "Split is one tap away", "Tap Split on Home to share a bill with friends or record a loan. The Split tab now shows how it works and where to start."],
       ["bank", "Pick your accounts when you start", "New users choose which accounts they use, with the right currency for where they live."]
@@ -2006,6 +2174,26 @@
         c.items.map(([ic, title, text]) => h("div", { class: "help-row" }, h("span", { class: "dot " + (i ? "neutral" : "gold") }, icon(ic, "ico sm")), h("div", null, h("h3", null, title), h("p", null, text))))
       ]));
     openSheet(all ? "What's new" : `What's new in ${VERSION}`, body, h("button", { type: "button", class: "btn", on: { click: closeSheet } }, "Got it"));
+  }
+
+  const REPORT = { busy: false, tried: null };
+  async function maybeMonthlyReport() {
+    if (REPORT.busy || !sb || !S.session || !navigator.onLine || !VAULT.key || !storedSettings().onboarded) return;
+    const st = storedSettings();
+    const prev = shiftMonth(thisMonth(), -1);
+    if (st.reportOff || st.reportSent === prev || REPORT.tried === prev) return;
+    if (!S.last || !Object.keys(S.last).length) return;
+    REPORT.busy = true; REPORT.tried = prev;
+    try {
+      const s = monthStats(prev);
+      if (!s.count && !s.income) { saveSettings({ reportSent: prev }); return; }
+      const before = monthStats(shiftMonth(prev, -1));
+      const round = v => Math.round(Number(v) || 0);
+      const cats = [...s.byCat].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, v]) => { const c = cat(id); return { name: c ? c.name : "Uncategorized", amount: round(v), budget: c && Number(c.budget) ? round(Number(c.budget)) : 0, color: c && /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : "#5b7083" }; });
+      const big = s.biggest ? { name: (cat(s.biggest.category_id) || {}).name || "Expense", note: s.biggest.note || "", amount: round(txMain(s.biggest)), date: s.biggest.occurred_on } : null;
+      const { data } = await sb.functions.invoke("send-invite", { body: { action: "report", month: prev, cur: mainCur(), spent: round(s.spent), income: round(s.income), plan: round(planFor(prev).base), prevSpent: round(before.spent), count: s.count, cats, big, name: settings().name || "" } });
+      if (data && (data.emailed || data.already)) saveSettings({ reportSent: prev });
+    } catch { } finally { REPORT.busy = false; }
   }
 
   function maybeWhatsNew() {
@@ -2760,11 +2948,12 @@
     out.append(group("Every month",
       rules.length ? rules.map(r => {
         const c = cat(r.category_id);
-        return h("button", { type: "button", class: "row", on: { click: () => ruleSheet(r) } },
+        return h("button", { type: "button", class: "row", on: { click: () => isBill(r) ? billSheet(r) : ruleSheet(r) } },
           h("span", { class: "dot", style: { background: c ? c.color : "#5b7083" } }, String(r.day)),
           h("span", { class: "row-main" }, h("span", { class: "row-title" }, [c ? c.name : "Entry", r.note].filter(Boolean).join(" · ")), h("span", { class: "row-sub" }, r.active ? `Next on ${dayLabel(r.next_on)}` : "Paused")),
           h("span", { class: "row-end" + (r.kind === "income" ? " pos" : "") }, (r.kind === "income" ? "+" : "−") + fmt(Number(r.amount), r.currency)));
-      }) : h("p", { class: "empty" }, "Nothing repeats yet. Turn on “Repeat every month” when you add rent, salary or a subscription.")));
+      }) : h("p", { class: "empty" }, "Nothing repeats yet. Turn on “Repeat every month” when you add rent, salary or a subscription."),
+      h("button", { type: "button", class: "row-btn", on: { click: () => billSheet(null) } }, "Add a bill with a reminder")));
 
     const nameIn = h("input", { id: "s-name", class: "input", maxlength: "40", autocomplete: "name", placeholder: "e.g. Georgio", value: st.name, "aria-label": "Your name",
       on: { change: e => { const v = e.target.value.trim().replace(/\s+/g, " ").slice(0, 40); saveSettings({ name: v }); toast("Name saved."); } } });
@@ -2800,6 +2989,10 @@
     const armed = S.armed === "signout";
     const locked = !!lockCfg();
     const nav = (title, sub, fn, ic) => h("button", { type: "button", class: "row", on: { click: fn } }, h("span", { class: "dot neutral" }, icon(ic, "ico sm")), h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), sub ? h("span", { class: "row-sub" }, sub) : null), icon("fwd"));
+    out.append(group("Email",
+      h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("mail", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Monthly report by email"), h("span", { class: "row-sub wrap" }, storedSettings().reportOff ? "Off" : "A summary of last month, sent when you open the app on or after the 1st")),
+        h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(!storedSettings().reportOff), "aria-label": "Monthly report by email", on: { click: () => saveSettings({ reportOff: !storedSettings().reportOff }) } }, h("span", { class: "knob" })))));
     out.append(group("Entries",
       h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("note", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Note is required"), h("span", { class: "row-sub wrap" }, settings().noteRequired ? "Every new entry needs a short note" : "Notes are optional")),
@@ -4658,6 +4851,27 @@
       : { kind: "expense", amount: "", account: null, to: null, toAmount: "", toTouched: false, category: null, date: today(), note: "", repeat: false };
     f.receipt = x ? x.receipt || null : null;
     f.blob = null;
+    let scanning = false;
+    const scanInput = h("input", { type: "file", accept: "image/*", hidden: true, on: { change: async e => {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = "";
+      if (!file || scanning) return;
+      scanning = true; draw();
+      try {
+        const [res, blob] = await Promise.all([readReceipt(file), shrinkImage(file)]);
+        if (blob) f.blob = blob;
+        if (res.currency && acc(f.account) && acc(f.account).currency !== res.currency) {
+          const same = accounts.find(o => o.currency === res.currency);
+          if (same) f.account = same.id;
+        }
+        if (res.amount) f.amount = String(roundCur(res.amount, (acc(f.account) || accounts[0]).currency));
+        if (res.date) f.date = res.date;
+        if (res.shop && !f.note.trim()) f.note = res.shop;
+        panel = f.category ? "pad" : "cat";
+        toast(res.amount ? "Filled in from the receipt. Check the amount before saving." : "Couldn't find the total. Type it in, the photo is attached.", res.amount ? undefined : "error");
+      } catch { toast("Couldn't read the receipt. Type it in instead.", "error"); }
+      scanning = false; draw();
+    } } });
     const receiptInput = h("input", { type: "file", accept: "image/*", hidden: true, on: { change: async e => {
       const file = e.target.files && e.target.files[0];
       e.target.value = "";
@@ -4811,6 +5025,7 @@
           : seg([["expense", "Expense"], ["income", "Income"], ["transfer", "Transfer", accounts.length < 2], ["loan", "Loan"]], f.kind, k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; panel = "pad"; draw(); }, "Entry type"),
         h("button", { type: "button", class: "amount-tap", "aria-label": "Amount", on: { click: () => { if (panel !== "pad") { panel = "pad"; draw(); } } } }, display),
         preview,
+        !x && f.kind === "expense" && !adj ? h("div", { class: "scan-line" }, h("button", { type: "button", class: "scan-btn", disabled: scanning, on: { click: () => scanInput.click() } }, scanning ? h("span", { class: "spinner", "aria-hidden": "true" }) : icon("cam", "ico sm"), scanning ? "Reading the receipt…" : "Scan a receipt (optional)"), scanInput) : null,
         h("label", { class: "note-line" + (needNote && !f.note.trim() ? " need" : "") }, h("span", { class: "ftile-ico" }, icon("note", "ico sm")),
           h("input", { id: "f-note", class: "note-input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: noteHint, value: f.note, "aria-label": "Note",
             on: { input: e => { f.note = e.target.value; if (f.note.trim()) err.textContent = ""; e.target.parentNode.classList.toggle("need", needNote && !f.note.trim()); }, keydown: e => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } } } })),
@@ -4895,6 +5110,8 @@
         items.push({ t: "rules", r: { id: ruleId, kind: f.kind, amount: row.amount, currency: row.currency, account_id: row.account_id, category_id: row.category_id, note: row.note, day, next_on: nextMonthDay(f.date, day), active: true } });
       }
       items.unshift({ t: "transactions", r: row });
+      const paidBill = !x && f.bill ? S.data.rules.get(f.bill) : null;
+      if (paidBill && DATE_RE.test(paidBill.next_on)) items.push({ t: "rules", r: { ...paidBill, next_on: nextMonthDay(paidBill.next_on, paidBill.day) } });
       store.set("lastAcc:" + f.kind, a.id);
       const before = f.kind === "expense" ? budgetState(row.category_id) : null;
       putMany(items);

@@ -116,3 +116,4 @@ create policy "receipts delete own" on storage.objects for delete to authenticat
 
 alter table public.transactions drop constraint if exists transactions_kind_check;
 alter table public.transactions add constraint transactions_kind_check check (kind = any (array['expense'::text, 'income'::text, 'transfer'::text, 'loan_out'::text, 'loan_in'::text]));
+alter table public.rules add column if not exists remind smallint check (remind is null or remind between 0 and 14);

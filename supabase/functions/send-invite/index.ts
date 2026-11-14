@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import nodemailer from "npm:nodemailer@6.9.16";
+import { parseReport, renderReport } from "./report.ts";
 
 const APP_URL = "https://georgioaboudiwan.github.io/my-wallet/";
 const APP_ORIGIN = "https://georgioaboudiwan.github.io";
@@ -39,6 +40,11 @@ Deno.serve(async req => {
       const [h, sub] = await Promise.all([fetch(`${base}.html`).then(r => r.ok ? r.text() : ""), fetch(`${base}.subject.txt`).then(r => r.ok ? r.text() : n)]);
       if (h) previews.push({ subject: `[Preview] ${sub.trim()}`, html: sample(h) });
     }
+    if (test.report === true) {
+      const sample = parseReport({ month: "2026-10", cur: "USD", spent: 1847, income: 2400, plan: 2200, prevSpent: 1690, count: 64, name: "Georgio", cats: [{ name: "Groceries", amount: 520, budget: 450, color: "#2e9e6b" }, { name: "Eating out & coffee", amount: 310, budget: 300, color: "#b5508f" }, { name: "Generator & electricity", amount: 240, budget: 260, color: "#d9a13b" }, { name: "Transport & fuel", amount: 210, budget: 250, color: "#3b7dd8" }, { name: "Gifts & family", amount: 150, budget: 0, color: "#b5793a" }], big: { name: "Groceries", note: "Monthly shopping", amount: 186, date: "2026-10-03" } })!;
+      const out = renderReport(sample, APP_URL);
+      previews.push({ subject: `[Preview] ${out.subject}`, html: out.html });
+    }
     if (test.invites === true) {
       const t = await fetch(`${APP_URL}supabase/email-templates/group_invite.template.html`).then(r => r.ok ? r.text() : "");
       for (const has of [true, false]) if (t) {
@@ -64,6 +70,23 @@ Deno.serve(async req => {
   if (!who?.user) return json({ error: "unauthorized" }, 401);
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { body = {}; }
+  if (body.action === "report") {
+    const email = who.user.email;
+    const rep = parseReport(body);
+    if (!rep || !email) return json({ error: "Bad request." }, 400);
+    if (!mailer) return json({ emailed: false, reason: "setup" });
+    const { error: logErr } = await sb.from("report_log").insert({ user_id: who.user.id, month: rep.month });
+    if (logErr) return json({ emailed: false, already: logErr.code === "23505" });
+    const out = renderReport(rep, APP_URL);
+    try {
+      await mailer.sendMail({ from: { name: "BudgetSplit", address: GMAIL_USER }, to: email, subject: out.subject, text: out.text, html: out.html });
+    } catch (e) {
+      await sb.from("report_log").delete().eq("user_id", who.user.id).eq("month", rep.month);
+      console.error("report mail failed", String((e as Error)?.message || e).slice(0, 200));
+      return json({ emailed: false, reason: "send" });
+    }
+    return json({ emailed: true });
+  }
   const gid = String(body.group_id ?? "");
   const email = String(body.email ?? "").trim().toLowerCase();
   if (!/^[0-9a-f-]{36}$/i.test(gid) || email.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: "Bad request." }, 400);

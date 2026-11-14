@@ -14,6 +14,14 @@ Deno.serve(async req => {
   try { body = await req.json(); } catch { return json({ error: "Send JSON." }, 400); }
   const token = String(body.token || "");
   if (!/^[A-Za-z0-9_-]{40,64}$/.test(token)) return json({ error: "Not allowed." }, 401);
+  if (body.action === "today") {
+    const { data: who } = await sb.from("quick_tokens").select("user_id").eq("token_hash", await sha256(token)).maybeSingle();
+    if (!who) return json({ error: "Not allowed." }, 401);
+    const { data: sum } = await sb.from("quick_summary").select("text, updated_at").eq("user_id", who.user_id).maybeSingle();
+    if (!sum) return json({ text: "Turn on “Today's spending” in BudgetSplit → Settings → Add from the Lock Screen." });
+    const age = Date.now() - new Date(sum.updated_at).getTime();
+    return json({ text: age > 36 * 3600000 ? `${sum.text}\n(Updated ${Math.round(age / 86400000)} days ago. Open the app to refresh.)` : sum.text });
+  }
   const amount = Number(String(body.amount ?? "").replace(/\s/g, "").replace(",", "."));
   if (!Number.isFinite(amount) || amount <= 0 || amount >= 1e15) return json({ error: "Enter an amount above zero." }, 400);
   const note = String(body.note ?? "").trim().slice(0, 200) || null;

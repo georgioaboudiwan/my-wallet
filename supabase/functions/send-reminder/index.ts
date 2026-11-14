@@ -106,10 +106,19 @@ function localNow(tz: string) {
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-function nextDay(date: string) {
+function nextDay(date: string, n = 1) {
   const d = new Date(`${date}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + 1);
+  d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
+}
+
+async function billsFor(userId: string, date: string) {
+  const { data } = await sb.from("rules").select("next_on, remind").eq("user_id", userId).not("remind", "is", null).is("deleted_at", null).gte("next_on", date).lte("next_on", nextDay(date, 14));
+  const due = (data ?? []).filter(b => b.next_on === nextDay(date, Number(b.remind)));
+  if (!due.length) return null;
+  if (due.length > 1) return { title: `${due.length} bills are due soon`, body: "Tap to see them and pay on time.", open: "home" };
+  const d = Number(due[0].remind);
+  return { title: d === 0 ? "A bill is due today" : d === 1 ? "A bill is due tomorrow" : `A bill is due in ${d} days`, body: "Tap to see it and pay on time.", open: "home" };
 }
 
 async function dueTomorrow(userId: string, date: string) {
@@ -169,6 +178,7 @@ Deno.serve(async req => {
       try { status = await push(keys, sub, await reminderFor(sub, now.date)); } catch (e) { console.error("push failed", String((e as Error)?.message || e).slice(0, 200)); }
       if (status >= 200 && status < 300) sent++; else console.error("push status", status, new URL(sub.endpoint).host);
       await sb.from("push_subs").update({ last_status: status }).eq("id", sub.id);
+      try { const bill = await billsFor(sub.user_id, now.date); if (bill) await push(keys, sub, bill); } catch (e) { console.error("bills", String((e as Error)?.message || e).slice(0, 200)); }
     }
     return json({ sent });
   }
