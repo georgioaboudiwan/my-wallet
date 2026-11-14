@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.39.0";
+  const VERSION = "3.39.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1885,7 +1885,7 @@
     }, 2500);
   }
 
-  const SHORTCUT_LINK = "https://www.icloud.com/shortcuts/83a3785b861b4f2f9a96dc303b2b1577";
+  const SHORTCUT_LINK = "https://www.icloud.com/shortcuts/d6a11201a8fb4ed8b84a5f45e3860419";
   async function ensureQuickToken() {
     const have = store.get("quickToken", null);
     if (have) return have;
