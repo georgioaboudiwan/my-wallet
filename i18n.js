@@ -1014,3 +1014,30 @@ Object.assign(window.WALLET_I18N.words, {
   "You now have a Whish e-wallet account. Set its balance or hide it from Settings → Accounts if you don't use it.": ["Vous avez maintenant un compte Whish. Réglez son solde ou masquez-le dans Réglages → Comptes si vous ne l'utilisez pas.", "لديك الآن حساب محفظة Whish. حدّد رصيده أو أخفه من الإعدادات ← الحسابات إن لم تستخدمه."]
 });
 window.WALLET_I18N.patterns.push(["^Your accounts \\((\\d+)\\)$", "Vos comptes ($1)", "حساباتك ($1)"]);
+Object.assign(window.WALLET_I18N.words, {
+  "Change balance": ["Modifier le solde", "تغيير الرصيد"],
+  "Edit account": ["Modifier le compte", "تعديل الحساب"],
+  "Continue": ["Continuer", "متابعة"],
+  "Change the starting balance instead": ["Modifier plutôt le solde de départ", "عدّل الرصيد الافتتاحي بدلًا من ذلك"],
+  "The balance changed? Record it": ["Le solde a changé ? Enregistrez-le", "تغيّر الرصيد؟ سجّله"],
+  "Type the amount the account has now.": ["Tapez le montant actuel du compte.", "اكتب المبلغ الموجود في الحساب الآن."],
+  "Tell us where this money came from, then save.": ["Dites d'où vient cet argent, puis enregistrez.", "أخبرنا من أين أتى هذا المال ثم احفظ."],
+  "Tell us what this money was used for, then save.": ["Dites à quoi cet argent a servi, puis enregistrez.", "أخبرنا فيمَ استُخدم هذا المال ثم احفظ."],
+  "Write where this money came from.": ["Écrivez d'où vient cet argent.", "اكتب من أين أتى هذا المال."],
+  "Write what this money was used for.": ["Écrivez à quoi cet argent a servi.", "اكتب فيمَ استُخدم هذا المال."],
+  "Pick what kind of money this is.": ["Choisissez le type de revenu.", "اختر نوع هذا المال."],
+  "Pick what it was spent on.": ["Choisissez la catégorie de dépense.", "اختر فيمَ صُرف."],
+  "No change. The balance is the same.": ["Aucun changement. Le solde est le même.", "لا تغيير. الرصيد نفسه."],
+  "Change an account's balance the right way": ["Modifiez le solde d'un compte correctement", "غيّر رصيد الحساب بالطريقة الصحيحة"],
+  "Open an account and tap Change balance. Enter what it has now, then say where the extra money came from or what it was used for. It's saved as an entry, so your history adds up.": ["Ouvrez un compte et touchez Modifier le solde. Entrez le montant actuel, puis dites d'où vient l'argent ou à quoi il a servi. C'est enregistré comme une opération.", "افتح حسابًا واضغط «تغيير الرصيد». أدخل المبلغ الحالي ثم قل من أين أتى المال أو فيمَ استُخدم. يُحفظ كعملية فيبقى سجلك صحيحًا."],
+  "Starting balance stays simple": ["Le solde de départ reste simple", "الرصيد الافتتاحي يبقى بسيطًا"],
+  "The starting balance can still be changed any time without questions. Everything else is calculated from it.": ["Le solde de départ se modifie toujours sans questions. Tout le reste est calculé à partir de lui.", "يمكن تغيير الرصيد الافتتاحي في أي وقت بلا أسئلة، وكل شيء آخر يُحسب منه."]
+});
+window.WALLET_I18N.patterns.push(
+  ["^That's (.+) more\\. Next, you'll say where it came from\\.$", "C'est $1 de plus. Ensuite, dites d'où ça vient.", "هذا أكثر بـ $1. بعدها ستقول من أين أتى."],
+  ["^That's (.+) less\\. Next, you'll say what it was used for\\.$", "C'est $1 de moins. Ensuite, dites à quoi ça a servi.", "هذا أقل بـ $1. بعدها ستقول فيمَ استُخدم."],
+  ["^New balance \\((.+)\\)$", "Nouveau solde ($1)", "الرصيد الجديد ($1)"],
+  ["^(.+) has (.+) now\\. If that changed, enter the new amount and we'll record the difference as income or an expense, so your history stays right\\.$", "$1 a $2 maintenant. Si ça a changé, entrez le nouveau montant : la différence sera enregistrée comme revenu ou dépense.", "في $1 الآن $2. إن تغيّر، أدخل المبلغ الجديد وسنسجّل الفرق كدخل أو مصروف."],
+  ["^What (.+) had when you started\\. Everything else is calculated from your entries\\. Now: (.+)\\.$", "Ce que $1 avait au départ. Le reste est calculé à partir de vos opérations. Actuellement : $2.", "ما كان في $1 عند البدء. الباقي يُحسب من عملياتك. الآن: $2."]
+);
+Object.assign(window.WALLET_I18N.words, { "No entries in this account yet.": ["Aucune opération sur ce compte pour l'instant.", "لا عمليات في هذا الحساب بعد."] });

@@ -1276,3 +1276,14 @@ input[type="month"].input::-webkit-date-and-time-value, input[type="date"].input
 .dot.acc-dot.k-wallet { background: #e0534a; }
 .dot.acc-dot.k-savings { background: #d4a23c; }
 @media (min-width: 900px) { .accs { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); } }
+.acc.acc-head { min-height: 0; padding: 18px 18px 16px; border-radius: 24px; }
+.acc-head .acc-bal { font-size: 30px; }
+.acc-btns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; position: relative; z-index: 1; }
+.acc-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border: 0; border-radius: 999px; background: rgb(255 255 255 / .2); color: #fff; font: 650 14px var(--ui); }
+.acc-btn:active { background: rgb(255 255 255 / .3); }
+.adjust-note { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 16px; background: var(--accent-soft); color: var(--ink); }
+.adjust-note.down { background: var(--neg-soft); }
+.adjust-note > .ico { flex: none; margin-top: 2px; color: var(--accent); }
+.adjust-note.down > .ico { color: var(--neg); }
+.adjust-note span { display: grid; gap: 2px; }
+.adjust-note small { color: var(--muted); font-size: 13px; }

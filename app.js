@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.26.0";
+  const VERSION = "3.27.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1878,6 +1878,10 @@
   }
 
   const CHANGES = [
+    { v: "3.27.0", items: [
+      ["pencil", "Change an account's balance the right way", "Open an account and tap Change balance. Enter what it has now, then say where the extra money came from or what it was used for. It's saved as an entry, so your history adds up."],
+      ["coin", "Starting balance stays simple", "The starting balance can still be changed any time without questions. Everything else is calculated from it."]
+    ] },
     { v: "3.26.0", items: [
       ["card", "New look for your accounts", "Each account is now a card with its own icon and color, so cash, bank, card, e-wallet and savings are easy to tell apart."],
       ["phone", "Whish account added", "You now have a Whish e-wallet account. Set its balance or hide it from Settings → Accounts if you don't use it."]
@@ -2293,12 +2297,24 @@
         return [x.note, c && c.name, a && a.name, b && b.name, String(x.amount), isLoanTx(x) ? loanTitle(x) : null].some(v => v && String(v).toLowerCase().includes(q));
       }).sort(byRecent);
       const fa = S.filter.account && !q && S.filter.kind === "all" ? acc(S.filter.account) : null;
+      const sel = S.filter.account ? acc(S.filter.account) : null;
+      const head = sel ? (() => {
+        const v = balances().get(sel.id) || 0;
+        return h("section", { class: "acc acc-head k-" + (KIND_ICON[sel.kind] ? sel.kind : "cash") },
+          h("span", { class: "acc-top" }, h("span", { class: "acc-ico" }, icon(KIND_ICON[sel.kind] || "cash", "ico sm")), h("span", { class: "acc-kind" }, `${KIND_LABEL[sel.kind] || ""} · ${curTag(sel.currency)}`)),
+          h("span", { class: "acc-name" }, sel.name),
+          h("span", { class: "acc-bal num" + (v < 0 ? " neg" : "") }, fmt(v, sel.currency)),
+          sel.currency !== mainCur() ? h("small", { class: "acc-alt num" }, "≈ " + money(toMain(v, sel.currency), { whole: true })) : null,
+          h("span", { class: "acc-btns" },
+            h("button", { type: "button", class: "acc-btn", on: { click: () => balanceSheet(sel) } }, icon("pencil", "ico sm"), "Change balance"),
+            h("button", { type: "button", class: "acc-btn", on: { click: () => accountSheet(sel) } }, icon("gear", "ico sm"), "Edit account")));
+      })() : null;
       const startCard = fa ? h("section", { class: "card flush" }, h("button", { type: "button", class: "row", on: { click: () => openingSheet(fa) } },
         h("span", { class: "dot neutral" }, icon("coin", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Starting balance"), h("span", { class: "row-sub" }, "What the account had when you added it. Tap to change")),
         h("span", { class: "row-end num" }, fmt(Number(fa.opening_balance) || 0, fa.currency)))) : null;
       if (!matches.length) {
-        list.replaceChildren(...[h("p", { class: "empty" }, q || S.filter.kind !== "all" || S.filter.account ? "No entries match your search." : "No entries yet. Tap + to add one."), startCard].filter(Boolean));
+        list.replaceChildren(...[head, h("p", { class: "empty" }, q || S.filter.kind !== "all" ? "No entries match your search." : S.filter.account ? "No entries in this account yet." : "No entries yet. Tap + to add one."), startCard].filter(Boolean));
         return;
       }
       const shown = matches.slice(0, S.limit);
@@ -2312,7 +2328,7 @@
       });
       if (matches.length > shown.length) cards.push(h("button", { type: "button", class: "btn alt", on: { click: () => { S.limit += 300; fill(); } } }, `Show more (${matches.length - shown.length})`));
       else if (startCard) cards.push(startCard);
-      list.replaceChildren(...cards);
+      list.replaceChildren(...[head, ...cards].filter(Boolean));
     }
     fill();
     out.append(h("label", { class: "search" }, icon("search"), search), chips, list);
@@ -4562,7 +4578,7 @@
     const err = h("p", { class: "form-err", role: "alert" });
     const saveBtn = h("button", { type: "submit", class: "btn", form: "txn-form" });
     let armedDelete = false;
-    let panel = x && x.kind !== "transfer" && !x.category_id ? "cat" : "pad";
+    let panel = (x && x.kind !== "transfer" && !x.category_id) || (!x && preset && preset.adjust) ? "cat" : "pad";
     const bal = balances();
 
     const pick = () => {
@@ -4616,7 +4632,7 @@
       const chosen = f.kind !== "transfer" && f.category ? cat(f.category) : null;
       const extras = [f.repeat ? "Monthly" : null, f.blob || f.receipt ? "Receipt" : null].filter(Boolean);
       const lp = loanPerson();
-      const needNote = settings().noteRequired && !x && f.kind !== "transfer";
+      const needNote = (settings().noteRequired || !!f.adjust) && !x && f.kind !== "transfer";
       const avail = (o, check) => { const v = bal.get(o.id) || 0; return h("span", { class: "ftile-bal num" + (check && parseAmt(f.amount) > v ? " low" : ""), title: tr("Available") }, fmt(v, o.currency)); };
       const noteHint = f.kind === "expense" ? "What was it for?" : f.kind === "income" ? "Where is it from?" : f.kind === "loan" ? "What is it for?" : "Note (optional)";
       const tiles = f.kind === "loan"
@@ -4687,8 +4703,12 @@
         panelEl = pad;
       }
 
+      const adj = !x && f.adjust ? acc(f.account) : null;
       const kids = [
-        seg([["expense", "Expense"], ["income", "Income"], ["transfer", "Transfer", accounts.length < 2], ["loan", "Loan"]], f.kind, k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; panel = "pad"; draw(); }, "Entry type"),
+        adj ? h("div", { class: "adjust-note" + (f.kind === "income" ? " up" : " down") }, icon(f.kind === "income" ? "up" : "down", "ico sm"),
+          h("span", null, h("strong", null, `${adj.name}: ${fmt(f.adjust.from, adj.currency, { show: true })} → ${fmt(f.adjust.to, adj.currency, { show: true })}`),
+            h("small", null, f.kind === "income" ? "Tell us where this money came from, then save." : "Tell us what this money was used for, then save.")))
+          : seg([["expense", "Expense"], ["income", "Income"], ["transfer", "Transfer", accounts.length < 2], ["loan", "Loan"]], f.kind, k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; panel = "pad"; draw(); }, "Entry type"),
         h("button", { type: "button", class: "amount-tap", "aria-label": "Amount", on: { click: () => { if (panel !== "pad") { panel = "pad"; draw(); } } } }, display),
         preview,
         h("label", { class: "note-line" + (needNote && !f.note.trim() ? " need" : "") }, h("span", { class: "ftile-ico" }, icon("note", "ico sm")),
@@ -4712,7 +4732,8 @@
       const amount = parseAmt(f.amount);
       if (!amount) { fail(null, "Type the amount on the number pad first.", body.querySelector(".amount-display")); return; }
       if (!DATE_RE.test(f.date)) { fail(err, "Pick a date."); return; }
-      if (settings().noteRequired && !x && f.kind !== "transfer" && !f.note.trim()) { fail(err, "Write a short note so you remember what it was."); const n = document.getElementById("f-note"); if (n) n.focus(); return; }
+      if ((settings().noteRequired || f.adjust) && !x && f.kind !== "transfer" && !f.note.trim()) { fail(err, f.adjust ? (f.kind === "income" ? "Write where this money came from." : "Write what this money was used for.") : "Write a short note so you remember what it was."); const n = document.getElementById("f-note"); if (n) n.focus(); return; }
+      if (f.adjust && !x && !f.category) { panel = "cat"; draw(); fail(err, f.kind === "income" ? "Pick what kind of money this is." : "Pick what it was spent on."); return; }
       if (f.kind === "loan") {
         const p = loanPerson();
         if (!p) { panel = "person"; draw(); return; }
@@ -4800,6 +4821,34 @@
     openSheet(x ? "Edit entry" : "New entry", body, saveBtn, { fill: true, headBtn });
   }
 
+  function balanceSheet(a) {
+    const current = Math.round((balances().get(a.id) || 0) * 100) / 100;
+    const f = { v: String(current) };
+    const err = h("p", { class: "form-err", role: "alert" });
+    const diffEl = h("p", { class: "hint num" });
+    const showDiff = () => {
+      const v = parseSigned(f.v);
+      const d = v === null ? 0 : roundCur(v - current, a.currency);
+      diffEl.textContent = v === null || !d ? tr("Type the amount the account has now.") : tr(d > 0 ? `That's ${fmt(d, a.currency, { show: true })} more. Next, you'll say where it came from.` : `That's ${fmt(-d, a.currency, { show: true })} less. Next, you'll say what it was used for.`);
+    };
+    const body = h("form", { class: "form", id: "bal-form", novalidate: true },
+      h("p", { class: "hint" }, `${a.name} has ${fmt(current, a.currency, { show: true })} now. If that changed, enter the new amount and we'll record the difference as income or an expense, so your history stays right.`),
+      h("label", { class: "field" }, h("span", null, `New balance (${curSymbol(a.currency)})`), h("input", { id: "f-newbal", class: "input num", inputmode: "decimal", autocomplete: "off", value: f.v, on: { input: e => { f.v = e.target.value; showDiff(); } } })),
+      diffEl, err,
+      h("button", { type: "button", class: "row-btn", on: { click: () => openingSheet(a) } }, "Change the starting balance instead"));
+    showDiff();
+    const btn = h("button", { type: "submit", class: "btn", form: "bal-form" }, "Continue");
+    body.addEventListener("submit", ev => {
+      ev.preventDefault();
+      const v = parseSigned(f.v);
+      if (v === null) return fail(err, "Enter the balance as a number, like 250 or -40.", document.getElementById("f-newbal"));
+      const d = roundCur(v - current, a.currency);
+      if (!d) { closeSheet(); return toast("No change. The balance is the same."); }
+      txnSheet(null, { kind: d > 0 ? "income" : "expense", amount: String(Math.abs(d)), account: a.id, adjust: { from: current, to: roundCur(v, a.currency) } });
+    });
+    openSheet("Change balance", body, btn);
+  }
+
   function openingSheet(a) {
     const f = { v: String(Number(a.opening_balance) || 0) };
     const err = h("p", { class: "form-err", role: "alert" });
@@ -4823,7 +4872,7 @@
     const bal = balances();
     const used = a ? rows("transactions").some(x => x.account_id === a.id || x.to_account_id === a.id) : false;
     const current = a ? bal.get(a.id) || 0 : 0;
-    const f = { name: a ? a.name : "", currency: a ? a.currency : mainCur(), kind: a ? a.kind : "bank", balance: a ? String(Math.round(current * 100) / 100) : "", rate: "" };
+    const f = { name: a ? a.name : "", currency: a ? a.currency : mainCur(), kind: a ? a.kind : "bank", balance: a ? String(Number(a.opening_balance) || 0) : "", rate: "" };
     const body = h("form", { class: "form", novalidate: true });
     const err = h("p", { class: "form-err", role: "alert" });
     let armedDelete = false;
@@ -4834,7 +4883,8 @@
         f.currency !== mainCur() ? h("label", { class: "field" }, h("span", null, `Exchange rate: 1 ${mainCur()} = ? ${f.currency}`), h("input", { id: "f-arate", class: "input num", inputmode: "decimal", autocomplete: "off", value: f.rate || String(+(rateOf(f.currency) / rateOf(mainCur())).toPrecision(6)), on: { input: e => { f.rate = e.target.value; } } }), h("p", { class: "hint" }, "Check this matches today's rate. You can change it later in Settings.")) : null,
         h("div", { class: "field" }, h("span", { class: "label" }, "Type"), h("div", { class: "chips wrap" }, Object.entries(KIND_LABEL).map(([k, l]) => h("button", { type: "button", class: "chip", "aria-pressed": String(f.kind === k), on: { click: () => { f.kind = k; draw(); } } }, l)))),
         h("p", { class: "hint" }, "Money moved into a Savings account counts toward your savings goal."),
-        h("label", { class: "field" }, h("span", null, `Balance now (${curSymbol(f.currency)})`), h("input", { id: "f-abal", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.balance, on: { input: e => { f.balance = e.target.value; } } })),
+        h("label", { class: "field" }, h("span", null, a ? `Starting balance (${curSymbol(f.currency)})` : `Balance now (${curSymbol(f.currency)})`), h("input", { id: "f-abal", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.balance, on: { input: e => { f.balance = e.target.value; } } }), a ? h("p", { class: "hint" }, `What ${a.name} had when you started. Everything else is calculated from your entries. Now: ${fmt(current, a.currency, { show: true })}.`) : null),
+        a ? h("button", { type: "button", class: "btn alt", on: { click: () => balanceSheet(a) } }, "The balance changed? Record it") : null,
         err,
         h("button", { type: "submit", class: "btn" }, a ? "Save account" : "Add account")
       ];
@@ -4850,8 +4900,7 @@
       if (!name || name.length > 60) { fail(err, "Give the account a name."); return; }
       const wanted = parseSigned(f.balance);
       if (wanted === null) { fail(err, "Enter the balance as a number, like 250 or -40."); return; }
-      const effect = a ? current - (Number(a.opening_balance) || 0) : 0;
-      const opening = Math.round((wanted - effect) * 100) / 100;
+      const opening = Math.round(wanted * 100) / 100;
       if (f.currency !== mainCur() && f.rate.trim()) {
         const x = parseRate(f.rate);
         if (!x) return fail(err, "Enter the exchange rate as a number, like 0.92 or 89500.");
