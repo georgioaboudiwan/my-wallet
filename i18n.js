@@ -1434,7 +1434,29 @@ Object.assign(window.WALLET_I18N.words, {
   "A cleaner Settings": ["Des réglages plus clairs", "إعدادات أوضح"],
   "Everything is grouped and easy to find, with a search box and quick switches at the top. Swipe from the edge to go back.": ["Tout est regroupé et facile à trouver, avec une recherche et des interrupteurs rapides en haut. Glissez depuis le bord pour revenir.", "كل شيء مرتب وسهل الإيجاد، مع بحث ومفاتيح سريعة في الأعلى. اسحب من الحافة للرجوع."],
   "Light or dark, your choice": ["Clair ou sombre, à vous de choisir", "فاتح أو داكن، أنت تختار"],
-  "Pick Light, Dark or Match my phone in Settings → Appearance. You can also start with amounts hidden.": ["Choisissez Clair, Sombre ou Comme mon téléphone dans Réglages → Apparence. Vous pouvez aussi démarrer avec les montants masqués.", "اختر فاتح أو داكن أو مثل هاتفي من الإعدادات ← المظهر. ويمكنك أيضاً البدء والمبالغ مخفية."]
+  "Pick Light, Dark or Match my phone in Settings → Appearance. You can also start with amounts hidden.": ["Choisissez Clair, Sombre ou Comme mon téléphone dans Réglages → Apparence. Vous pouvez aussi démarrer avec les montants masqués.", "اختر فاتح أو داكن أو مثل هاتفي من الإعدادات ← المظهر. ويمكنك أيضاً البدء والمبالغ مخفية."],
+  "Add an income category named Salary first.": ["Ajoutez d'abord une catégorie de revenu « Salaire ».", "أضف أولاً فئة دخل باسم «راتب»."],
+  "Every month on payday, Home asks if your salary came in. Tap yes and it's added to your account. Nothing is added without your yes.": ["Chaque mois le jour de paie, l'accueil vous demande si votre salaire est arrivé. Touchez oui et il est ajouté au compte. Rien n'est ajouté sans votre oui.", "كل شهر في يوم الراتب، تسألك الصفحة الرئيسية إن وصل راتبك. اضغط نعم فيُضاف إلى حسابك. لا يُضاف شيء بدون موافقتك."],
+  "How much do you get?": ["Combien recevez-vous ?", "كم تتقاضى؟"],
+  "Paid into": ["Versé sur", "يُحوَّل إلى"],
+  "Payday (day of the month)": ["Jour de paie (jour du mois)", "يوم الراتب (يوم من الشهر)"],
+  "Stop adding my salary": ["Arrêter d'ajouter mon salaire", "أوقف إضافة راتبي"],
+  "Salary stopped. You can turn it on again anytime.": ["Salaire arrêté. Vous pouvez le réactiver à tout moment.", "تم إيقاف الراتب. يمكنك تفعيله مجدداً في أي وقت."],
+  "Next payday": ["Prochaine paie", "يوم الراتب القادم"],
+  "Salary updated.": ["Salaire mis à jour.", "تم تحديث الراتب."],
+  "Done. On payday we'll ask you before adding it.": ["C'est fait. Le jour de paie, on vous demandera avant de l'ajouter.", "تم. في يوم الراتب سنسألك قبل إضافته."],
+  "Turn it on": ["Activer", "فعّله"],
+  "Add my salary every month": ["Ajouter mon salaire chaque mois", "أضف راتبي كل شهر"],
+  "Add your salary automatically?": ["Ajouter votre salaire automatiquement ?", "إضافة راتبك تلقائياً؟"],
+  "Salary added on payday": ["Salaire ajouté le jour de paie", "يُضاف الراتب في يوم الراتب"],
+  "Add my salary to my account every month": ["Ajouter mon salaire à mon compte chaque mois", "أضف راتبي إلى حسابي كل شهر"],
+  "We ask you on payday, then add it": ["On vous demande le jour de paie, puis on l'ajoute", "نسألك في يوم الراتب ثم نضيفه"],
+  "Set up": ["Configurer", "إعداد"],
+  "day": ["jour", "يوم"],
+  "Change my salary": ["Modifier mon salaire", "غيّر راتبي"],
+  "Your salary, added on payday": ["Votre salaire, ajouté le jour de paie", "راتبك يُضاف في يوم الراتب"],
+  "Set your salary once and on payday the app asks if it came in. Tap yes and it's added to your account.": ["Réglez votre salaire une fois : le jour de paie, l'app demande s'il est arrivé. Touchez oui et il est ajouté.", "اضبط راتبك مرة واحدة، وفي يوم الراتب يسألك التطبيق إن وصل. اضغط نعم فيُضاف إلى حسابك."],
+  "Set it once. On payday we ask you, then add it to your account.": ["Réglez-le une fois. Le jour de paie, on vous demande puis on l'ajoute à votre compte.", "اضبطه مرة واحدة. في يوم الراتب نسألك ثم نضيفه إلى حسابك."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
@@ -1448,3 +1470,4 @@ window.WALLET_I18N.patterns.push(
   ["^(\\d+) accounts paid back\\.$", "$1 comptes remboursés.", "تم سداد $1 حسابات."]
 );
 window.WALLET_I18N.patterns.push(["^Version (.+)$", "Version $1", "الإصدار $1"]);
+window.WALLET_I18N.patterns.push(["^(.+) → (.+)\\. On payday we ask you first\\.$", "$1 → $2. On vous demande d'abord le jour de paie.", "$1 → $2. نسألك أولاً في يوم الراتب."]);

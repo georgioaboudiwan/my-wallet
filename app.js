@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.43.1";
+  const VERSION = "3.44.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -706,6 +706,79 @@
     } } }, "Add it");
     openSheet("Your salary", body, save);
   }
+  function salaryGuess() {
+    const sc = rows("categories").filter(c => isSalaryCat(c)).sort((p, q) => /:cat:salary$/.test(q.id) - /:cat:salary$/.test(p.id))[0] || null;
+    const rule = rows("rules").filter(r => isSalaryRule(r)).sort((p, q) => q.active - p.active)[0] || null;
+    const last = rows("transactions").filter(x => x.kind === "income" && isSalaryCat(cat(x.category_id))).sort(byRecent)[0] || null;
+    const accs = rows("accounts").filter(o => !o.archived).sort(bySort);
+    const pickAcc = [rule && rule.account_id, last && last.account_id, store.get("lastAcc:income", null), (accs.find(o => o.kind === "bank") || {}).id, (accs[0] || {}).id].find(id => id && acc(id) && !acc(id).archived) || null;
+    const a = acc(pickAcc);
+    const plan = fixedIncome(thisMonth()) || 0;
+    const amount = rule ? Number(rule.amount) : last ? Number(last.amount) : a && plan ? roundCur(convert(plan, mainCur(), a.currency), a.currency) : 0;
+    const day = rule ? rule.day : last ? Math.min(28, Number(last.occurred_on.slice(8)) || 1) : 1;
+    return { cat: sc, rule, account: pickAcc, amount, day };
+  }
+  const salaryOn = () => rows("rules").some(r => r.active && isSalaryRule(r));
+  function firstPayday(day) {
+    const t = today();
+    const [y, m] = t.split("-").map(Number);
+    const dim = new Date(y, m, 0).getDate();
+    const here = `${t.slice(0, 7)}-${String(Math.min(day, dim)).padStart(2, "0")}`;
+    return here >= t ? here : nextMonthDay(here, day);
+  }
+  function salarySheet() {
+    const g = salaryGuess();
+    if (!g.cat) { toast("Add an income category named Salary first.", "error"); return; }
+    const accs = rows("accounts").filter(o => !o.archived).sort(bySort);
+    if (!accs.length) { toast("Add an account first."); return; }
+    const f = { amount: g.amount ? String(g.amount) : "", account: g.account || accs[0].id, day: g.day };
+    const editing = g.rule && g.rule.active;
+    const err = h("p", { class: "form-err", role: "alert" });
+    const amountIn = h("input", { id: "sal-amt", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.amount, on: { input: e => { f.amount = e.target.value; } } });
+    const accSel = h("select", { id: "sal-acc", class: "input", on: { change: e => { f.account = e.target.value; draw(); } } }, accs.map(o => h("option", { value: o.id, selected: o.id === f.account }, `${o.name} · ${o.currency}`)));
+    const daySel = h("select", { id: "sal-day", class: "input", on: { change: e => { f.day = Number(e.target.value); draw(); } } }, Array.from({ length: 28 }, (_, i) => h("option", { value: String(i + 1), selected: i + 1 === f.day }, String(i + 1))));
+    const preview = h("p", { class: "sal-preview" });
+    const body = h("div", { class: "form" },
+      h("p", { class: "hint" }, "Every month on payday, Home asks if your salary came in. Tap yes and it's added to your account. Nothing is added without your yes."),
+      h("label", { class: "field" }, h("span", null, "How much do you get?"), amountIn),
+      h("label", { class: "field" }, h("span", null, "Paid into"), accSel),
+      h("label", { class: "field" }, h("span", null, "Payday (day of the month)"), daySel),
+      preview, err,
+      editing ? h("button", { type: "button", class: "btn alt danger-text", on: { click: () => { putMany([{ t: "rules", r: { ...g.rule, active: false } }]); closeSheet(); toast("Salary stopped. You can turn it on again anytime."); } } }, "Stop adding my salary") : null);
+    const draw = () => {
+      const a = acc(f.account);
+      preview.replaceChildren(icon("cal", "ico sm"), h("span", null, `${tr("Next payday")}: ${dayLabel(firstPayday(f.day))}${a ? ` · ${a.name}` : ""}`));
+      const sym = a ? curSymbol(a.currency) : "";
+      amountIn.parentElement && (amountIn.parentElement.firstChild.textContent = `${tr("How much do you get?")} (${sym})`);
+    };
+    const save = h("button", { type: "button", class: "btn", on: { click: () => {
+      const a = acc(f.account);
+      const v = parseAmt(amountIn.value);
+      if (!v) { err.textContent = tr("Enter an amount above zero."); amountIn.focus(); return; }
+      const amount = roundCur(v, a.currency);
+      const base = g.rule || { id: newId(), note: null };
+      const keepNext = g.rule && g.rule.active && g.rule.day === f.day && DATE_RE.test(g.rule.next_on);
+      putMany([{ t: "rules", r: { ...base, kind: "income", amount, currency: a.currency, account_id: a.id, category_id: g.cat.id, day: f.day, next_on: keepNext ? g.rule.next_on : firstPayday(f.day), active: true } }]);
+      store.set("salSugOff", true);
+      track("add", editing ? "salary_edit" : "salary_on");
+      closeSheet();
+      toast(editing ? "Salary updated." : "Done. On payday we'll ask you before adding it.");
+    } } }, editing ? "Save" : "Turn it on");
+    draw();
+    openSheet(editing ? "Your salary" : "Add my salary every month", body, save);
+  }
+  function salarySuggest() {
+    if (salaryOn() || store.get("salSugOff", false)) return null;
+    const g = salaryGuess();
+    if (!g.cat || !g.account) return null;
+    const a = acc(g.account);
+    return h("section", { class: "sal-teaser" },
+      h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("salSugOff", true); render(); } } }, icon("close", "ico sm")),
+      h("span", { class: "payday-ico" }, icon("work")),
+      h("div", null, h("strong", null, "Add your salary automatically?"), h("small", null, g.amount > 0 ? `${fmt(g.amount, a.currency, { show: true })} → ${a.name}. On payday we ask you first.` : "Set it once. On payday we ask you, then add it to your account.")),
+      h("button", { type: "button", class: "btn sm", on: { click: salarySheet } }, "Set it up"));
+  }
+
   function paydayCard() {
     const r = dueSalary();
     if (!r) return null;
@@ -2376,6 +2449,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.44.0", items: [
+      ["", "Salary in one tap", "New salary sheet with the amount, account and payday already filled (from your last salary, the Plan income, or your bank account). Reachable from a Home suggestion, the Plan income card, and Settings → Repeating and bills. It still asks on payday before adding."]
+    ] },
     { v: "3.43.1", items: [
       ["", "Plan income list fixed", "The list of monthly income changes in Plan was squeezed into columns with overlapping text. It's one clean row per change again."]
     ] },
@@ -2399,6 +2475,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.44.0", items: [
+      ["work", "Your salary, added on payday", "Set your salary once and on payday the app asks if it came in. Tap yes and it's added to your account."]
+    ] },
     { v: "3.43.0", items: [
       ["gear", "A cleaner Settings", "Everything is grouped and easy to find, with a search box and quick switches at the top. Swipe from the edge to go back."],
       ["eye", "Light or dark, your choice", "Pick Light, Dark or Match my phone in Settings → Appearance. You can also start with amounts hidden."]
@@ -2742,6 +2821,7 @@
 
     const pay = paydayCard();
     if (pay) out.append(pay);
+    else { const sug = salarySuggest(); if (sug) out.append(sug); }
     const loans = loansCard();
     if (loans) out.append(loans);
     if (!rows("people").length && !GROUPS.list.size && !store.get("splitTeaserOff", false)) {
@@ -3164,6 +3244,15 @@
           : "Log your income with + and the plan follows it, month by month.")
         : tab === "fixed" ? `Pick the month the amount starts, then enter it. It applies from that month until the next change in the list. Months before it are not affected. ${logged}`
         : `Only ${name} uses this amount. Other months keep their usual setting. ${logged}`));
+    {
+      const sr = rows("rules").find(r => r.active && isSalaryRule(r));
+      const sa = sr && acc(sr.account_id);
+      kids.push(h("button", { type: "button", class: "sal-row", on: { click: salarySheet } },
+        h("span", { class: "payday-ico sm" }, icon("work", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, sr ? "Salary added on payday" : "Add my salary to my account every month"),
+          h("span", { class: "row-sub wrap" }, sr && sa ? `${fmt(Number(sr.amount), sr.currency, { show: true })} → ${sa.name} · ${tr("day")} ${sr.day}` : "We ask you on payday, then add it")),
+        h("span", { class: "sal-go" }, tr(sr ? "Change" : "Set up"))));
+    }
     const changes = Object.entries(st.incomeSteps).sort();
     if (tab === "fixed" && changes.length) {
       kids.push(h("div", { class: "inc-steps" }, changes.map(([k, v]) => h("div", { class: "step-row" },
@@ -3310,7 +3399,8 @@
           h("span", { class: "row-main" }, h("span", { class: "row-title" }, [c ? c.name : "Entry", r.note].filter(Boolean).join(" · ")), h("span", { class: "row-sub" }, r.active ? `Next on ${dayLabel(r.next_on)}` : "Paused")),
           h("span", { class: "row-end" + (r.kind === "income" ? " pos" : "") }, (r.kind === "income" ? "+" : "−") + fmt(Number(r.amount), r.currency)));
       }) : h("p", { class: "empty" }, "Nothing repeats yet. Turn on “Repeat every month” when you add rent, salary or a subscription."),
-      h("button", { type: "button", class: "row-btn", on: { click: () => billSheet(null) } }, "Add a bill with a reminder")));
+      h("button", { type: "button", class: "row-btn", on: { click: () => billSheet(null) } }, "Add a bill with a reminder"),
+      h("button", { type: "button", class: "row-btn", on: { click: salarySheet } }, salaryOn() ? "Change my salary" : "Add my salary every month")));
 
     const nameIn = h("input", { id: "s-name", class: "input", maxlength: "40", autocomplete: "name", placeholder: "e.g. Georgio", value: st.name, "aria-label": "Your name",
       on: { change: e => { const v = e.target.value.trim().replace(/\s+/g, " ").slice(0, 40); saveSettings({ name: v }); toast("Name saved."); } } });

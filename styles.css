@@ -1627,3 +1627,14 @@ main.view.set-snap { transition: transform .25s var(--ease); }
 @media (prefers-reduced-motion: reduce) { main.view.set-in, main.view.set-back { animation: none; } }
 .set-q:focus-visible { outline: none; }
 .set-search:focus-within { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent), var(--shadow); }
+.sal-teaser { position: relative; display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: var(--r); background: linear-gradient(140deg, color-mix(in srgb, #2e9e6b 14%, var(--card)), var(--card) 70%); box-shadow: var(--shadow); border: 1.5px solid color-mix(in srgb, #2e9e6b 35%, transparent); }
+.sal-teaser > div { flex: 1; min-width: 0; display: grid; gap: 3px; padding-inline-end: 6px; }
+.sal-teaser strong { font-size: 16px; }
+.sal-teaser small { font-size: 13.5px; color: var(--muted); line-height: 1.35; }
+.sal-teaser .btn.sm { width: auto; flex: none; min-height: 40px; padding: 8px 14px; font-size: 14.5px; align-self: flex-end; }
+.sal-teaser .split-teaser-x { background: var(--sunk); color: var(--muted); }
+.payday-ico.sm { width: 36px; height: 36px; border-radius: 11px; }
+.sal-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 1.5px dashed color-mix(in srgb, #2e9e6b 45%, transparent); border-radius: 16px; background: color-mix(in srgb, #2e9e6b 7%, transparent); color: var(--ink); text-align: start; }
+.sal-go { flex: none; font-weight: 700; color: var(--accent); font-size: 15px; }
+.sal-preview { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); font-weight: 650; font-size: 14.5px; }
+.danger-text { color: var(--neg) !important; }
