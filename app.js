@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.44.0";
+  const VERSION = "3.44.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -711,10 +711,11 @@
     const rule = rows("rules").filter(r => isSalaryRule(r)).sort((p, q) => q.active - p.active)[0] || null;
     const last = rows("transactions").filter(x => x.kind === "income" && isSalaryCat(cat(x.category_id))).sort(byRecent)[0] || null;
     const accs = rows("accounts").filter(o => !o.archived).sort(bySort);
-    const pickAcc = [rule && rule.account_id, last && last.account_id, store.get("lastAcc:income", null), (accs.find(o => o.kind === "bank") || {}).id, (accs[0] || {}).id].find(id => id && acc(id) && !acc(id).archived) || null;
+    const spendable = id => id && acc(id) && !acc(id).archived && acc(id).kind !== "savings";
+    const pickAcc = rule && acc(rule.account_id) ? rule.account_id : [last && last.account_id, store.get("lastAcc:income", null), (accs.find(o => o.kind === "bank") || {}).id, (accs.find(o => o.kind !== "savings") || {}).id].find(spendable) || (accs[0] || {}).id || null;
     const a = acc(pickAcc);
     const plan = fixedIncome(thisMonth()) || 0;
-    const amount = rule ? Number(rule.amount) : last ? Number(last.amount) : a && plan ? roundCur(convert(plan, mainCur(), a.currency), a.currency) : 0;
+    const amount = rule ? Number(rule.amount) : a && plan ? roundCur(convert(plan, mainCur(), a.currency), a.currency) : last ? roundCur(convert(Number(last.amount), last.currency, a ? a.currency : last.currency), a ? a.currency : last.currency) : 0;
     const day = rule ? rule.day : last ? Math.min(28, Number(last.occurred_on.slice(8)) || 1) : 1;
     return { cat: sc, rule, account: pickAcc, amount, day };
   }
@@ -775,7 +776,7 @@
     return h("section", { class: "sal-teaser" },
       h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("salSugOff", true); render(); } } }, icon("close", "ico sm")),
       h("span", { class: "payday-ico" }, icon("work")),
-      h("div", null, h("strong", null, "Add your salary automatically?"), h("small", null, g.amount > 0 ? `${fmt(g.amount, a.currency, { show: true })} → ${a.name}. On payday we ask you first.` : "Set it once. On payday we ask you, then add it to your account.")),
+      h("div", null, h("strong", null, "Add your salary automatically?"), h("small", null, g.amount > 0 ? `${tr("Suggested")}: ${fmt(g.amount, a.currency, { show: true })} → ${a.name}. ${tr("You can change it.")}` : "Set it once. On payday we ask you, then add it to your account.")),
       h("button", { type: "button", class: "btn sm", on: { click: salarySheet } }, "Set it up"));
   }
 
@@ -2449,6 +2450,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.44.1", items: [
+      ["", "Better salary suggestion", "The suggestion now uses your Plan income first and never picks a Savings account; the card says Suggested so it's clear it's a guess."]
+    ] },
     { v: "3.44.0", items: [
       ["", "Salary in one tap", "New salary sheet with the amount, account and payday already filled (from your last salary, the Plan income, or your bank account). Reachable from a Home suggestion, the Plan income card, and Settings → Repeating and bills. It still asks on payday before adding."]
     ] },

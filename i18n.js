@@ -1456,7 +1456,9 @@ Object.assign(window.WALLET_I18N.words, {
   "Change my salary": ["Modifier mon salaire", "غيّر راتبي"],
   "Your salary, added on payday": ["Votre salaire, ajouté le jour de paie", "راتبك يُضاف في يوم الراتب"],
   "Set your salary once and on payday the app asks if it came in. Tap yes and it's added to your account.": ["Réglez votre salaire une fois : le jour de paie, l'app demande s'il est arrivé. Touchez oui et il est ajouté.", "اضبط راتبك مرة واحدة، وفي يوم الراتب يسألك التطبيق إن وصل. اضغط نعم فيُضاف إلى حسابك."],
-  "Set it once. On payday we ask you, then add it to your account.": ["Réglez-le une fois. Le jour de paie, on vous demande puis on l'ajoute à votre compte.", "اضبطه مرة واحدة. في يوم الراتب نسألك ثم نضيفه إلى حسابك."]
+  "Set it once. On payday we ask you, then add it to your account.": ["Réglez-le une fois. Le jour de paie, on vous demande puis on l'ajoute à votre compte.", "اضبطه مرة واحدة. في يوم الراتب نسألك ثم نضيفه إلى حسابك."],
+  "Suggested": ["Suggestion", "مقترح"],
+  "You can change it.": ["Vous pouvez le modifier.", "يمكنك تغييره."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
