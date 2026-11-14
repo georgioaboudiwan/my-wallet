@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.44.1";
+  const VERSION = "3.44.2";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2450,6 +2450,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.44.2", items: [
+      ["", "Any currency for split groups", "New groups could only use currencies you already had (USD and LBP). Now the picker shows your currencies first, then every supported currency."]
+    ] },
     { v: "3.44.1", items: [
       ["", "Better salary suggestion", "The suggestion now uses your Plan income first and never picks a Savings account; the card says Suggested so it's clear it's a guess."]
     ] },
@@ -4245,7 +4248,7 @@
     const err = h("p", { class: "form-err", role: "alert" });
     const body = h("form", { class: "form", id: "group-form", novalidate: true },
       h("label", { class: "field" }, h("span", null, "Group name"), h("input", { id: "g-gname", class: "input", maxlength: "40", autocomplete: "off", placeholder: "e.g. Trip to Faraya, House, Loan to Roudy", on: { input: e => { f.name = e.target.value; } } })),
-      h("label", { class: "field" }, h("span", null, "Currency"), h("select", { id: "g-gcur", class: "input", on: { change: e => { f.currency = e.target.value; } } }, usedCurrencies().map(c => h("option", { value: c, selected: c === f.currency }, c)))),
+      h("div", { class: "field" }, h("span", { class: "label" }, "Currency"), curSelect("g-gcur", f.currency, k => { f.currency = k; })),
       h("label", { class: "field" }, h("span", null, "Your name in the group"), h("input", { id: "g-gme", class: "input", maxlength: "40", autocomplete: "off", value: f.me, on: { input: e => { f.me = e.target.value; } } })),
       err);
     const btn = h("button", { type: "submit", class: "btn", form: "group-form" }, "Create group");
