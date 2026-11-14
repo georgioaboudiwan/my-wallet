@@ -1232,3 +1232,14 @@ input[type="month"].input::-webkit-date-and-time-value, input[type="date"].input
 .chip.on .chip-cur { background: rgb(255 255 255 / .22); color: #fff; }
 .email-req { display: grid; gap: 8px; padding: 4px 16px 12px; }
 .tool .status.quiet { display: none; }
+.swipe { position: relative; overflow: hidden; }
+.swipe + .swipe .sw-front::before, .day-head + .swipe .sw-front::before, .card-head + .swipe .sw-front::before, .row + .swipe .sw-front::before { content: ""; position: absolute; top: 0; left: 67px; right: 0; border-top: 1px solid var(--line); }
+.swipe + .row::before { content: ""; position: absolute; top: 0; left: 67px; right: 0; border-top: 1px solid var(--line); }
+.sw-front { background: var(--card); touch-action: pan-y; transition: transform .22s cubic-bezier(.2, .8, .2, 1); z-index: 1; }
+.sw-drag .sw-front { transition: none; }
+.sw-act { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; gap: 6px; padding: 0 22px; border: 0; font: 650 15px var(--ui); color: var(--card); opacity: 0; transition: opacity .15s; }
+.sw-edit { left: 0; right: 40%; background: var(--accent); justify-content: flex-start; }
+.sw-del { right: 0; left: 40%; background: var(--neg); justify-content: flex-end; }
+.sw-r .sw-edit, .sw-l .sw-del { opacity: 1; }
+[dir="rtl"] .sw-edit { left: 40%; right: 0; justify-content: flex-end; }
+[dir="rtl"] .sw-del { right: 40%; left: 0; justify-content: flex-start; }

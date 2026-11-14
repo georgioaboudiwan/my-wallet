@@ -46,7 +46,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.23.0";
+  const VERSION = "3.24.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -90,6 +90,7 @@
     users: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
     mail: "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM3 7l9 6 9-6",
     lock: "M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V7a4 4 0 0 1 8 0v4",
+    pencil: "M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16zM13.5 6.5l4 4",
     trash: "M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3",
     del: "M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zM17 9l-5 6M12 9l5 6",
     check: "M5 12.5l4.5 4.5L19 7.5",
@@ -1071,10 +1072,83 @@
     const other = x.kind === "transfer" && toAcc && toAcc.currency !== x.currency && x.to_amount
       ? h("small", null, "→ " + fmt(Number(x.to_amount), toAcc.currency))
       : (x.currency !== mainCur() ? h("small", null, "≈ " + money(txMain(x))) : null);
-    return h("button", { type: "button", class: "row", on: { click: () => txnSheet(x) } },
-      dot,
-      h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), sub ? h("span", { class: "row-sub" }, sub) : null),
-      h("span", { class: cls }, sign + fmt(Number(x.amount), x.currency), other));
+    return h("div", { class: "swipe", "data-sw": x.id },
+      h("button", { type: "button", class: "sw-act sw-edit", tabindex: "-1", "aria-hidden": "true" }, icon("pencil", "ico sm"), "Edit"),
+      h("button", { type: "button", class: "sw-act sw-del", tabindex: "-1", "aria-hidden": "true" }, icon("trash", "ico sm"), "Delete"),
+      h("button", { type: "button", class: "row sw-front", on: { click: () => txnSheet(x) } },
+        dot,
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), sub ? h("span", { class: "row-sub" }, sub) : null),
+        h("span", { class: cls }, sign + fmt(Number(x.amount), x.currency), other)));
+  }
+
+  function confirmDelete(x) {
+    const c = cat(x.category_id), a = acc(x.account_id), to = acc(x.to_account_id);
+    const what = x.kind === "transfer" ? `${a ? a.name : "Account"} → ${to ? to.name : "Account"}` : c ? c.name : x.kind === "income" ? "Income" : "Uncategorized";
+    const btn = h("button", { type: "button", class: "btn danger", on: { click: () => {
+      const cur = S.data.transactions.get(x.id);
+      if (cur) removeRow("transactions", cur);
+      closeSheet();
+      toast("Entry deleted.");
+    } } }, icon("trash", "ico sm"), "Delete");
+    const body = h("div", { class: "form" },
+      h("p", null, `Delete ${what} of ${fmt(Number(x.amount), x.currency, { show: true })} from ${rowDate(x.occurred_on)}${x.note ? ` (${x.note})` : ""}?`),
+      h("p", { class: "hint" }, "Your account balance goes back to what it was before this entry. This can't be undone."),
+      h("button", { type: "button", class: "btn alt", on: { click: closeSheet } }, "Keep it"));
+    openSheet("Delete entry?", body, btn);
+  }
+
+  const SW = { el: null, open: null, x0: 0, y0: 0, dx: 0, on: false, id: null, eat: false };
+  const swShut = el => { if (!el) return; el.classList.remove("sw-l", "sw-r", "sw-drag"); const f = el.querySelector(".sw-front"); if (f) f.style.transform = ""; if (SW.open === el) SW.open = null; };
+  function initSwipe() {
+    const W = 92;
+    document.addEventListener("pointerdown", e => {
+      SW.eat = false;
+      const el = e.target.closest && e.target.closest(".swipe");
+      if (SW.open && SW.open !== el) { swShut(SW.open); SW.eat = !el && !e.target.closest(".sheet"); }
+      if (!el || e.button > 0 || !e.target.closest(".sw-front")) return;
+      SW.el = el; SW.x0 = e.clientX; SW.y0 = e.clientY; SW.dx = 0; SW.on = false;
+      SW.base = SW.open === el ? (el.classList.contains("sw-l") ? -W : W) : 0;
+    }, true);
+    document.addEventListener("pointermove", e => {
+      const el = SW.el;
+      if (!el) return;
+      const dx = e.clientX - SW.x0, dy = e.clientY - SW.y0;
+      if (!SW.on) {
+        if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { SW.el = null; return; }
+        if (Math.abs(dx) < 10) return;
+        SW.on = true; el.classList.add("sw-drag");
+      }
+      const rtl = document.dir === "rtl" ? -1 : 1;
+      let v = SW.base + dx * rtl;
+      v = Math.max(-el.offsetWidth * 0.8, Math.min(el.offsetWidth * 0.6, v));
+      SW.dx = v;
+      el.classList.toggle("sw-l", v < 0); el.classList.toggle("sw-r", v > 0);
+      el.querySelector(".sw-front").style.transform = `translateX(${v * rtl}px)`;
+    }, true);
+    const end = () => {
+      const el = SW.el;
+      SW.el = null;
+      if (!el || !SW.on) return;
+      SW.eat = true;
+      el.classList.remove("sw-drag");
+      const v = SW.dx, f = el.querySelector(".sw-front"), rtl = document.dir === "rtl" ? -1 : 1;
+      const x = S.data.transactions.get(el.dataset.sw);
+      if (v > W * 0.9 && x) { swShut(el); txnSheet(x); return; }
+      if (v < -W * 0.6) { el.classList.add("sw-l"); el.classList.remove("sw-r"); f.style.transform = `translateX(${-W * rtl}px)`; SW.open = el; return; }
+      swShut(el);
+    };
+    document.addEventListener("pointerup", end, true);
+    document.addEventListener("pointercancel", () => { if (SW.el && !SW.on) SW.el = null; else end(); }, true);
+    document.addEventListener("click", e => {
+      if (SW.eat) { SW.eat = false; if (!e.target.closest(".sw-act")) { e.preventDefault(); e.stopPropagation(); return; } }
+      const act = e.target.closest && e.target.closest(".sw-act");
+      if (!act) return;
+      e.preventDefault(); e.stopPropagation();
+      const el = act.closest(".swipe"), x = S.data.transactions.get(el.dataset.sw);
+      swShut(el);
+      if (!x) return;
+      if (act.classList.contains("sw-del")) confirmDelete(x); else txnSheet(x);
+    }, true);
   }
 
   function budgetState(catId) {
@@ -1793,6 +1867,9 @@
   }
 
   const CHANGES = [
+    { v: "3.24.0", items: [
+      ["swap", "Swipe to edit or delete", "In your entries, swipe right to edit. Swipe left and tap Delete to remove one. We ask before deleting anything."]
+    ] },
     { v: "3.23.0", items: [
       ["coin", "Change a starting balance in one tap", "Open an account from Home and tap Starting balance at the bottom. Just the amount, no note or category."],
       ["globe", "Family support & remittances", "A new income category for money family or friends send you, from Lebanon or abroad."],
@@ -5605,5 +5682,6 @@
       y0 = null;
     });
   })();
+  initSwipe();
   start();
 })();

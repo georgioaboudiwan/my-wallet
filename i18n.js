@@ -984,3 +984,14 @@ window.WALLET_I18N.patterns.push(
   ["^Starting balance \\((.+)\\)$", "Solde de départ ($1)", "الرصيد الافتتاحي ($1)"],
   ["^Starting balance saved\\. (.+) now has (.+)\\.$", "Solde de départ enregistré. $1 a maintenant $2.", "تم حفظ الرصيد الافتتاحي. أصبح في $1 ‏$2."]
 );
+Object.assign(window.WALLET_I18N.words, {
+  "Delete entry?": ["Supprimer l'opération ?", "حذف العملية؟"],
+  "Keep it": ["La garder", "إبقاؤها"],
+  "Your account balance goes back to what it was before this entry. This can't be undone.": ["Le solde du compte revient à ce qu'il était avant cette opération. Action irréversible.", "يعود رصيد الحساب إلى ما كان عليه قبل هذه العملية. لا يمكن التراجع."],
+  "Swipe to edit or delete": ["Glissez pour modifier ou supprimer", "اسحب للتعديل أو الحذف"],
+  "In your entries, swipe right to edit. Swipe left and tap Delete to remove one. We ask before deleting anything.": ["Dans vos opérations, glissez vers la droite pour modifier. Glissez vers la gauche puis touchez Supprimer. On vous demande toujours avant de supprimer.", "في عملياتك، اسحب يمينًا للتعديل. اسحب يسارًا واضغط «حذف». نطلب تأكيدك دائمًا قبل الحذف."]
+});
+window.WALLET_I18N.patterns.push(
+  ["^Delete (.+) of (.+) from (.+?)( \\((.+)\\))?\\?$", "Supprimer $1 de $2 du $3$4 ?", "حذف $1 بقيمة $2 بتاريخ $3$4؟"]
+);
+Object.assign(window.WALLET_I18N.words, { "Edit": ["Modifier", "تعديل"] });
