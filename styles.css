@@ -1177,7 +1177,7 @@ textarea.input { font: inherit; line-height: 1.4; resize: vertical; }
 .ftile-bal { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ftile-bal.low { color: var(--neg); }
 .bud-dot { position: relative; }
-.bud-count { position: absolute; top: -4px; inset-inline-end: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--warn); color: var(--card); font: 700 11px/18px var(--nums); text-align: center; }
+.bud-count { position: absolute; top: -4px; inset-inline-end: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: #e5483b; color: #fff; box-shadow: 0 0 0 2px var(--card); font: 700 11px/18px var(--nums); text-align: center; }
 .bud-list { display: grid; gap: 10px; }
 .bud-list > .btn { margin-top: 6px; }
 .bud-item { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: var(--r-sm); background: var(--card); box-shadow: var(--shadow); }
