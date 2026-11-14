@@ -1225,3 +1225,18 @@ Object.assign(window.WALLET_I18N.words, {
   "Tap +, type the amount, tap what it was for, save. Spent or Received at the top, and More for transfers, loans and splitting a bill.": ["Touchez +, tapez le montant, touchez la catégorie, enregistrez. Dépensé ou Reçu en haut, et Plus pour transferts, prêts et partage.", "اضغط +، اكتب المبلغ، اختر الفئة، احفظ. «صرفت» أو «استلمت» في الأعلى، و«المزيد» للنقل والقروض وتقسيم الفواتير."]
 });
 window.WALLET_I18N.patterns.push(["^Save (.+)$", "Enregistrer $1", "احفظ $1"], ["^Move (.+)$", "Déplacer $1", "انقل $1"], ["^I lent (.+)$", "J'ai prêté à $1", "أقرضت $1"], ["^I borrowed from (.+)$", "J'ai emprunté à $1", "استدنت من $1"], ["^(.+) paid me back$", "$1 m'a remboursé", "سدّد لي $1"], ["^I paid (.+) back$", "J'ai remboursé $1", "سدّدت لـ$1"]);
+Object.assign(window.WALLET_I18N.words, {
+  "owed to you": ["qu'on vous doit", "مستحقة لك"],
+  "Money with others": ["Argent avec les autres", "المال مع الآخرين"],
+  "See all": ["Tout voir", "عرض الكل"],
+  "Remind": ["Rappeler", "ذكّر"],
+  "Group · you're owed": ["Groupe · on vous doit", "مجموعة · لك مال"],
+  "Group · you owe": ["Groupe · vous devez", "مجموعة · عليك مال"],
+  "Add. Press and hold for more choices": ["Ajouter. Maintenez pour plus de choix", "أضف. اضغط مطولًا لخيارات أكثر"],
+  "Tap + to add what you spent. Press and hold it to add money you received, a transfer, a loan or a shared bill.": ["Touchez + pour ajouter une dépense. Maintenez pour un revenu, un transfert, un prêt ou une note partagée.", "اضغط + لإضافة مصروف. اضغط مطولًا لإضافة دخل أو نقل أو قرض أو فاتورة مشتركة."],
+  "Money between you and others": ["L'argent entre vous et les autres", "المال بينك وبين الآخرين"],
+  "Who owes you and who you owe. Tap Remind to send a friendly WhatsApp message.": ["Qui vous doit et à qui vous devez. Touchez Rappeler pour envoyer un message WhatsApp amical.", "من يدين لك ومن تدين له. اضغط «ذكّر» لإرسال رسالة واتساب لطيفة."],
+  "A new + and loans up front": ["Nouveau + et prêts mis en avant", "زر + جديد والقروض في الواجهة"],
+  "+ now sits in the middle of the bar. Tap it to add an expense, or hold it for more. Home shows who owes you, with a Remind button, and the Split tab gets a badge when something needs you.": ["Le + est au centre de la barre. Touchez pour une dépense, maintenez pour plus. L'Accueil montre qui vous doit avec un bouton Rappeler, et l'onglet Partage affiche un badge si besoin.", "زر + في وسط الشريط الآن. اضغط لإضافة مصروف أو اضغط مطولًا للمزيد. تعرض الرئيسية من يدين لك مع زر «ذكّر»، ويظهر رقم على تبويب التقسيم عند الحاجة."]
+});
+window.WALLET_I18N.patterns.push(["^since (.+)$", "depuis le $1", "منذ $1"]);

@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.31.0";
+  const VERSION = "3.32.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -772,6 +772,46 @@
     settings: { title: "Settings", draw: viewSettings }
   };
 
+  function closeFan() {
+    const f = document.querySelector(".add-fan");
+    if (!f) return;
+    f.classList.remove("open");
+    setTimeout(() => f.remove(), 220);
+  }
+  function addFan() {
+    if (document.querySelector(".add-fan")) return;
+    const go2 = fn => () => { closeFan(); fn(); };
+    const item = (k, ic, label, fn, disabled) => h("button", { type: "button", class: "fan-item k-" + k, disabled: !!disabled, on: { click: go2(fn) } }, h("span", { class: "fan-ico" }, icon(ic)), h("span", null, label));
+    const many = rows("accounts").filter(a => !a.archived).length > 1;
+    const fan = h("div", { class: "add-fan", on: { click: e => { if (e.target === fan) closeFan(); } } },
+      h("div", { class: "fan-row" },
+        item("expense", "down", "Spent", () => txnSheet(null, { kind: "expense" })),
+        item("income", "up", "Received", () => txnSheet(null, { kind: "income" })),
+        item("transfer", "swap", "Moved", () => txnSheet(null, { kind: "transfer" }), !many),
+        item("loan", "coin", "Loan", () => txnSheet(null, { kind: "loan" })),
+        item("split", "people", "Split", () => { go("people"); setTimeout(newGroupSheet, 300); })));
+    document.body.append(fan);
+    requestAnimationFrame(() => fan.classList.add("open"));
+    store.set("fanSeen", true);
+  }
+  function splitAttention() {
+    let n = 0;
+    for (const g of GROUPS.list.values()) {
+      if (!g.joined) n++;
+      else n += g.entries.filter(e => e.votes.length && !e.votes.includes(S.uid)).length;
+    }
+    const bal = loanBalances();
+    for (const p of rows("people")) { const d = dueInfo(p); if (d && d.late && (bal.get(p.id) || 0) > 0) n++; }
+    return n;
+  }
+  function paintSplitBadge() {
+    const b = shell && shell.tabs[3] && shell.tabs[3].querySelector(".tab-badge");
+    if (!b) return;
+    const n = splitAttention();
+    b.textContent = n ? String(Math.min(n, 9)) : "";
+    b.classList.toggle("on", n > 0);
+  }
+
   function buildShell() {
     const title = h("h1");
     const status = h("button", { type: "button", class: "status", on: { click: () => sync() } });
@@ -782,30 +822,36 @@
     const main = h("main", { class: "view" });
     const tab = (view, label, ic) => h("button", { type: "button", class: "tab", "data-view": view, on: { click: () => go(view) } }, icon(ic), h("span", null, label));
     const tabs = [tab("home", "Home", "home"), tab("activity", "Activity", "list"), tab("insights", "Insights", "chart"), tab("people", "Split", "people")];
-    const add = h("button", { type: "button", class: "add-btn", "aria-label": "Add an entry", on: { click: () => txnSheet(null) } }, icon("plus"), h("span", null, "Add"));
+    tabs[3].append(h("span", { class: "tab-badge", "aria-hidden": "true" }));
+    let holdT = null, held = false;
+    const add = h("button", { type: "button", class: "tab-add", "aria-label": "Add. Press and hold for more choices", on: {
+      pointerdown: () => { held = false; clearTimeout(holdT); holdT = setTimeout(() => { held = true; if (navigator.vibrate) navigator.vibrate(10); addFan(); }, 420); },
+      pointerup: () => clearTimeout(holdT), pointerleave: () => clearTimeout(holdT), pointercancel: () => clearTimeout(holdT),
+      contextmenu: e => e.preventDefault(),
+      click: () => { if (held) { held = false; return; } if (document.querySelector(".add-fan")) return closeFan(); txnSheet(null); }
+    } }, h("span", { class: "tab-add-ring" }, icon("plus")));
     const lens = h("span", { class: "lens", "aria-hidden": "true" });
     const brand = h("div", { class: "side-brand" }, h("img", { src: "icons/icon-192-bs.png", alt: "" }), h("span", null, "BudgetSplit"));
     const sideAdd = h("button", { type: "button", class: "side-add", on: { click: () => txnSheet(null) } }, icon("plus", "ico"), "New entry");
     const sideSettings = h("button", { type: "button", class: "tab side-only", "data-view": "settings", on: { click: () => go("settings") } }, icon("gear"), h("span", null, "Settings"));
-    tabs.push(sideSettings);
-    const tabsEl = h("div", { class: "tabs glass" }, lens, ...tabs);
-    const ORDER = ["home", "activity", "insights", "people"];
+    const tabsEl = h("div", { class: "tabs glass" }, lens, tabs[0], tabs[1], add, tabs[2], tabs[3], sideSettings);
+    const ORDER = ["home", "activity", null, "insights", "people"];
     let drag = null, dragEnd = 0;
     const dragStop = () => { tabsEl.classList.remove("dragging"); tabs.forEach(t => t.classList.remove("over")); drag = null; };
+    const snap = near => { const i = LANG === "ar" ? 4 - near : near; return ORDER[i] ? i : (S.view === "activity" || near < 2 ? 1 : 3); };
     tabsEl.addEventListener("pointerdown", e => {
-      if (window.innerWidth >= 900 || (e.pointerType === "mouse" && e.button !== 0)) return;
+      if (window.innerWidth >= 900 || (e.pointerType === "mouse" && e.button !== 0) || e.target.closest(".tab-add")) return;
       const r = tabsEl.getBoundingClientRect();
-      drag = { id: e.pointerId, x0: e.clientX, left: r.left + 5, w: (r.width - 10) / 4, moved: false, pos: 0 };
+      drag = { id: e.pointerId, x0: e.clientX, left: r.left + 5, w: (r.width - 10) / 5, moved: false, pos: 0 };
     });
     tabsEl.addEventListener("pointermove", e => {
       if (!drag || e.pointerId !== drag.id) return;
       if (!drag.moved && Math.abs(e.clientX - drag.x0) < 8) return;
       if (!drag.moved) { drag.moved = true; try { tabsEl.setPointerCapture(e.pointerId); } catch { } tabsEl.classList.add("dragging"); }
-      const pos = Math.max(0, Math.min(3 * drag.w, e.clientX - drag.left - drag.w / 2));
+      const pos = Math.max(0, Math.min(4 * drag.w, e.clientX - drag.left - drag.w / 2));
       drag.pos = pos;
-      lens.style.transform = `translateX(${LANG === "ar" ? pos - 3 * drag.w : pos}px)`;
-      const near = Math.round(pos / drag.w);
-      const idx = LANG === "ar" ? 3 - near : near;
+      lens.style.transform = `translateX(${LANG === "ar" ? pos - 4 * drag.w : pos}px)`;
+      const idx = snap(Math.round(pos / drag.w));
       tabs.forEach(t => t.classList.toggle("over", t.dataset.view === ORDER[idx]));
     });
     const dragDone = e => {
@@ -814,18 +860,17 @@
       dragStop();
       if (!d.moved) return;
       dragEnd = Date.now();
-      const near = Math.round(d.pos / d.w);
-      const view = ORDER[LANG === "ar" ? 3 - near : near];
+      const view = ORDER[snap(Math.round(d.pos / d.w))];
       if (e.type === "pointerup" && view && view !== S.view) go(view); else render();
     };
     tabsEl.addEventListener("pointerup", dragDone);
     tabsEl.addEventListener("pointercancel", dragDone);
     tabsEl.addEventListener("click", e => { if (Date.now() - dragEnd < 400) { e.stopPropagation(); e.preventDefault(); } }, true);
-    const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, tabsEl, add);
+    const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, tabsEl);
     const top = h("header", { class: "top" }, title, h("div", { class: "tool glass" }, status, bell, eye, help, gear));
     const ptr = h("div", { class: "ptr", "aria-hidden": "true" }, icon("sync"));
     root.replaceChildren(h("div", { class: "shell" }, top, ptr, main, nav));
-    shell = { title, status, eye, bell, main, tabs, top, ptr, lens, lastView: null };
+    shell = { title, status, eye, bell, main, tabs: [...tabs, sideSettings], top, ptr, lens, lastView: null };
   }
 
   function renderStatus() {
@@ -882,9 +927,10 @@
       shell.enterTimer = setTimeout(() => shell && shell.main.classList.remove("enter"), 700);
     }
     for (const t of shell.tabs) t.setAttribute("aria-current", t.dataset.view === S.view ? "page" : "false");
-    const tabIndex = ["home", "activity", "insights", "people"].indexOf(S.view === "plan" ? "insights" : S.view);
+    const tabIndex = ["home", "activity", null, "insights", "people"].indexOf(S.view === "plan" ? "insights" : S.view);
     shell.lens.style.opacity = tabIndex < 0 ? "0" : "1";
     if (tabIndex >= 0) shell.lens.style.transform = `translateX(${LANG === "ar" ? -tabIndex * 100 : tabIndex * 100}%)`;
+    paintSplitBadge();
     renderStatus();
     paintBell();
     maybeTour();
@@ -1971,13 +2017,13 @@
       [".hero", "Total balance", "Everything you have across all your accounts, in your main currency. The small pills show each currency separately."],
       [".eye-btn", "Hide amounts", "Tap the eye to hide every number, for example when someone is looking at your screen."],
       [".gear-btn", "Settings", "Accounts, categories, reminders, language, security and backups."],
-      [".acts", "Quick actions", "Expense is money you spent. Income is money you received. Transfer moves money between your own accounts. Split shares a bill with friends or records a loan."],
+      [".tab-add", "Add anything", "Tap + to add what you spent. Press and hold it to add money you received, a transfer, a loan or a shared bill."],
+      [".loans-card", "Money between you and others", "Who owes you and who you owe. Tap Remind to send a friendly WhatsApp message."],
       [".tiles", "Your day and month", "What you spent today and this month, and how much you can still spend per day to stay on plan."],
       [".month-card", "Month plan", "How much of this month's plan is used. Tap it to change your income or your groups."],
       [".quick", "Quick add", "Your most used categories. Tap one to add an expense already filed in that category."],
       [".remind-pill, .remind", "Daily reminder", "A notification every evening so no expense is forgotten."],
       [".dock .tabs", "Sections", "Home, Activity for every entry, Insights for where your money goes, Split for loans and shared expenses. Tap a tab or slide your finger along the bar."],
-      [".add-btn, .side-add", "Add anything", "The fastest way to add an expense, income or transfer, from any screen."],
       [".help-btn", "Help anytime", "Tap the question mark to replay this tour or read what each screen does."]
     ],
     activity: [
@@ -2089,6 +2135,9 @@
   }
 
   const CHANGES = [
+    { v: "3.32.0", items: [
+      ["plus", "A new + and loans up front", "+ now sits in the middle of the bar. Tap it to add an expense, or hold it for more. Home shows who owes you, with a Remind button, and the Split tab gets a badge when something needs you."]
+    ] },
     { v: "3.31.0", items: [
       ["plus", "One simple screen to add", "Tap +, type the amount, tap what it was for, save. Spent or Received at the top, and More for transfers, loans and splitting a bill."]
     ] },
@@ -2389,14 +2438,11 @@
       h("p", { class: "hero-label" }, "Total balance"),
       h("p", { class: "hero-total num" }, money(total)),
       h("div", { class: "hero-hold" },
-        [...holds].sort((p, q) => (q[0] === mainCur()) - (p[0] === mainCur()) || toMain(q[1], q[0]) - toMain(p[1], p[0])).map(([c, v]) => h("span", { class: "num", title: curInfo(c).name }, fmt(v, c, { compact: true }))))));
+        [...holds].sort((p, q) => (q[0] === mainCur()) - (p[0] === mainCur()) || toMain(q[1], q[0]) - toMain(p[1], p[0])).map(([c, v]) => h("span", { class: "num", title: curInfo(c).name }, fmt(v, c, { compact: true }))),
+        (() => { const t = owedTotals(); return t.owed > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: () => go("people") } }, `+${money(t.owed, { whole: true })} ${tr("owed to you")}`) : null; })())));
 
-    const act = (label, ic, tone, fn) => h("button", { type: "button", class: "act " + tone, on: { click: fn } }, h("span", { class: "act-ico" }, icon(ic)), h("span", null, label));
-    out.append(h("div", { class: "acts" },
-      act("Expense", "down", "neg", () => txnSheet(null, { kind: "expense" })),
-      act("Income", "up", "pos", () => txnSheet(null, { kind: "income" })),
-      act("Transfer", "swap", "gold", () => txnSheet(null, { kind: "transfer" })),
-      act("Split", "people", "plain", splitChooser)));
+    const loans = loansCard();
+    if (loans) out.append(loans);
 
     const spentToday = s.days.get(today()) || 0;
     out.append(h("div", { class: "tiles" },
@@ -3487,6 +3533,51 @@
       if (v > 0.005) owed += v; else if (v < -0.005) owe -= v;
     }
     return { owed, owe };
+  }
+
+  function owedTotals() {
+    const bal = loanBalances();
+    let { owed, owe } = groupTotals();
+    for (const p of rows("people")) { const v = toMain(bal.get(p.id) || 0, p.currency); if (owesMe(p)) owed += v; else owe += v; }
+    return { owed, owe };
+  }
+
+  function remindText(p, v) {
+    const due = dueOf(p);
+    return `Hi ${p.name}, hope you're well! Just a friendly reminder about the ${fmt(v, p.currency, { show: true })}${due ? ` (due ${dayLabel(due)})` : ""}. No rush, thanks! 🙏`;
+  }
+
+  function loansCard() {
+    const bal = loanBalances();
+    const people = rows("people").map(p => ({ p, v: bal.get(p.id) || 0 })).filter(x => Math.abs(x.v) > 0.004);
+    const groups = [...GROUPS.list.values()].filter(g => g.joined).map(g => ({ g, v: myGroupBalance(g) })).filter(x => Math.abs(x.v) > 0.005);
+    if (!people.length && !groups.length) return null;
+    const t = owedTotals();
+    const lastDate = p => rows("loan_entries").filter(e => e.person_id === p.id).map(e => e.occurred_on).sort().pop();
+    const items = [
+      ...people.map(({ p, v }) => ({ w: Math.abs(toMain(v, p.currency)), el: (() => {
+        const due = dueInfo(p), mine = owesMe(p);
+        const since = lastDate(p);
+        return h("div", { class: "loan-row" },
+          h("button", { type: "button", class: "loan-hit", "aria-label": p.name, on: { click: () => personSheet(p) } }),
+          h("span", { class: "dot", style: { background: COLORS[(p.sort || 0) % COLORS.length] } }, p.name.charAt(0).toUpperCase()),
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name),
+            h("span", { class: "row-sub" + (due && due.late ? " late" : "") }, [mine ? "Owes you" : "You owe", due ? due.text : since ? `since ${dayLabel(since).toLowerCase()}` : null].filter(Boolean).join(" · "))),
+          h("span", { class: "row-end " + (mine ? "pos" : "neg") }, fmt(v, p.currency, { whole: true })),
+          mine ? h("a", { class: "chip remind-chip", href: p.phone ? waUrl(p.phone, remindText(p, v)) : `https://wa.me/?text=${encodeURIComponent(remindText(p, v))}`, target: "_blank", rel: "noopener noreferrer", on: { click: () => track("whatsapp", "remind") } }, "Remind") : null);
+      })() })),
+      ...groups.map(({ g, v }) => ({ w: Math.abs(toMain(v, g.meta.currency)), el: h("div", { class: "loan-row" },
+        h("button", { type: "button", class: "loan-hit", "aria-label": g.meta.name, on: { click: () => groupSheet(g.id) } }),
+        h("span", { class: "dot neutral" }, icon("people", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, g.meta.name), h("span", { class: "row-sub" }, v > 0 ? "Group · you're owed" : "Group · you owe")),
+        h("span", { class: "row-end " + (v > 0 ? "pos" : "neg") }, fmt(Math.abs(v), g.meta.currency, { whole: true }))) }))
+    ].sort((a, b) => b.w - a.w).slice(0, 4);
+    return h("section", { class: "card flush loans-card" },
+      h("div", { class: "card-head" }, h("h2", null, "Money with others"), h("button", { type: "button", class: "link-btn", on: { click: () => go("people") } }, "See all")),
+      h("div", { class: "loans-sum" },
+        h("div", { class: "pos" }, h("small", null, "Owed to you"), h("strong", { class: "num" }, money(t.owed, { whole: true }))),
+        h("div", { class: t.owe > 0.5 ? "neg" : "" }, h("small", null, "You owe"), h("strong", { class: "num" }, money(t.owe, { whole: true })))),
+      ...items.map(x => x.el));
   }
 
   function splitChooser() {
