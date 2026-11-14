@@ -1202,3 +1202,26 @@ Object.assign(window.WALLET_I18N.words, {
   "Tap + and pick what happened: you spent, received, moved, lent or split money. Then answer one question at a time: how much, what for, and save.": ["Touchez + et choisissez ce qui s'est passé : dépense, revenu, transfert, prêt ou partage. Puis une question à la fois : combien, pour quoi, et enregistrez.", "اضغط + واختر ما حدث: صرفت، استلمت، نقلت، أقرضت أو قسّمت. ثم أجب عن سؤال واحد في كل مرة: كم، لماذا، ثم احفظ."]
 });
 window.WALLET_I18N.patterns.push(["^Move it from (.+) to…$", "Le déplacer de $1 vers…", "انقله من $1 إلى…"], ["^From (.+)$", "Depuis $1", "من $1"], ["^Into (.+)$", "Vers $1", "إلى $1"]);
+Object.assign(window.WALLET_I18N.words, {
+  "Spent": ["Dépensé", "صرفت"], "Received": ["Reçu", "استلمت"], "More": ["Plus", "المزيد"], "Moved": ["Déplacé", "نقلت"], "Loan": ["Prêt", "قرض"],
+  "Moved between my accounts": ["Déplacé entre mes comptes", "نقلته بين حساباتي"],
+  "Like cash to the bank, or to savings": ["Ex. espèces vers banque ou épargne", "مثل من النقد إلى البنك أو الادخار"],
+  "Lent or borrowed": ["Prêté ou emprunté", "أقرضت أو استدنت"],
+  "Dinner, rent, a trip…": ["Dîner, loyer, voyage…", "عشاء، إيجار، رحلة…"],
+  "What for?": ["Pour quoi ?", "لماذا؟"], "From where?": ["D'où ?", "من أين؟"], "With who?": ["Avec qui ?", "مع من؟"],
+  "Less": ["Moins", "أقل"], "Someone new": ["Nouveau", "شخص جديد"], "Their name": ["Son nom", "اسمه"],
+  "Every month": ["Chaque mois", "كل شهر"], "Enter an amount": ["Entrez un montant", "أدخل المبلغ"], "Save": ["Enregistrer", "احفظ"], "Move": ["Déplacer", "انقل"],
+  "Add a note, like what you bought": ["Ajoutez une note, ex. ce que vous avez acheté", "أضف ملاحظة، مثل ما اشتريت"],
+  "Add a note, like who sent it": ["Ajoutez une note, ex. qui l'a envoyé", "أضف ملاحظة، مثل من أرسله"],
+  "Add a note": ["Ajoutez une note", "أضف ملاحظة"],
+  "Pick what it was for.": ["Choisissez pour quoi.", "اختر علامَ صُرف."],
+  "Pick where it came from.": ["Choisissez d'où il vient.", "اختر من أين أتى."],
+  "Pick who it's with.": ["Choisissez avec qui.", "اختر مع من."],
+  "Pick where this money came from, then save.": ["Choisissez d'où vient cet argent, puis enregistrez.", "اختر من أين أتى هذا المال ثم احفظ."],
+  "Pick what this money was used for, then save.": ["Choisissez à quoi a servi cet argent, puis enregistrez.", "اختر فيمَ استُخدم هذا المال ثم احفظ."],
+  "Scan or attach a receipt": ["Scanner ou joindre un reçu", "امسح أو أرفق إيصالًا"],
+  "Receipt attached": ["Reçu joint", "الإيصال مرفق"],
+  "One simple screen to add": ["Un seul écran simple pour ajouter", "شاشة واحدة بسيطة للإضافة"],
+  "Tap +, type the amount, tap what it was for, save. Spent or Received at the top, and More for transfers, loans and splitting a bill.": ["Touchez +, tapez le montant, touchez la catégorie, enregistrez. Dépensé ou Reçu en haut, et Plus pour transferts, prêts et partage.", "اضغط +، اكتب المبلغ، اختر الفئة، احفظ. «صرفت» أو «استلمت» في الأعلى، و«المزيد» للنقل والقروض وتقسيم الفواتير."]
+});
+window.WALLET_I18N.patterns.push(["^Save (.+)$", "Enregistrer $1", "احفظ $1"], ["^Move (.+)$", "Déplacer $1", "انقل $1"], ["^I lent (.+)$", "J'ai prêté à $1", "أقرضت $1"], ["^I borrowed from (.+)$", "J'ai emprunté à $1", "استدنت من $1"], ["^(.+) paid me back$", "$1 m'a remboursé", "سدّد لي $1"], ["^I paid (.+) back$", "J'ai remboursé $1", "سدّدت لـ$1"]);
