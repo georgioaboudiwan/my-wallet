@@ -1331,5 +1331,13 @@ Object.assign(window.WALLET_I18N.words, {
   "Smoother swipe on Android": ["Glisser plus fluide sur Android", "سحب أسلس على أندرويد"],
   "Swiping an entry to edit or delete now works the same on Android, iPhone and computers.": ["Glisser une opération pour la modifier ou la supprimer marche pareil sur Android, iPhone et ordinateur.", "سحب العملية لتعديلها أو حذفها يعمل الآن بنفس الطريقة على أندرويد والآيفون والكمبيوتر."],
   "Fits every screen": ["S'adapte à tous les écrans", "يناسب كل الشاشات"],
-  "The number pad stays in view on small phones, and icons draw cleanly while you scroll.": ["Le pavé numérique reste visible sur les petits téléphones et les icônes s'affichent bien pendant le défilement.", "لوحة الأرقام تبقى ظاهرة على الهواتف الصغيرة، والأيقونات تظهر بشكل سليم أثناء التمرير."]
+  "The number pad stays in view on small phones, and icons draw cleanly while you scroll.": ["Le pavé numérique reste visible sur les petits téléphones et les icônes s'affichent bien pendant le défilement.", "لوحة الأرقام تبقى ظاهرة على الهواتف الصغيرة، والأيقونات تظهر بشكل سليم أثناء التمرير."],
+  "Come back here to connect it.": ["Revenez ici pour le connecter.", "ارجع إلى هنا لربطه."],
+  "Step 2: connect it": ["Étape 2 : connectez-le", "الخطوة 2: اربطه"],
+  "One tap links the Shortcut to your account. The Shortcuts app opens for a second and shows “Connected”. Then come back here.": ["Une touche relie le raccourci à votre compte. L'app Raccourcis s'ouvre une seconde et affiche « Connected ». Revenez ensuite ici.", "نقرة واحدة تربط الاختصار بحسابك. يفتح تطبيق الاختصارات لثانية ويعرض «Connected». ثم ارجع إلى هنا."],
+  "Connect the Shortcut": ["Connecter le raccourci", "اربط الاختصار"],
+  "If it says the Shortcut wasn't found, add it first with step 1 and keep the name “Add expense”.": ["S'il dit que le raccourci est introuvable, ajoutez-le d'abord à l'étape 1 et gardez le nom « Add expense ».", "إذا ظهر أن الاختصار غير موجود، أضفه أولاً في الخطوة 1 واترك اسمه «Add expense»."],
+  "Step 3: turn on double-tap": ["Étape 3 : activez le double tapotement", "الخطوة 3: فعّل النقر المزدوج"],
+  "Connect again": ["Reconnecter", "اربط مرة أخرى"],
+  "As soon as it's set up, you can also say ": ["Une fois prêt, vous pouvez aussi dire ", "بعد إعداده، يمكنك أيضاً قول "]
 });

@@ -1886,6 +1886,8 @@
   }
 
   const SHORTCUT_LINK = "https://www.icloud.com/shortcuts/d6a11201a8fb4ed8b84a5f45e3860419";
+  const SHORTCUT_AUTO = false;
+  const SHORTCUT_NAME = "Add expense";
   async function ensureQuickToken() {
     const have = store.get("quickToken", null);
     if (have) return have;
@@ -1900,9 +1902,19 @@
 
   function quickWizard() {
     const body = h("div", { class: "form qwiz" });
-    const getIt = token => { navigator.clipboard && navigator.clipboard.writeText(token).catch(() => { }); window.open(SHORTCUT_LINK, "_blank", "noopener"); store.set("qwiz", 2); track("add", "shortcut_get"); setTimeout(draw, 600); };
-    const dots = n => h("div", { class: "qwiz-dots" }, [1, 2].map(i => h("span", { class: i <= n ? "on" : "" })));
+    const auto = SHORTCUT_AUTO;
+    const total = auto ? 3 : 2;
+    const getIt = token => { if (!auto && navigator.clipboard) navigator.clipboard.writeText(token).catch(() => { }); window.open(SHORTCUT_LINK, "_blank", "noopener"); store.set("qwiz", 2); track("add", "shortcut_get"); setTimeout(draw, 600); };
+    const connect = token => { track("add", "shortcut_connect"); store.set("qwiz", 3); location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(SHORTCUT_NAME)}&input=text&text=${encodeURIComponent(token)}`; setTimeout(draw, 800); };
+    const dots = n => h("div", { class: "qwiz-dots" }, Array.from({ length: total }, (_, i) => h("span", { class: i < n ? "on" : "" })));
     const path = items => h("div", { class: "qwiz-path" }, items.map((t, i) => [i ? h("span", { class: "qwiz-sep" }, "›") : null, h("span", { class: "qwiz-chip" + (i === items.length - 1 ? " last" : "") }, t)]));
+    const backTap = n => [dots(n),
+      h("h3", { class: "qwiz-title" }, `Step ${n}: turn on double-tap`),
+      h("p", { class: "hint" }, "Open the iPhone Settings app and follow this path:"),
+      path(["Settings", "Accessibility", "Touch", "Back Tap", "Double Tap", SHORTCUT_NAME]),
+      h("p", { class: "hint" }, "Touch is under Physical and Motor. Back Tap is at the very bottom of Touch."),
+      h("button", { type: "button", class: "btn", on: { click: () => { store.set("qwiz", 9); track("add", "shortcut_done"); draw(); } } }, "Done"),
+      h("button", { type: "button", class: "btn alt", on: { click: () => { store.set("qwiz", n - 1); draw(); } } }, "Back")];
     const draw = () => {
       const token = store.get("quickToken", null);
       const st = Math.max(1, store.get("qwiz", 1));
@@ -1910,28 +1922,37 @@
       if (st === 1) kids = [dots(1),
         h("p", { class: "hint center" }, "Tap the back of your iPhone twice (or say “Hey Siri, Add expense”), pick what it was for, type the amount, and it's saved. Takes about a minute to set up."),
         h("h3", { class: "qwiz-title" }, "Step 1: get the Shortcut"),
-        h("ol", { class: "qwiz-list" },
-          h("li", null, h("strong", null, "Tap the green button below."), " Your personal key is copied for you."),
-          h("li", null, "On the screen that opens, tap the empty box and choose ", h("strong", null, "Paste"), "."),
-          h("li", null, "Tap ", h("strong", null, "Add Shortcut"), ".")),
-        h("div", { class: "qwiz-mock" }, h("small", null, "Paste your BudgetSplit key"), h("span", { class: "qwiz-field" }, h("span", { class: "qwiz-paste" }, "Paste")), h("span", { class: "qwiz-add" }, "Add Shortcut")),
+        auto
+          ? h("ol", { class: "qwiz-list" },
+            h("li", null, h("strong", null, "Tap the green button below.")),
+            h("li", null, "Tap ", h("strong", null, "Add Shortcut"), "."),
+            h("li", null, "Come back here to connect it."))
+          : h("ol", { class: "qwiz-list" },
+            h("li", null, h("strong", null, "Tap the green button below."), " Your personal key is copied for you."),
+            h("li", null, "On the screen that opens, tap the empty box and choose ", h("strong", null, "Paste"), "."),
+            h("li", null, "Tap ", h("strong", null, "Add Shortcut"), ".")),
+        auto
+          ? h("div", { class: "qwiz-mock" }, h("small", null, SHORTCUT_NAME), h("span", { class: "qwiz-add" }, "Add Shortcut"))
+          : h("div", { class: "qwiz-mock" }, h("small", null, "Paste your BudgetSplit key"), h("span", { class: "qwiz-field" }, h("span", { class: "qwiz-paste" }, "Paste")), h("span", { class: "qwiz-add" }, "Add Shortcut")),
         h("button", { type: "button", class: "btn", disabled: !token, on: { click: () => token && getIt(token) } }, token ? "Get the Shortcut" : "One moment…"),
-        h("div", { class: "qwiz-tip" }, icon("chat", "ico sm"), h("span", null, "As soon as it's added, you can already say ", h("strong", null, "“Hey Siri, Add expense”"), ".")),
         h("button", { type: "button", class: "btn alt", on: { click: () => { store.set("qwiz", 2); draw(); } } }, "I already added it")];
-      else if (st === 2) kids = [dots(2),
-        h("h3", { class: "qwiz-title" }, "Step 2: turn on double-tap"),
-        h("p", { class: "hint" }, "Open the iPhone Settings app and follow this path:"),
-        path(["Settings", "Accessibility", "Touch", "Back Tap", "Double Tap", "Add expense"]),
-        h("p", { class: "hint" }, "Touch is under Physical and Motor. Back Tap is at the very bottom of Touch."),
-        h("button", { type: "button", class: "btn", on: { click: () => { store.set("qwiz", 3); track("add", "shortcut_done"); draw(); } } }, "Done"),
+      else if (st === 2 && auto) kids = [dots(2),
+        h("h3", { class: "qwiz-title" }, "Step 2: connect it"),
+        h("p", { class: "hint center" }, "One tap links the Shortcut to your account. The Shortcuts app opens for a second and shows “Connected”. Then come back here."),
+        h("div", { class: "qwiz-hero" }, h("span", { class: "qwiz-big" }, icon("link"))),
+        h("button", { type: "button", class: "btn", disabled: !token, on: { click: () => token && connect(token) } }, "Connect the Shortcut"),
+        h("p", { class: "hint center" }, "If it says the Shortcut wasn't found, add it first with step 1 and keep the name “Add expense”."),
         h("button", { type: "button", class: "btn alt", on: { click: () => { store.set("qwiz", 1); draw(); } } }, "Back to step 1")];
+      else if (st === (auto ? 3 : 2)) kids = backTap(auto ? 3 : 2);
       else kids = [
         h("div", { class: "qwiz-hero" }, h("span", { class: "qwiz-big done" }, icon("check")),
           h("h3", null, "You're all set 🎉"),
           h("p", null, "Try it now: tap the back of your iPhone twice and type 1. It shows up here the next time you open the app.")),
         h("div", { class: "qwiz-tip" }, icon("chat", "ico sm"), h("span", null, "No double-tap? You can also say ", h("strong", null, "“Hey Siri, Add expense”"), ".")),
         h("button", { type: "button", class: "btn", on: { click: closeSheet } }, "Close"),
+        auto ? h("button", { type: "button", class: "btn alt", on: { click: () => token && connect(token) } }, "Connect again") : null,
         h("button", { type: "button", class: "link-btn", on: { click: () => { store.set("qwiz", 1); draw(); } } }, "Set it up again")];
+      if (st === 1) kids.splice(kids.length - 1, 0, h("div", { class: "qwiz-tip" }, icon("chat", "ico sm"), h("span", null, "As soon as it's set up, you can also say ", h("strong", null, "“Hey Siri, Add expense”"), ".")));
       body.replaceChildren(...kids.filter(Boolean), h("button", { type: "button", class: "link-btn qwiz-more", on: { click: () => { closeSheet(); setTimeout(() => quickSheet(true), 330); } } }, "More options"));
     };
     draw();
