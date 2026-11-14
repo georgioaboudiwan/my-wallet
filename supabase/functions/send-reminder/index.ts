@@ -81,7 +81,7 @@ async function loadKeys(): Promise<Keys> {
   return again.data as Keys;
 }
 
-async function push(keys: Keys, sub: Sub, message: { title: string; body: string }) {
+async function push(keys: Keys, sub: Sub, message: { title: string; body: string; open?: string }) {
   if (!/^https:\/\//.test(sub.endpoint)) return 400;
   const body = await encryptPayload(sub.p256dh, sub.auth, JSON.stringify({ ...message, url: APP_URL }));
   const res = await fetch(sub.endpoint, {
@@ -152,7 +152,7 @@ Deno.serve(async req => {
       const DEVICES: Record<string, string> = { iphone: "iPhone", ipad: "iPad", android: "Android", mac: "Mac", windows: "Windows", linux: "Linux" };
       const where = DEVICES[String(cronBody.device || "")];
       const who = u?.user?.email || "Someone";
-      const msg = { title: "App opened", body: `${who} just opened the app${where ? ` on ${where}` : ""}.` };
+      const msg = { title: "App opened", body: `${who} just opened the app${where ? ` on ${where}` : ""}.`, open: "home" };
       const statuses = await Promise.all(((subs ?? []) as Sub[]).map(sub => push(keys, sub, msg).catch(() => 0)));
       return json({ sent: statuses.filter(s => s >= 200 && s < 300).length });
     }
@@ -192,7 +192,7 @@ Deno.serve(async req => {
     await sb.from("loan_links").update({ [col]: new Date().toISOString() }).eq("token", token);
     const name = String(body.name ?? "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 30) || "Your contact";
     const { data: subs } = await sb.from("push_subs").select("id, user_id, endpoint, p256dh, auth, remind_at, tz, last_sent").eq("enabled", true).eq("user_id", target);
-    const msg = { title: `${name} updated your shared loan`.slice(0, 60), body: "Open the app to see the change." };
+    const msg = { title: `${name} updated your shared loan`.slice(0, 60), body: "Tap to see what changed.", open: "split" };
     const statuses = await Promise.all(((subs ?? []) as Sub[]).map(sub => push(keys, sub, msg).catch(() => 0)));
     return json({ sent: statuses.filter(s => s >= 200 && s < 300).length });
   }
@@ -205,17 +205,20 @@ Deno.serve(async req => {
     const invitee = body.invitee ? String(body.invitee) : null;
     const name = String(body.name ?? "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 30) || "Someone";
     let targets: string[];
-    let msg: { title: string; body: string };
+    let msg: { title: string; body: string; open: string };
     if (invitee) {
       const row = (members ?? []).find(m => m.user_id === invitee && !m.joined);
       if (!row) return json({ sent: 0 });
       targets = [invitee];
-      msg = { title: `${name} invited you to a shared group`.slice(0, 60), body: "Open the app to accept or decline." };
+      msg = { title: `${name} invited you to a shared group`.slice(0, 60), body: "We also emailed you. If you can't find it, check Junk or Spam. You can accept right here in the app.", open: "split" };
+      const { count: recent } = await sb.from("notifications").select("id", { count: "exact", head: true }).eq("sender", who.user.id).eq("target_user", invitee).eq("action", "split").gte("created_at", new Date(Date.now() - 600000).toISOString());
+      if (recent) return json({ sent: 0, throttled: true });
+      await sb.from("notifications").insert({ sender: who.user.id, target_user: invitee, title: msg.title, body: "We also sent you an email about it. If it's not in your inbox, check Junk or Spam. You don't need the email: go to Split and tap Accept.", action: "split" });
     } else {
       if (me.pinged_at && Date.now() - new Date(me.pinged_at).getTime() < 30000) return json({ sent: 0, throttled: true });
       await sb.from("group_members").update({ pinged_at: new Date().toISOString() }).eq("group_id", gid).eq("user_id", who.user.id);
       targets = (members ?? []).filter(m => m.joined && m.user_id !== who.user.id).map(m => m.user_id);
-      msg = { title: `${name} updated a shared group`.slice(0, 60), body: "Open the app to see the change." };
+      msg = { title: `${name} updated a shared group`.slice(0, 60), body: "Tap to see what changed.", open: "split" };
     }
     if (!targets.length) return json({ sent: 0 });
     const { data: subs } = await sb.from("push_subs").select("id, user_id, endpoint, p256dh, auth, remind_at, tz, last_sent").eq("enabled", true).in("user_id", targets);
@@ -234,7 +237,7 @@ Deno.serve(async req => {
     if (target) q = q.eq("user_id", target);
     const { data: subs } = await q;
     const list = (subs ?? []) as Sub[];
-    const statuses = await Promise.all(list.map(sub => push(keys, sub, { title, body: text }).catch(() => 0)));
+    const statuses = await Promise.all(list.map(sub => push(keys, sub, { title, body: text, open: "home" }).catch(() => 0)));
     const ok = statuses.filter(s => s >= 200 && s < 300).length;
     const people = new Set(list.filter((_, i) => statuses[i] >= 200 && statuses[i] < 300).map(sub => sub.user_id)).size;
     const { error: logErr } = await sb.from("notifications").insert({ sender: who.user.id, target_user: target, title, body: text, devices: list.length, sent: ok });

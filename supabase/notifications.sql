@@ -18,3 +18,4 @@ drop policy if exists "notifications read" on public.notifications;
 drop policy if exists "notifications admin delete" on public.notifications;
 create policy "notifications read" on public.notifications for select to authenticated using (target_user is null or target_user = (select auth.uid()) or (select public.is_admin()));
 create policy "notifications admin delete" on public.notifications for delete to authenticated using ((select public.is_admin()));
+alter table public.notifications add column if not exists action text check (action is null or action in ('split'));

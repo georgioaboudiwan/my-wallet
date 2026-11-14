@@ -46,7 +46,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.24.1";
+  const VERSION = "3.25.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1867,6 +1867,10 @@
   }
 
   const CHANGES = [
+    { v: "3.25.0", items: [
+      ["bell", "Invites show up in the app", "When someone invites you to a group, you get a notification and a message in your inbox. No need to find the email: open Split and tap Accept."],
+      ["swap", "Notifications open the right place", "Tapping a group or loan notification takes you straight to Split."]
+    ] },
     { v: "3.24.0", items: [
       ["swap", "Swipe to edit or delete", "In your entries, swipe right to edit. Swipe left and tap Delete to remove one. We ask before deleting anything."]
     ] },
@@ -2023,7 +2027,7 @@
 
   async function fetchInbox() {
     try {
-      const { data, error } = await sb.from("notifications").select("id, title, body, created_at, target_user, devices, sent").order("created_at", { ascending: false }).limit(60);
+      const { data, error } = await sb.from("notifications").select("id, title, body, created_at, target_user, devices, sent, action").order("created_at", { ascending: false }).limit(60);
       if (error) { INBOX.ok = false; }
       else { INBOX.ok = true; INBOX.items = (data || []).filter(n => n && typeof n.title === "string"); }
       INBOX.at = Date.now();
@@ -2053,7 +2057,8 @@
       box.replaceChildren(...(mine.length
         ? mine.map(n => h("article", { class: "inbox-item" + (n.created_at > seen ? " new" : "") },
             h("div", { class: "inbox-top" }, h("h3", null, n.title), h("time", null, when(n.created_at))),
-            h("p", null, n.body)))
+            h("p", null, n.body),
+            n.action === "split" ? h("button", { type: "button", class: "btn alt", on: { click: () => { closeSheet(); go("people"); } } }, "Open the invite") : null))
         : [h("p", { class: "empty" }, loading ? "Loading…" : !INBOX.ok ? "Couldn't load notifications. Check your connection and try again." : "No notifications yet.")]));
     };
     draw(navigator.onLine);
@@ -2076,7 +2081,7 @@
     if (!INBOX.ok) return h("section", { class: "card" }, h("div", { class: "card-head" }, h("h2", null, "Sent notifications")),
       h("p", { class: "hint" }, "The history isn't set up on the server yet. Run supabase/notifications.sql in the Supabase SQL editor once."));
     const users = new Map(((ADMIN.data && ADMIN.data.users) || []).map(u => [u.id, u.email]));
-    const sent = INBOX.items;
+    const sent = INBOX.items.filter(n => !n.action);
     const card = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, `Sent notifications (${sent.length})`)));
     if (!sent.length) { card.append(h("p", { class: "empty" }, "Nothing sent yet.")); return card; }
     for (const n of sent.slice(0, 30)) {
@@ -3412,7 +3417,7 @@
         setTimeout(() => groupSheet(g.id), 300);
       } catch { btn.disabled = false; fail(err, "Couldn't save. Check your connection and try again."); }
     });
-    openSheet(`${g.meta.name}`, body, btn);
+    openSheet(`${g.meta.name}`, body, btn, { back: () => groupSheet(g.id) });
   }
 
   function groupEntryInfo(id, entryId) {
@@ -3444,7 +3449,7 @@
     const btn = voted
       ? h("button", { type: "button", class: "btn alt", on: { click: () => act("unvote_delete", "Your delete request was withdrawn.") } }, "Keep it, withdraw my request")
       : h("button", { type: "button", class: "btn danger", on: { click: () => act("vote_delete", e.votes.length ? "You agreed to delete it." : "Delete requested. Everyone else needs to agree.") } }, need === 1 ? "Delete" : e.votes.length ? "Agree to delete" : "Ask to delete");
-    openSheet(e.note || kindLabel(e.kind), body, btn);
+    openSheet(e.note || kindLabel(e.kind), body, btn, { back: () => groupSheet(g.id) });
   }
 
   function groupAccount(g) {
@@ -3510,7 +3515,7 @@
       recordGroupMoney(g, e, f.account, f.category);
       closeSheet();
       toast("Recorded in your accounts.");
-    } } }, "Save"));
+    } } }, "Save"), { back: () => groupEntryInfo(id, entryId) });
   }
   function groupOfTx(x) {
     const m = String(x.id).match(/^gx-(ge-[A-Za-z0-9_-]+?)(-o)?$/);
@@ -3570,7 +3575,7 @@
           h("span", { class: "row-main" }, h("span", { class: "row-title" }, m.user_id === S.uid ? "Me" : m.name))))),
       used ? h("p", { class: "hint" }, `${guest.name} has entries, so they can't be removed. Link them to a member instead.`)
         : h("button", { type: "button", class: "btn danger", on: { click: () => save({ ...g.meta, guests: g.meta.guests.filter(x => x.id !== guestId) }).then(() => toast(`${guest.name} removed.`)) } }, `Remove ${guest.name}`));
-    openSheet(guest.name, body);
+    openSheet(guest.name, body, null, { back: () => groupSheet(id) });
   }
 
   async function groupToLoan(g) {
@@ -3773,7 +3778,7 @@
         setTimeout(() => groupSheet(g.id), 300);
       } catch { fail(err, "Couldn't add them. Try again."); }
     }
-    openSheet(`Add to ${g.meta.name}`, body);
+    openSheet(`Add to ${g.meta.name}`, body, null, { back: () => groupSheet(id) });
   }
 
   const busyUi = () => S.onboarding || !storedSettings().onboarded || TOUR.el || document.querySelector(".overlay, .lock, .viewer");
@@ -4337,8 +4342,14 @@
     document.removeEventListener("keydown", onSheetKey);
     setTimeout(() => o.remove(), 320);
   }
+  function dismissSheet() {
+    const o = document.querySelector(".overlay.open") || document.querySelector(".overlay");
+    const back = o && o.__back;
+    closeSheet();
+    if (typeof back === "function") back();
+  }
   function onSheetKey(e) {
-    if (e.key === "Escape") return closeSheet();
+    if (e.key === "Escape") return dismissSheet();
     if (e.target && e.target.closest && e.target.closest("input, textarea, select")) return;
     const pad = document.querySelector(".overlay.open .keypad");
     if (!pad || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -4370,7 +4381,7 @@
       const v = dy / Math.max(1, Date.now() - t0);
       sheet.style.transition = "";
       y0 = null;
-      if (dy > 130 || (dy > 50 && v > 0.55)) closeSheet(); else sheet.style.transform = "";
+      if (dy > 130 || (dy > 50 && v > 0.55)) dismissSheet(); else sheet.style.transform = "";
     };
     sheet.addEventListener("touchend", end);
     sheet.addEventListener("touchcancel", end);
@@ -4379,10 +4390,11 @@
     document.querySelectorAll(".overlay").forEach(o => o.remove());
     const sheet = h("section", { class: "sheet" + (opts.fill ? " fill" : ""), role: "dialog", "aria-modal": "true", "aria-label": title },
       h("div", { class: "grab", "aria-hidden": "true" }),
-      h("header", { class: "sheet-head" }, h("h2", null, title), opts.headBtn || null, h("button", { type: "button", class: "icon-btn close", "aria-label": "Close", on: { click: closeSheet } }, icon("close"))),
+      h("header", { class: "sheet-head" }, h("h2", null, title), opts.headBtn || null, h("button", { type: "button", class: "icon-btn close", "aria-label": "Close", on: { click: dismissSheet } }, icon("close"))),
       h("div", { class: "sheet-body" }, body),
       footer ? h("div", { class: "sheet-foot" }, footer) : null);
-    const overlay = h("div", { class: "overlay", on: { click: e => { if (e.target === overlay) closeSheet(); } } }, sheet);
+    const overlay = h("div", { class: "overlay", on: { click: e => { if (e.target === overlay) dismissSheet(); } } }, sheet);
+    overlay.__back = opts.back || null;
     document.body.append(overlay);
     document.body.classList.add("locked");
     document.addEventListener("keydown", onSheetKey);
@@ -5638,6 +5650,7 @@
     if (S.session && VAULT.key) recoverySheet();
     if (S.session) { sync(); track("open", "start"); }
     if (S.session && location.hash === "#add") { history.replaceState(null, "", location.pathname); txnSheet(null); }
+    if (S.session && location.hash === "#split") { history.replaceState(null, "", location.pathname); go("people"); }
   }
 
   window.addEventListener("online", () => { if (S.offline || !S.session) recover(); else sync(); renderStatus(); });
@@ -5674,8 +5687,13 @@
   };
   syncThemeColor();
   if (darkQuery.addEventListener) darkQuery.addEventListener("change", syncThemeColor);
-  window.addEventListener("hashchange", () => { if (location.hash !== "#add" && location.hash !== "") location.reload(); });
-  if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", e => { if (e.data && e.data.type === "open-add" && S.session) txnSheet(null); });
+  window.addEventListener("hashchange", () => { if (location.hash !== "#add" && location.hash !== "#split" && location.hash !== "") location.reload(); });
+  if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", e => {
+    if (!e.data || !S.session) return;
+    if (e.data.type === "open-add") txnSheet(null);
+    if (e.data.type === "open-split") { closeSheet(); go("people"); }
+    if (e.data.type === "open-home") { closeSheet(); loadInbox(true); go("home"); }
+  });
   window.addEventListener("scroll", () => { if (shell) shell.top.classList.toggle("scrolled", window.scrollY > 4); }, { passive: true });
   (() => {
     let y0 = null, dy = 0;

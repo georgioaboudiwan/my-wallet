@@ -995,3 +995,12 @@ window.WALLET_I18N.patterns.push(
   ["^Delete (.+) of (.+) from (.+?)( \\((.+)\\))?\\?$", "Supprimer $1 de $2 du $3$4 ?", "حذف $1 بقيمة $2 بتاريخ $3$4؟"]
 );
 Object.assign(window.WALLET_I18N.words, { "Edit": ["Modifier", "تعديل"] });
+Object.assign(window.WALLET_I18N.words, {
+  "Open the invite": ["Voir l'invitation", "افتح الدعوة"],
+  "Invites show up in the app": ["Les invitations arrivent dans l'app", "الدعوات تظهر في التطبيق"],
+  "When someone invites you to a group, you get a notification and a message in your inbox. No need to find the email: open Split and tap Accept.": ["Quand on vous invite dans un groupe, vous recevez une notification et un message. Pas besoin de l'e-mail : ouvrez Partage et touchez Accepter.", "عندما يدعوك أحد إلى مجموعة، يصلك إشعار ورسالة في صندوقك. لا حاجة للبريد: افتح «تقسيم» واضغط «قبول»."],
+  "Notifications open the right place": ["Les notifications ouvrent le bon écran", "الإشعارات تفتح المكان الصحيح"],
+  "Tapping a group or loan notification takes you straight to Split.": ["Une notification de groupe ou de prêt vous amène directement à Partage.", "الضغط على إشعار مجموعة أو قرض يأخذك مباشرة إلى «تقسيم»."],
+  "We also sent you an email about it. If it's not in your inbox, check Junk or Spam. You don't need the email: go to Split and tap Accept.": ["Nous vous avons aussi envoyé un e-mail. S'il n'est pas dans votre boîte, regardez dans les indésirables. Pas besoin de l'e-mail : allez dans Partage et touchez Accepter.", "أرسلنا لك بريدًا أيضًا. إن لم تجده في الوارد، تحقق من البريد غير المرغوب. لا حاجة للبريد: اذهب إلى «تقسيم» واضغط «قبول»."]
+});
+window.WALLET_I18N.patterns.push(["^(.+) invited you to a shared group$", "$1 vous a invité dans un groupe partagé", "دعاك $1 إلى مجموعة مشتركة"]);

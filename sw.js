@@ -1,4 +1,4 @@
-const CACHE = "wallet-shell-v84";
+const CACHE = "wallet-shell-v85";
 const ASSETS = [
   "./",
   "./index.html",
@@ -71,24 +71,26 @@ self.addEventListener("push", event => {
   try { data = event.data ? event.data.json() : {}; } catch { data = {}; }
   const title = typeof data.title === "string" ? data.title.slice(0, 80) : "BudgetSplit";
   const body = typeof data.body === "string" ? data.body.slice(0, 200) : "Tap to log what you spent today.";
+  const open = ["add", "split", "home"].includes(data.open) ? data.open : "add";
   event.waitUntil(self.registration.showNotification(title, {
     body,
     icon: "icons/icon-192-bs.png",
     badge: "icons/icon-192-bs.png",
-    tag: "daily-reminder",
-    renotify: true,
-    data: { url: self.registration.scope }
+    tag: open === "add" ? "daily-reminder" : "bs-" + open + "-" + Date.now(),
+    renotify: open === "add",
+    data: { open }
   }));
 });
 
 self.addEventListener("notificationclick", event => {
   event.notification.close();
   const target = self.registration.scope;
+  const open = (event.notification.data && event.notification.data.open) || "add";
   event.waitUntil((async () => {
     const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const w of wins) {
-      if (w.url.startsWith(target)) { await w.focus(); w.postMessage({ type: "open-add" }); return; }
+      if (w.url.startsWith(target)) { await w.focus(); w.postMessage({ type: "open-" + open }); return; }
     }
-    await self.clients.openWindow(target + "#add");
+    await self.clients.openWindow(target + (open === "home" ? "" : "#" + open));
   })());
 });
