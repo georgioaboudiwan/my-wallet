@@ -1645,3 +1645,7 @@ main.view.set-snap { transition: transform .25s var(--ease); }
 .my-line.neg strong { color: var(--neg); font-size: 19px; }
 .my-line.pos strong { color: var(--pos); font-size: 19px; }
 .my-part .btn.sm { justify-self: start; width: auto; min-height: 40px; padding: 8px 18px; margin-top: 4px; }
+.fan-row { display: grid; grid-template-columns: repeat(6, 56px); gap: 10px 8px; }
+.fan-row .fan-item { width: auto; }
+.fan-item.k-bill { --k: #c98a1a; }
+@media (max-width: 440px) { .fan-row { grid-template-columns: repeat(3, 76px); gap: 14px 10px; padding: 14px; } }

@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.45.1";
+  const VERSION = "3.45.2";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -975,7 +975,8 @@
         item("income", "up", "Received", () => txnSheet(null, { kind: "income" })),
         item("transfer", "swap", "Moved", () => txnSheet(null, { kind: "transfer" }), !many),
         item("loan", "coin", "Loan", () => txnSheet(null, { kind: "loan" })),
-        item("split", "people", "Split", () => { go("people"); setTimeout(newGroupSheet, 300); })));
+        item("split", "people", "Split", () => { go("people"); setTimeout(newGroupSheet, 300); }),
+        item("bill", "bell", "Bill", () => billSheet(null))));
     document.body.append(fan);
     track("add", "hold_menu");
     requestAnimationFrame(() => fan.classList.add("open"));
@@ -2450,6 +2451,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.45.2", items: [
+      ["", "Add a bill from the + button", "Hold the + button and pick Bill. Useful after closing the Never miss a bill card."]
+    ] },
     { v: "3.45.1", items: [
       ["", "Clear who pays whom", "Each member sees “Your part” at the top (You pay Roudy $40 / Charbel pays you $130) with an I paid button. The list reads in plain words and has a Share button to send it to the group chat."]
     ] },
