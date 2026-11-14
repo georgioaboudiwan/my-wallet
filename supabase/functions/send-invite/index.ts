@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import nodemailer from "npm:nodemailer@6.9.16";
 import { parseReport, renderReport } from "./report.ts";
+import { parseRelease, renderRelease } from "./release.ts";
 
 const APP_URL = "https://georgioaboudiwan.github.io/my-wallet/";
 const APP_ORIGIN = "https://georgioaboudiwan.github.io";
@@ -70,6 +71,25 @@ Deno.serve(async req => {
   if (!who?.user) return json({ error: "unauthorized" }, 401);
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { body = {}; }
+  if (body.action === "release") {
+    const { data: admin } = await sb.from("admins").select("user_id").eq("user_id", who.user.id).maybeSingle();
+    if (!admin) return json({ error: "Not allowed." }, 403);
+    const rel = parseRelease(body);
+    const email = who.user.email;
+    if (!rel || !email) return json({ error: "Bad request." }, 400);
+    if (!mailer) return json({ emailed: false, reason: "setup" });
+    const { error: logErr } = await sb.from("release_log").insert({ version: rel.version });
+    if (logErr) return json({ emailed: false, already: logErr.code === "23505" });
+    const out = renderRelease(rel, APP_URL);
+    try {
+      await mailer.sendMail({ from: { name: "BudgetSplit", address: GMAIL_USER }, to: email, subject: out.subject, text: out.text, html: out.html });
+    } catch (e) {
+      await sb.from("release_log").delete().eq("version", rel.version);
+      console.error("release mail failed", String((e as Error)?.message || e).slice(0, 200));
+      return json({ emailed: false, reason: "send" });
+    }
+    return json({ emailed: true });
+  }
   if (body.action === "report") {
     const email = who.user.email;
     const rep = parseReport(body);

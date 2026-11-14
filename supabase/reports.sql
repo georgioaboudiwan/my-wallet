@@ -19,3 +19,11 @@ grant select, insert, update, delete on public.quick_summary to authenticated;
 grant select on public.quick_summary to service_role;
 drop policy if exists "quick summary own" on public.quick_summary;
 create policy "quick summary own" on public.quick_summary for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+create table if not exists public.release_log (
+  version text primary key check (version ~ '^\d{1,3}\.\d{1,3}\.\d{1,3}$'),
+  sent_at timestamptz not null default now()
+);
+alter table public.release_log enable row level security;
+revoke all on public.release_log from anon, authenticated;
+grant select, insert, delete on public.release_log to service_role;

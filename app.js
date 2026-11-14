@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.33.1";
+  const VERSION = "3.34.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2136,6 +2136,9 @@
   }
 
   const CHANGES = [
+    { v: "3.34.0", items: [
+      ["star", "Split is easier to find", "The Share costs with friends card now sits right under your balance, so you see it as soon as you open the app."]
+    ] },
     { v: "3.32.0", items: [
       ["plus", "A new + and loans up front", "+ now sits in the middle of the bar. Tap it to add an expense, or hold it for more. Home shows who owes you, with a Remind button, and the Split tab gets a badge when something needs you."]
     ] },
@@ -4540,7 +4543,21 @@
     ADMIN.checking = true;
     try { const { data } = await sb.rpc("is_admin"); ADMIN.allowed = data === true; } catch { ADMIN.allowed = false; }
     ADMIN.checking = false;
+    if (ADMIN.allowed) mailRelease();
     if (S.view === "settings" && ADMIN.allowed) render();
+  }
+
+  const vnum = v => String(v).split(".").reduce((t, x) => t * 1000 + (Number(x) || 0), 0);
+  async function mailRelease() {
+    const last = storedSettings().releaseMailed;
+    if (last === VERSION || !navigator.onLine) return;
+    const notes = CHANGES.filter(c => vnum(c.v) <= vnum(VERSION) && (!last || vnum(c.v) > vnum(last))).slice(0, last ? 12 : 1)
+      .map(c => ({ v: c.v, items: c.items.map(([, title, text]) => ({ title, text })) }));
+    if (!notes.length) return saveSettings({ releaseMailed: VERSION });
+    try {
+      const { data } = await sb.functions.invoke("send-invite", { body: { action: "release", version: VERSION, notes } });
+      if (data && (data.emailed || data.already)) saveSettings({ releaseMailed: VERSION });
+    } catch { }
   }
 
   async function adminCall(action, extra = {}) {
@@ -6234,7 +6251,7 @@
     render();
     if (S.session && lockCfg()) showLock();
     if (S.session && VAULT.key) recoverySheet();
-    if (S.session) { sync(); track("open", "start"); track("lang", LANG); }
+    if (S.session) { sync(); track("open", "start"); track("lang", LANG); setTimeout(checkAdmin, 4000); }
     if (S.session && location.hash === "#add") { history.replaceState(null, "", location.pathname); txnSheet(null); }
     if (S.session && location.hash === "#split") { history.replaceState(null, "", location.pathname); go("people"); }
   }
