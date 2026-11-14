@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.42.0";
+  const VERSION = "3.42.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1994,6 +1994,15 @@
   const SHORTCUT_LINK = "https://www.icloud.com/shortcuts/be79a7d9ca9544a097e58ce9caabf06b";
   const SHORTCUT_AUTO = true;
   const SHORTCUT_NAME = "Add expense";
+  function openShortcutLink() {
+    const inApp = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+    if (!inApp || !/iPhone|iPad|iPod/.test(navigator.userAgent)) { window.open(SHORTCUT_LINK, "_blank", "noopener"); return; }
+    let left = false;
+    const away = () => { left = true; };
+    document.addEventListener("visibilitychange", away, { once: true });
+    location.href = "x-safari-" + SHORTCUT_LINK;
+    setTimeout(() => { document.removeEventListener("visibilitychange", away); if (!left && document.visibilityState === "visible") window.open(SHORTCUT_LINK, "_blank", "noopener"); }, 1200);
+  }
   async function ensureQuickToken() {
     const have = store.get("quickToken", null);
     if (have) return have;
@@ -2010,7 +2019,7 @@
     const body = h("div", { class: "form qwiz" });
     const auto = SHORTCUT_AUTO;
     const total = auto ? 3 : 2;
-    const getIt = token => { if (!auto && navigator.clipboard) navigator.clipboard.writeText(token).catch(() => { }); window.open(SHORTCUT_LINK, "_blank", "noopener"); store.set("qwiz", 2); track("add", "shortcut_get"); setTimeout(draw, 600); };
+    const getIt = token => { if (!auto && navigator.clipboard) navigator.clipboard.writeText(token).catch(() => { }); openShortcutLink(); store.set("qwiz", 2); track("add", "shortcut_get"); setTimeout(draw, 600); };
     const connect = token => { track("add", "shortcut_connect"); store.set("qwiz", 3); location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(SHORTCUT_NAME)}&input=text&text=${encodeURIComponent(token)}`; setTimeout(draw, 800); };
     const dots = n => h("div", { class: "qwiz-dots" }, Array.from({ length: total }, (_, i) => h("span", { class: i < n ? "on" : "" })));
     const path = items => h("div", { class: "qwiz-path" }, items.map((t, i) => [i ? h("span", { class: "qwiz-sep" }, "›") : null, h("span", { class: "qwiz-chip" + (i === items.length - 1 ? " last" : "") }, t)]));
@@ -2041,6 +2050,7 @@
           ? h("button", { type: "button", class: "qwiz-mock", disabled: !token, on: { click: () => token && getIt(token) } }, h("small", null, SHORTCUT_NAME), h("span", { class: "qwiz-add" }, "Add Shortcut"))
           : h("button", { type: "button", class: "qwiz-mock", disabled: !token, on: { click: () => token && getIt(token) } }, h("small", null, "Paste your BudgetSplit key"), h("span", { class: "qwiz-field" }, h("span", { class: "qwiz-paste" }, "Paste")), h("span", { class: "qwiz-add" }, "Add Shortcut")),
         h("button", { type: "button", class: "btn", disabled: !token, on: { click: () => token && getIt(token) } }, token ? "Get the Shortcut" : "One moment…"),
+        h("p", { class: "hint center" }, "Blank white page? Tap the compass at the bottom right to open it in Safari."),
         h("button", { type: "button", class: "btn alt", on: { click: () => { store.set("qwiz", 2); draw(); } } }, "I already added it")];
       else if (st === 2 && auto) kids = [dots(2),
         h("h3", { class: "qwiz-title" }, "Step 2: connect it"),
@@ -2086,7 +2096,7 @@
           h("li", null, "Tap Get the Shortcut below. Your key is copied for you."),
           h("li", null, "Tap Add Shortcut, then paste the key when it asks."),
           h("li", null, "In iPhone Settings → Accessibility → Touch → Back Tap → Double Tap, pick “Add expense”.")),
-        h("button", { type: "button", class: "btn", on: { click: async () => { try { await navigator.clipboard.writeText(token); toast("Key copied. Paste it when the Shortcut asks."); } catch { } window.open(SHORTCUT_LINK, "_blank", "noopener"); } } }, "Get the Shortcut")) : null;
+        h("button", { type: "button", class: "btn", on: { click: async () => { try { await navigator.clipboard.writeText(token); toast("Key copied. Paste it when the Shortcut asks."); } catch { } openShortcutLink(); } } }, "Get the Shortcut")) : null;
       body.replaceChildren(
         easy,
         SHORTCUT_LINK ? h("p", { class: "hint" }, "Prefer to build it yourself? Here's how:") : null,
@@ -2362,6 +2372,9 @@
   const ADMIN_CHANGES = [
     { v: "3.41.0", items: [
       ["", "Hidden: salary confirmation on payday", "Picking Salary under Received turns on Every month by itself. On each payday, Home asks “Did your salary come in?” (Yes, Other amount, Not yet) and only adds it after a yes. Not shown in What's new."],
+    ] },
+    { v: "3.42.1", items: [
+      ["", "Shortcut link opens in Safari", "From the installed app, the Shortcut link now opens in Safari instead of the in-app browser, which showed a white page."]
     ] },
     { v: "3.42.0", items: [
       ["", "Shortcut setup button works", "The blue Add Shortcut picture in the setup guide now opens the Shortcut too."],

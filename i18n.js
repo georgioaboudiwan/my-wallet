@@ -1358,7 +1358,8 @@ Object.assign(window.WALLET_I18N.words, {
   "Pay back": ["Rembourser", "سدّد"],
   "Pick at least one": ["Choisissez-en au moins un", "اختر واحداً على الأقل"],
   "Paid back from salary": ["Remboursé avec le salaire", "سداد من الراتب"],
-  "1 account paid back.": ["1 compte remboursé.", "تم سداد حساب واحد."]
+  "1 account paid back.": ["1 compte remboursé.", "تم سداد حساب واحد."],
+  "Blank white page? Tap the compass at the bottom right to open it in Safari.": ["Page blanche ? Touchez la boussole en bas à droite pour l'ouvrir dans Safari.", "صفحة بيضاء؟ اضغط على البوصلة أسفل اليمين لفتحها في سفاري."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
