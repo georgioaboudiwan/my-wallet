@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.45.0";
+  const VERSION = "3.45.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2450,6 +2450,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.45.1", items: [
+      ["", "Clear who pays whom", "Each member sees “Your part” at the top (You pay Roudy $40 / Charbel pays you $130) with an I paid button. The list reads in plain words and has a Share button to send it to the group chat."]
+    ] },
     { v: "3.45.0", items: [
       ["", "Group totals", "Each group now shows a Totals card: what each person paid, their share, and whether they get money back or owe, plus the total spent together."]
     ] },
@@ -4303,6 +4306,7 @@
         h("button", { type: "button", class: "action", on: { click: () => groupEntrySheet(g.id, "expense") } }, h("span", { class: "action-ico" }, icon("cart")), "Expense"),
         h("button", { type: "button", class: "action", on: { click: () => groupEntrySheet(g.id, "loan") } }, h("span", { class: "action-ico" }, icon("up")), "Loan"),
         h("button", { type: "button", class: "action", on: { click: () => groupEntrySheet(g.id, "payment") } }, h("span", { class: "action-ico" }, icon("swap")), "Payment")));
+      const partAt = kids.length;
       if (g.entries.some(e => e.kind === "expense")) {
         const paid = new Map(), share = new Map();
         for (const e of g.entries) {
@@ -4323,10 +4327,25 @@
         kids.push(tot);
       }
       const settle = gSettle(g);
-      const who = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Who owes whom")));
-      for (const s of settle) who.append(h("div", { class: "row" + (s.from === memberKey(S.uid) || s.to === memberKey(S.uid) ? " me" : "") },
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, `${gName(g, s.from)} → ${gName(g, s.to)}`)),
-        h("span", { class: "row-end num" }, fmt(s.amount, cur))));
+      const meKey = memberKey(S.uid);
+      const plainName = k => { const p = gParties(g).find(x => x.id === k); return p ? p.name : gName(g, k); };
+      const shareSettle = async () => {
+        const lines = settle.map(x => `• ${plainName(x.from)} → ${plainName(x.to)}: ${fmt(x.amount, cur, { show: true })}`);
+        const text = `${g.meta.name}\n${tr("Who pays whom")}:\n${lines.join("\n")}`;
+        try { if (navigator.share) { await navigator.share({ text }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+        try { await navigator.clipboard.writeText(text); toast("Copied. Paste it in your group chat."); } catch { toast("Couldn't share. Try again.", "error"); }
+      };
+      const mineTo = settle.filter(x => x.from === meKey), mineFrom = settle.filter(x => x.to === meKey);
+      if (mineTo.length || mineFrom.length) kids.splice(partAt, 0, h("section", { class: "my-part" },
+        h("h2", null, "Your part"),
+        ...mineTo.map(x => h("div", { class: "my-line neg" }, h("span", null, `${tr("You pay")} ${plainName(x.to)}`), h("strong", { class: "num" }, fmt(x.amount, cur, { show: true })))),
+        ...mineFrom.map(x => h("div", { class: "my-line pos" }, h("span", null, `${plainName(x.from)} ${tr("pays you")}`), h("strong", { class: "num" }, fmt(x.amount, cur, { show: true })))),
+        mineTo.length ? h("button", { type: "button", class: "btn sm", on: { click: () => groupEntrySheet(g.id, "payment") } }, "I paid") : null));
+      const who = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Who pays whom"), settle.length ? h("button", { type: "button", class: "link-btn", on: { click: shareSettle } }, "Share") : null));
+      for (const s of settle) who.append(h("div", { class: "row" + (s.from === meKey || s.to === meKey ? " me" : "") },
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, s.from === meKey ? `${tr("You pay")} ${plainName(s.to)}` : s.to === meKey ? `${plainName(s.from)} ${tr("pays you")}` : `${plainName(s.from)} ${tr("pays")} ${plainName(s.to)}`)),
+        h("span", { class: "row-end num" + (s.from === meKey ? " neg" : s.to === meKey ? " pos" : "") }, fmt(s.amount, cur))));
+      if (settle.length) who.append(h("p", { class: "hint group-note" }, "Everyone in the group sees this list in their app. Tap Share to send it to people who don't use BudgetSplit."));
       if (!settle.length) who.append(h("p", { class: "empty" }, "Everyone is settled."));
       kids.push(who);
       const pending = g.entries.filter(e => e.votes.length);

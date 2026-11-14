@@ -1465,7 +1465,16 @@ Object.assign(window.WALLET_I18N.words, {
   "Even": ["Quitte", "متعادل"],
   "Gets": ["Récupère", "يسترد"],
   "Owes": ["Doit", "عليه"],
-  "You": ["Vous", "أنت"]
+  "You": ["Vous", "أنت"],
+  "Who pays whom": ["Qui paie qui", "من يدفع لمن"],
+  "Copied. Paste it in your group chat.": ["Copié. Collez-le dans la discussion du groupe.", "تم النسخ. الصقه في محادثة المجموعة."],
+  "Couldn't share. Try again.": ["Partage impossible. Réessayez.", "تعذّرت المشاركة. حاول مجدداً."],
+  "Your part": ["Votre part", "حصتك"],
+  "You pay": ["Vous payez", "تدفع لـ"],
+  "pays you": ["vous paie", "يدفع لك"],
+  "pays": ["paie", "يدفع لـ"],
+  "I paid": ["J'ai payé", "دفعت"],
+  "Everyone in the group sees this list in their app. Tap Share to send it to people who don't use BudgetSplit.": ["Tout le groupe voit cette liste dans l'app. Touchez Partager pour l'envoyer à ceux qui n'utilisent pas BudgetSplit.", "يرى كل أعضاء المجموعة هذه القائمة في التطبيق. اضغط «شارك» لإرسالها لمن لا يستخدم BudgetSplit."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],

@@ -1639,3 +1639,9 @@ main.view.set-snap { transition: transform .25s var(--ease); }
 .sal-preview { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); font-weight: 650; font-size: 14.5px; }
 .danger-text { color: var(--neg) !important; }
 .card-head .card-sub { font-size: 13px; color: var(--muted); font-weight: 600; }
+.my-part { display: grid; gap: 8px; padding: 16px; border-radius: var(--r); background: var(--card); box-shadow: var(--shadow); border: 1.5px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+.my-part h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.my-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 17px; font-weight: 650; }
+.my-line.neg strong { color: var(--neg); font-size: 19px; }
+.my-line.pos strong { color: var(--pos); font-size: 19px; }
+.my-part .btn.sm { justify-self: start; width: auto; min-height: 40px; padding: 8px 18px; margin-top: 4px; }
