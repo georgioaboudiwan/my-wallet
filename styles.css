@@ -1518,3 +1518,9 @@ input[type="month"].input::-webkit-date-and-time-value, input[type="date"].input
 .payday-acts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .payday-acts .btn.sm { width: auto; flex: 1 1 auto; min-height: 42px; padding: 8px 14px; font-size: 14.5px; }
 .payday-acts .link-btn { flex: none; padding: 8px 10px; }
+button.qwiz-mock { width: 100%; border: 0; text-align: start; font: inherit; color: inherit; cursor: pointer; }
+button.qwiz-mock:active .qwiz-add { transform: scale(.96); }
+.qwiz-add { transition: transform .12s; }
+.settle-row { cursor: pointer; }
+.settle-row input { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
+.settle-row .amt { font-weight: 700; white-space: nowrap; }

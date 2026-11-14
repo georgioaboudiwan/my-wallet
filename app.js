@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.41.0";
+  const VERSION = "3.42.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -612,24 +612,53 @@
   }
 
   const isSalaryCat = c => !!c && c.kind === "income" && (/:cat:salary$/.test(c.id) || /salary|salaire|wage|راتب|معاش/i.test(c.name));
-  function settleCards(payday, cardBal) {
+  function settlePlan(payday) {
     const src = acc(payday.account_id);
-    if (!src || src.kind === "card") return [];
+    if (!src) return [];
+    const bal = balances();
     let left = Number(payday.amount) || 0;
     const out = [];
-    for (const card of rows("accounts").filter(o => o.kind === "card" && !o.archived && o.id !== src.id).sort(bySort)) {
-      const owed = -(cardBal.get(card.id) || 0);
-      if (owed <= 0 || left <= 0) continue;
-      const pay = Math.min(left, roundCur(convert(owed, card.currency, src.currency), src.currency));
+    const owing = rows("accounts").filter(o => !o.archived && o.id !== src.id && (bal.get(o.id) || 0) < 0)
+      .sort((p, q) => (q.kind === "card") - (p.kind === "card") || bySort(p, q));
+    for (const o of owing) {
+      if (left <= 0) break;
+      const owed = -(bal.get(o.id) || 0);
+      const pay = Math.min(left, roundCur(convert(owed, o.currency, src.currency), src.currency));
       if (pay <= 0) continue;
-      const id = `${payday.id}~card~${card.id}`.slice(0, 160);
-      if (S.data.transactions.has(id)) continue;
-      const toAmt = card.currency === src.currency ? pay : Math.min(owed, roundCur(convert(pay, src.currency, card.currency), card.currency));
-      out.push({ t: "transactions", r: { id, kind: "transfer", amount: pay, currency: src.currency, rate: rateOf(src.currency), account_id: src.id, to_account_id: card.id, to_amount: toAmt, category_id: null, note: "Card paid from salary", occurred_on: payday.occurred_on, rule_id: null, receipt: null, created_at: new Date().toISOString() } });
-      cardBal.set(card.id, (cardBal.get(card.id) || 0) + toAmt);
+      const toAmt = o.currency === src.currency ? pay : Math.min(owed, roundCur(convert(pay, src.currency, o.currency), o.currency));
+      out.push({ acc: o, pay, toAmt, owed });
       left = roundCur(left - pay, src.currency);
     }
     return out;
+  }
+  function settleSheet(payday, plan) {
+    const src = acc(payday.account_id);
+    const on = new Set(plan.map(p => p.acc.id));
+    const body = h("div", { class: "form" });
+    const btn = h("button", { type: "button", class: "btn" });
+    const draw = () => {
+      const total = plan.filter(p => on.has(p.acc.id)).reduce((t, p) => t + p.pay, 0);
+      body.replaceChildren(
+        h("p", null, `Some accounts went below zero. Pay them back from ${src.name} now?`),
+        h("div", { class: "card flush" }, plan.map(p => h("label", { class: "row settle-row" },
+          h("input", { type: "checkbox", checked: on.has(p.acc.id), on: { change: e => { if (e.target.checked) on.add(p.acc.id); else on.delete(p.acc.id); draw(); } } }),
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.acc.name), h("span", { class: "row-sub" }, p.toAmt < p.owed ? `Owes ${fmt(p.owed, p.acc.currency, { show: true })} · part of it` : `Owes ${fmt(p.owed, p.acc.currency, { show: true })}`)),
+          h("span", { class: "amt num" }, fmt(p.pay, src.currency, { show: true }))))),
+        h("p", { class: "hint" }, "Each one is saved as a transfer, so you can edit or delete it later."),
+        h("button", { type: "button", class: "btn alt", on: { click: () => { track("add", "settle_no"); closeSheet(); } } }, "Not now"));
+      btn.textContent = total > 0 ? tr("Pay back") + " " + fmt(total, src.currency, { show: true }) : tr("Pick at least one");
+      btn.disabled = total <= 0;
+    };
+    btn.addEventListener("click", () => {
+      const now = new Date().toISOString();
+      const items = plan.filter(p => on.has(p.acc.id)).map(p => ({ t: "transactions", r: { id: `${payday.id}~set~${p.acc.id}`.slice(0, 160), kind: "transfer", amount: p.pay, currency: src.currency, rate: rateOf(src.currency), account_id: src.id, to_account_id: p.acc.id, to_amount: p.toAmt, category_id: null, note: "Paid back from salary", occurred_on: payday.occurred_on, rule_id: null, receipt: null, created_at: now } })).filter(i => !S.data.transactions.has(i.r.id));
+      if (items.length) putMany(items);
+      track("add", "settle_yes");
+      closeSheet();
+      toast(items.length === 1 ? "1 account paid back." : `${items.length} accounts paid back.`);
+    });
+    draw();
+    openSheet("Pay back what you owe?", body, btn);
   }
 
   const isSalaryRule = r => r.kind === "income" && r.remind == null && isSalaryCat(cat(r.category_id));
@@ -639,14 +668,18 @@
     if (!a) return;
     const id = `${r.id}@${r.next_on}`;
     const items = [];
+    let row = null;
     if (amount > 0 && !S.data.transactions.has(id)) {
-      const row = { id, kind: "income", amount: roundCur(amount, a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: r.category_id, note: r.note, occurred_on: r.next_on <= today() ? r.next_on : today(), rule_id: r.id, receipt: null, created_at: new Date().toISOString() };
-      items.push({ t: "transactions", r: row }, ...settleCards(row, new Map(balances())));
+      row = { id, kind: "income", amount: roundCur(amount, a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: r.category_id, note: r.note, occurred_on: r.next_on <= today() ? r.next_on : today(), rule_id: r.id, receipt: null, created_at: new Date().toISOString() };
+      items.push({ t: "transactions", r: row });
     }
     items.push({ t: "rules", r: { ...r, next_on: nextMonthDay(r.next_on, r.day) } });
     putMany(items);
     track("add", amount > 0 ? "salary_yes" : "salary_skip");
-    if (amount > 0) toast(`${fmt(amount, a.currency, { show: true })} added to ${a.name}.${items.length > 2 ? " Your card is paid off." : ""}`);
+    if (!row) return;
+    toast(`${fmt(amount, a.currency, { show: true })} added to ${a.name}.`);
+    const plan = settlePlan(row);
+    if (plan.length) setTimeout(() => settleSheet(row, plan), 450);
   }
   function salaryOther(r) {
     const a = acc(r.account_id);
@@ -2005,8 +2038,8 @@
             h("li", null, "On the screen that opens, tap the empty box and choose ", h("strong", null, "Paste"), "."),
             h("li", null, "Tap ", h("strong", null, "Add Shortcut"), ".")),
         auto
-          ? h("div", { class: "qwiz-mock" }, h("small", null, SHORTCUT_NAME), h("span", { class: "qwiz-add" }, "Add Shortcut"))
-          : h("div", { class: "qwiz-mock" }, h("small", null, "Paste your BudgetSplit key"), h("span", { class: "qwiz-field" }, h("span", { class: "qwiz-paste" }, "Paste")), h("span", { class: "qwiz-add" }, "Add Shortcut")),
+          ? h("button", { type: "button", class: "qwiz-mock", disabled: !token, on: { click: () => token && getIt(token) } }, h("small", null, SHORTCUT_NAME), h("span", { class: "qwiz-add" }, "Add Shortcut"))
+          : h("button", { type: "button", class: "qwiz-mock", disabled: !token, on: { click: () => token && getIt(token) } }, h("small", null, "Paste your BudgetSplit key"), h("span", { class: "qwiz-field" }, h("span", { class: "qwiz-paste" }, "Paste")), h("span", { class: "qwiz-add" }, "Add Shortcut")),
         h("button", { type: "button", class: "btn", disabled: !token, on: { click: () => token && getIt(token) } }, token ? "Get the Shortcut" : "One moment…"),
         h("button", { type: "button", class: "btn alt", on: { click: () => { store.set("qwiz", 2); draw(); } } }, "I already added it")];
       else if (st === 2 && auto) kids = [dots(2),
@@ -2329,7 +2362,10 @@
   const ADMIN_CHANGES = [
     { v: "3.41.0", items: [
       ["", "Hidden: salary confirmation on payday", "Picking Salary under Received turns on Every month by itself. On each payday, Home asks “Did your salary come in?” (Yes, Other amount, Not yet) and only adds it after a yes. Not shown in What's new."],
-      ["", "Hidden: card paid off from salary", "When a salary is confirmed, any credit card owing money is paid off with a transfer from the salary account, up to the salary amount."]
+    ] },
+    { v: "3.42.0", items: [
+      ["", "Shortcut setup button works", "The blue Add Shortcut picture in the setup guide now opens the Shortcut too."],
+      ["", "Hidden: pay back negative accounts", "After a salary is confirmed, if any account is below zero (cards first), the app asks to pay them back from the salary account. The user picks which ones; each is saved as a transfer."]
     ] }
   ];
   const CHANGES = [

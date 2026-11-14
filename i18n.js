@@ -1352,10 +1352,22 @@ Object.assign(window.WALLET_I18N.words, {
   "Add it": ["L'ajouter", "أضفه"],
   "Skipped this month.": ["Ce mois-ci est ignoré.", "تم تخطي هذا الشهر."],
   "Card paid from salary": ["Carte payée avec le salaire", "تسديد البطاقة من الراتب"],
-  " Your card is paid off.": [" Votre carte est remboursée.", " تم تسديد بطاقتك."]
+  "Pay back what you owe?": ["Rembourser ce que vous devez ?", "سداد ما عليك؟"],
+  "Each one is saved as a transfer, so you can edit or delete it later.": ["Chacun est enregistré comme un virement, modifiable ou supprimable plus tard.", "يُحفظ كل واحد كتحويل، ويمكنك تعديله أو حذفه لاحقاً."],
+  "Not now": ["Pas maintenant", "ليس الآن"],
+  "Pay back": ["Rembourser", "سدّد"],
+  "Pick at least one": ["Choisissez-en au moins un", "اختر واحداً على الأقل"],
+  "Paid back from salary": ["Remboursé avec le salaire", "سداد من الراتب"],
+  "1 account paid back.": ["1 compte remboursé.", "تم سداد حساب واحد."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
   ["^How much did you get\\? \\((.+)\\)$", "Combien avez-vous reçu ? ($1)", "كم استلمت؟ ($1)"],
-  ["^(.+) added to (.+?)\\.( Your card is paid off\\.)?$", "$1 ajouté à $2.", "تمت إضافة $1 إلى $2."]
+  ["^(.+) added to (.+?)\\.$", "$1 ajouté à $2.", "تمت إضافة $1 إلى $2."]
+);
+window.WALLET_I18N.patterns.push(
+  ["^Some accounts went below zero\\. Pay them back from (.+) now\\?$", "Certains comptes sont passés sous zéro. Les rembourser maintenant depuis $1 ?", "بعض الحسابات أصبحت تحت الصفر. هل تسددها الآن من $1؟"],
+  ["^Owes (.+) · part of it$", "Doit $1 · en partie", "عليه $1 · جزء منه"],
+  ["^Owes (.+)$", "Doit $1", "عليه $1"],
+  ["^(\\d+) accounts paid back\\.$", "$1 comptes remboursés.", "تم سداد $1 حسابات."]
 );
