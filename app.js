@@ -46,7 +46,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.25.0";
+  const VERSION = "3.25.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3417,7 +3417,7 @@
         setTimeout(() => groupSheet(g.id), 300);
       } catch { btn.disabled = false; fail(err, "Couldn't save. Check your connection and try again."); }
     });
-    openSheet(`${g.meta.name}`, body, btn, { back: () => groupSheet(g.id) });
+    openSheet(`${g.meta.name}`, body, btn, { stack: true });
   }
 
   function groupEntryInfo(id, entryId) {
@@ -3449,7 +3449,7 @@
     const btn = voted
       ? h("button", { type: "button", class: "btn alt", on: { click: () => act("unvote_delete", "Your delete request was withdrawn.") } }, "Keep it, withdraw my request")
       : h("button", { type: "button", class: "btn danger", on: { click: () => act("vote_delete", e.votes.length ? "You agreed to delete it." : "Delete requested. Everyone else needs to agree.") } }, need === 1 ? "Delete" : e.votes.length ? "Agree to delete" : "Ask to delete");
-    openSheet(e.note || kindLabel(e.kind), body, btn, { back: () => groupSheet(g.id) });
+    openSheet(e.note || kindLabel(e.kind), body, btn, { stack: true });
   }
 
   function groupAccount(g) {
@@ -3515,7 +3515,7 @@
       recordGroupMoney(g, e, f.account, f.category);
       closeSheet();
       toast("Recorded in your accounts.");
-    } } }, "Save"), { back: () => groupEntryInfo(id, entryId) });
+    } } }, "Save"), { stack: true });
   }
   function groupOfTx(x) {
     const m = String(x.id).match(/^gx-(ge-[A-Za-z0-9_-]+?)(-o)?$/);
@@ -3575,7 +3575,7 @@
           h("span", { class: "row-main" }, h("span", { class: "row-title" }, m.user_id === S.uid ? "Me" : m.name))))),
       used ? h("p", { class: "hint" }, `${guest.name} has entries, so they can't be removed. Link them to a member instead.`)
         : h("button", { type: "button", class: "btn danger", on: { click: () => save({ ...g.meta, guests: g.meta.guests.filter(x => x.id !== guestId) }).then(() => toast(`${guest.name} removed.`)) } }, `Remove ${guest.name}`));
-    openSheet(guest.name, body, null, { back: () => groupSheet(id) });
+    openSheet(guest.name, body, null, { stack: true });
   }
 
   async function groupToLoan(g) {
@@ -3778,7 +3778,7 @@
         setTimeout(() => groupSheet(g.id), 300);
       } catch { fail(err, "Couldn't add them. Try again."); }
     }
-    openSheet(`Add to ${g.meta.name}`, body, null, { back: () => groupSheet(id) });
+    openSheet(`Add to ${g.meta.name}`, body, null, { stack: true });
   }
 
   const busyUi = () => S.onboarding || !storedSettings().onboarded || TOUR.el || document.querySelector(".overlay, .lock, .viewer");
@@ -4332,22 +4332,21 @@
     openSheet(u.email || "User", body);
   }
 
+  const liveOverlays = () => [...document.querySelectorAll(".overlay:not(.closing)")];
   function closeSheet() {
-    const o = document.querySelector(".overlay");
+    const list = liveOverlays();
+    const o = list.pop();
     if (!o) return;
     const sheet = o.querySelector(".sheet");
     if (sheet) { sheet.style.transition = ""; sheet.style.transform = ""; }
+    o.classList.add("closing");
     o.classList.remove("open");
-    document.body.classList.remove("locked");
-    document.removeEventListener("keydown", onSheetKey);
+    const below = list[list.length - 1];
+    if (below) below.classList.remove("under");
+    else { document.body.classList.remove("locked"); document.removeEventListener("keydown", onSheetKey); }
     setTimeout(() => o.remove(), 320);
   }
-  function dismissSheet() {
-    const o = document.querySelector(".overlay.open") || document.querySelector(".overlay");
-    const back = o && o.__back;
-    closeSheet();
-    if (typeof back === "function") back();
-  }
+  const dismissSheet = () => closeSheet();
   function onSheetKey(e) {
     if (e.key === "Escape") return dismissSheet();
     if (e.target && e.target.closest && e.target.closest("input, textarea, select")) return;
@@ -4387,16 +4386,17 @@
     sheet.addEventListener("touchcancel", end);
   }
   function openSheet(title, body, footer, opts = {}) {
-    document.querySelectorAll(".overlay").forEach(o => o.remove());
+    if (opts.stack && liveOverlays().length) liveOverlays().forEach(o => o.classList.add("under"));
+    else document.querySelectorAll(".overlay").forEach(o => o.remove());
     const sheet = h("section", { class: "sheet" + (opts.fill ? " fill" : ""), role: "dialog", "aria-modal": "true", "aria-label": title },
       h("div", { class: "grab", "aria-hidden": "true" }),
       h("header", { class: "sheet-head" }, h("h2", null, title), opts.headBtn || null, h("button", { type: "button", class: "icon-btn close", "aria-label": "Close", on: { click: dismissSheet } }, icon("close"))),
       h("div", { class: "sheet-body" }, body),
       footer ? h("div", { class: "sheet-foot" }, footer) : null);
-    const overlay = h("div", { class: "overlay", on: { click: e => { if (e.target === overlay) dismissSheet(); } } }, sheet);
-    overlay.__back = opts.back || null;
+    const overlay = h("div", { class: "overlay" + (opts.stack && document.querySelector(".overlay.under") ? " stacked" : ""), on: { click: e => { if (e.target === overlay) dismissSheet(); } } }, sheet);
     document.body.append(overlay);
     document.body.classList.add("locked");
+    document.removeEventListener("keydown", onSheetKey);
     document.addEventListener("keydown", onSheetKey);
     dragToClose(sheet);
     requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add("open")));
