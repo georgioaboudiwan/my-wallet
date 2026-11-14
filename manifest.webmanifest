@@ -25,5 +25,19 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add expense",
+      "short_name": "Add",
+      "url": "./#add",
+      "icons": [
+        {
+          "src": "icons/icon-192-bs.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }

@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.35.0";
+  const VERSION = "3.35.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1854,6 +1854,7 @@
     }, 2500);
   }
 
+  const SHORTCUT_LINK = "";
   async function quickSheet() {
     const url = `${CFG.supabaseUrl}/functions/v1/quick-add`;
     const body = h("div", { class: "form" });
@@ -1875,7 +1876,16 @@
         return;
       }
       const step = (n, t, d) => h("div", { class: "prose-part" }, h("h3", null, `${n}. ${t}`), h("p", null, d));
+      const easy = SHORTCUT_LINK ? h("section", { class: "card backtap" },
+        h("div", { class: "backtap-head" }, h("span", { class: "backtap-ico" }, icon("plus")), h("div", null, h("strong", null, "Set it up in 3 taps"), h("small", null, "No building needed."))),
+        h("ol", { class: "backtap-steps" },
+          h("li", null, "Tap Get the Shortcut below. Your key is copied for you."),
+          h("li", null, "Tap Add Shortcut, then paste the key when it asks."),
+          h("li", null, "In iPhone Settings → Accessibility → Touch → Back Tap → Double Tap, pick “Add expense”.")),
+        h("button", { type: "button", class: "btn", on: { click: async () => { try { await navigator.clipboard.writeText(token); toast("Key copied. Paste it when the Shortcut asks."); } catch { } window.open(SHORTCUT_LINK, "_blank", "noopener"); } } }, "Get the Shortcut")) : null;
       body.replaceChildren(
+        easy,
+        SHORTCUT_LINK ? h("p", { class: "hint" }, "Prefer to build it yourself? Here's how:") : null,
         h("div", { class: "prose" },
           step(1, "Create a Shortcut", "Open the Shortcuts app, tap +, and name it “Add expense”."),
           step(2, "Ask for the amount", "Add the action “Ask for Input”. Set the type to Number and the question to “How much?”."),

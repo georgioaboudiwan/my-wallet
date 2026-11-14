@@ -1281,3 +1281,11 @@ Object.assign(window.WALLET_I18N.words, {
   "Double-tap the back of your iPhone, type the amount, and it's saved, without opening the app. Set it up in Settings → Add without opening the app.": ["Tapotez deux fois le dos de l'iPhone, tapez le montant, c'est enregistré sans ouvrir l'app. À configurer dans Réglages → Ajouter sans ouvrir l'app.", "انقر مرتين على ظهر الآيفون واكتب المبلغ فيُحفظ دون فتح التطبيق. اضبطه من الإعدادات ← أضف دون فتح التطبيق."],
   "Add an expense in two seconds without opening the app: double-tap the back of your iPhone (or use the Lock Screen or the Action Button), type the amount, and it's saved. It appears in BudgetSplit the next time you open it.": ["Ajoutez une dépense en deux secondes sans ouvrir l'app : tapotez deux fois le dos de l'iPhone (ou l'écran verrouillé, ou le bouton Action), tapez le montant, c'est enregistré.", "أضف مصروفًا في ثانيتين دون فتح التطبيق: انقر مرتين على ظهر الآيفون (أو من شاشة القفل أو زر الإجراء)، اكتب المبلغ فيُحفظ."]
 });
+Object.assign(window.WALLET_I18N.words, {
+  "Set it up in 3 taps": ["Configurez en 3 gestes", "اضبطه في 3 لمسات"], "No building needed.": ["Rien à construire.", "لا حاجة لأي إعداد معقد."],
+  "Tap Get the Shortcut below. Your key is copied for you.": ["Touchez Obtenir le raccourci. Votre clé est copiée.", "اضغط «احصل على الاختصار» أدناه. يُنسخ مفتاحك تلقائيًا."],
+  "Tap Add Shortcut, then paste the key when it asks.": ["Touchez Ajouter le raccourci, puis collez la clé.", "اضغط «إضافة اختصار» ثم الصق المفتاح عند الطلب."],
+  "In iPhone Settings → Accessibility → Touch → Back Tap → Double Tap, pick “Add expense”.": ["Dans Réglages → Accessibilité → Toucher → Toucher le dos → Toucher deux fois, choisissez « Add expense ».", "في الإعدادات ← تسهيلات الاستخدام ← اللمس ← النقر على الظهر ← نقر مزدوج، اختر «Add expense»."],
+  "Get the Shortcut": ["Obtenir le raccourci", "احصل على الاختصار"], "Key copied. Paste it when the Shortcut asks.": ["Clé copiée. Collez-la quand le raccourci la demande.", "نُسخ المفتاح. الصقه عندما يطلبه الاختصار."],
+  "Prefer to build it yourself? Here's how:": ["Vous préférez le créer vous-même ? Voici comment :", "تفضّل إنشاءه بنفسك؟ إليك الطريقة:"]
+});
