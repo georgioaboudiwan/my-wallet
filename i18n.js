@@ -1339,5 +1339,7 @@ Object.assign(window.WALLET_I18N.words, {
   "If it says the Shortcut wasn't found, add it first with step 1 and keep the name “Add expense”.": ["S'il dit que le raccourci est introuvable, ajoutez-le d'abord à l'étape 1 et gardez le nom « Add expense ».", "إذا ظهر أن الاختصار غير موجود، أضفه أولاً في الخطوة 1 واترك اسمه «Add expense»."],
   "Step 3: turn on double-tap": ["Étape 3 : activez le double tapotement", "الخطوة 3: فعّل النقر المزدوج"],
   "Connect again": ["Reconnecter", "اربط مرة أخرى"],
-  "As soon as it's set up, you can also say ": ["Une fois prêt, vous pouvez aussi dire ", "بعد إعداده، يمكنك أيضاً قول "]
+  "As soon as it's set up, you can also say ": ["Une fois prêt, vous pouvez aussi dire ", "بعد إعداده، يمكنك أيضاً قول "],
+  "Quick add sets itself up": ["L'ajout rapide se configure tout seul", "الإضافة السريعة تُعدّ نفسها"],
+  "No more copying and pasting a key. Add the Shortcut, tap Connect, and it's linked to your account.": ["Plus besoin de copier-coller une clé. Ajoutez le raccourci, touchez Connecter, et il est lié à votre compte.", "لا حاجة بعد الآن لنسخ ولصق مفتاح. أضف الاختصار، اضغط «اربط»، وسيرتبط بحسابك."]
 });

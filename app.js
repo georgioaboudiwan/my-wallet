@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.39.1";
+  const VERSION = "3.40.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1885,8 +1885,8 @@
     }, 2500);
   }
 
-  const SHORTCUT_LINK = "https://www.icloud.com/shortcuts/d6a11201a8fb4ed8b84a5f45e3860419";
-  const SHORTCUT_AUTO = false;
+  const SHORTCUT_LINK = "https://www.icloud.com/shortcuts/be79a7d9ca9544a097e58ce9caabf06b";
+  const SHORTCUT_AUTO = true;
   const SHORTCUT_NAME = "Add expense";
   async function ensureQuickToken() {
     const have = store.get("quickToken", null);
@@ -2254,6 +2254,9 @@
   }
 
   const CHANGES = [
+    { v: "3.40.0", items: [
+      ["phone", "Quick add sets itself up", "No more copying and pasting a key. Add the Shortcut, tap Connect, and it's linked to your account."]
+    ] },
     { v: "3.39.0", items: [
       ["swap", "Smoother swipe on Android", "Swiping an entry to edit or delete now works the same on Android, iPhone and computers."],
       ["phone", "Fits every screen", "The number pad stays in view on small phones, and icons draw cleanly while you scroll."]
