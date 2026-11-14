@@ -1082,3 +1082,13 @@ Object.assign(window.WALLET_I18N.words, {
   "New users choose which accounts they use, with the right currency for where they live.": ["Les nouveaux utilisateurs choisissent leurs comptes, dans la bonne devise selon leur pays.", "يختار المستخدمون الجدد حساباتهم بالعملة المناسبة لبلدهم."]
 });
 Object.assign(window.WALLET_I18N.words, { "You're all set.": ["Tout est prêt.", "كل شيء جاهز."] });
+Object.assign(window.WALLET_I18N.words, {
+  "Create your free account": ["Créez votre compte gratuit", "أنشئ حسابك المجاني"],
+  "Welcome back": ["Bon retour", "مرحبًا بعودتك"],
+  "Track spending, plan your month and split bills with friends.": ["Suivez vos dépenses, planifiez votre mois et partagez les notes entre amis.", "تابع مصاريفك وخطط لشهرك وتقاسم الفواتير مع أصدقائك."],
+  "Sign in to see your accounts and shared groups.": ["Connectez-vous pour voir vos comptes et groupes partagés.", "سجّل الدخول لرؤية حساباتك ومجموعاتك المشتركة."],
+  "Already have an account?": ["Vous avez déjà un compte ?", "لديك حساب بالفعل؟"],
+  "New to BudgetSplit?": ["Nouveau sur BudgetSplit ?", "جديد على BudgetSplit؟"],
+  "Create an account": ["Créer un compte", "أنشئ حسابًا"]
+});
+Object.assign(window.WALLET_I18N.words, { "Split bills": ["Partage", "تقسيم الفواتير"] });

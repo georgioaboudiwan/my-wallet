@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.28.0";
+  const VERSION = "3.28.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -920,9 +920,16 @@
   const isOAuth = () => { try { return localStorage.getItem("wallet:oauth") === "1"; } catch { return false; } };
   const setOAuth = on => { try { if (on) localStorage.setItem("wallet:oauth", "1"); else localStorage.removeItem("wallet:oauth"); } catch { } };
 
+  const knownDevice = () => {
+    try {
+      if (localStorage.getItem("wallet:known") === "1") return true;
+      for (let i = 0; i < localStorage.length; i++) if (String(localStorage.key(i)).startsWith("wallet:v1:")) return true;
+    } catch { }
+    return false;
+  };
   function renderAuth() {
     shell = null;
-    let mode = "signin";
+    let mode = knownDevice() || isOAuth() ? "signin" : "create";
     let busy = false;
     const notice = S.notice; S.notice = null;
     let showPass = false;
@@ -953,7 +960,7 @@
       panel.replaceChildren(...[
         forgot
           ? h("div", { class: "login-title" }, h("h2", null, "Reset your password"), h("p", null, "Enter your email and we'll send you a link to choose a new password."))
-          : seg([["signin", "Sign in"], ["create", "Create account"]], mode, k => { mode = k; err.textContent = ""; draw(); }, "Sign in or create an account"),
+          : h("div", { class: "login-title" }, h("h2", null, create ? "Create your free account" : "Welcome back"), h("p", null, create ? "Track spending, plan your month and split bills with friends." : "Sign in to see your accounts and shared groups.")),
         h("div", { class: "login-fields" },
           field("a-email", "mail", emailIn),
           forgot ? null : field("a-pass", "lock", passIn, eye)),
@@ -964,6 +971,7 @@
         forgot ? h("button", { type: "button", class: "link-btn login-link center", on: { click: () => { mode = "signin"; err.textContent = ""; draw(); } } }, "Back to sign in") : null,
         !forgot && PROVIDERS.list.length ? h("div", { class: "login-or" }, h("span", null, "or")) : null,
         ...(!forgot ? PROVIDERS.list.map(([id, name]) => h("button", { type: "button", class: "btn alt login-provider", disabled: busy, on: { click: () => oauthSignIn(id) } }, `Continue with ${name}`)) : []),
+        forgot ? null : h("p", { class: "login-switch" }, create ? "Already have an account?" : "New to BudgetSplit?", " ", h("button", { type: "button", class: "link-btn", on: { click: () => { mode = create ? "signin" : "create"; err.textContent = ""; draw(); } } }, create ? "Sign in" : "Create an account")),
         h("p", { class: "login-note" }, icon("shield", "ico sm"), h("span", null, "Your data is private and encrypted in transit.")),
         h("div", { class: "login-langs" }, Object.entries(LANGS).map(([k, name]) => h("button", { type: "button", class: "link-btn", "aria-pressed": String(k === LANG), on: { click: () => setLang(k) } }, name)))].filter(Boolean));
       meter();
@@ -1028,7 +1036,7 @@
         h("ul", { class: "login-perks" },
           h("li", null, icon("chart", "ico sm"), "Insights"),
           h("li", null, icon("plan", "ico sm"), "Budgets"),
-          h("li", null, icon("people", "ico sm"), "Loans"))),
+          h("li", null, icon("people", "ico sm"), "Split bills"))),
       panel));
   }
 
@@ -5739,6 +5747,7 @@
   function setSession(session) {
     const changed = S.uid !== session.user.id;
     S.session = session;
+    try { localStorage.setItem("wallet:known", "1"); } catch { }
     S.email = session.user.email || "";
     S.offline = false;
     if (changed) {
