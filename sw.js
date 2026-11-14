@@ -1,4 +1,4 @@
-const CACHE = "wallet-shell-v124";
+const CACHE = "wallet-shell-v125";
 const ASSETS = [
   "./",
   "./index.html",
@@ -31,6 +31,7 @@ self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
   if (url.pathname.includes("/vendor/ocr/")) return;
+  if (url.pathname.includes("/worksite/")) return;
   const navigate = event.request.mode === "navigate";
   const key = navigate ? "./index.html" : event.request;
   if (navigate || SHELL.test(url.pathname)) {
