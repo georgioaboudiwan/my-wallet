@@ -1240,3 +1240,28 @@ Object.assign(window.WALLET_I18N.words, {
   "+ now sits in the middle of the bar. Tap it to add an expense, or hold it for more. Home shows who owes you, with a Remind button, and the Split tab gets a badge when something needs you.": ["Le + est au centre de la barre. Touchez pour une dépense, maintenez pour plus. L'Accueil montre qui vous doit avec un bouton Rappeler, et l'onglet Partage affiche un badge si besoin.", "زر + في وسط الشريط الآن. اضغط لإضافة مصروف أو اضغط مطولًا للمزيد. تعرض الرئيسية من يدين لك مع زر «ذكّر»، ويظهر رقم على تبويب التقسيم عند الحاجة."]
 });
 window.WALLET_I18N.patterns.push(["^since (.+)$", "depuis le $1", "منذ $1"]);
+Object.assign(window.WALLET_I18N.words, {
+  "Growth": ["Croissance", "النمو"], "From sign-up to habit": ["De l'inscription à l'habitude", "من التسجيل إلى العادة"],
+  "Signed up": ["Inscrits", "سجّلوا"], "Opened the app": ["Ont ouvert l'app", "فتحوا التطبيق"], "Added a first entry": ["Première opération", "أضافوا أول عملية"],
+  "10+ entries": ["10+ opérations", "+10 عمليات"], "50+ entries": ["50+ opérations", "+50 عملية"],
+  "Do people come back?": ["Les gens reviennent-ils ?", "هل يعود الناس؟"], "Back the next day": ["Revenus le lendemain", "عادوا في اليوم التالي"], "Active this week": ["Actifs cette semaine", "نشطون هذا الأسبوع"],
+  "When people open the app": ["Quand les gens ouvrent l'app", "متى يفتح الناس التطبيق"], "Not enough data yet.": ["Pas encore assez de données.", "لا بيانات كافية بعد."],
+  "Entries added": ["Opérations ajoutées", "العمليات المضافة"], "Which features people use": ["Fonctions utilisées", "الميزات المستخدمة"],
+  "Daily reminder on": ["Rappel quotidien activé", "التذكير اليومي مفعّل"], "Installed on Home Screen": ["Installée sur l'écran d'accueil", "مثبّت على الشاشة الرئيسية"],
+  "Loans with people": ["Prêts avec des personnes", "قروض مع أشخاص"], "Shared groups": ["Groupes partagés", "المجموعات المشتركة"], "Category budgets": ["Budgets par catégorie", "ميزانيات الفئات"],
+  "Monthly repeats": ["Répétitions mensuelles", "تكرار شهري"], "Receipt photos": ["Photos de reçus", "صور الإيصالات"], "Got a monthly report": ["Rapport mensuel reçu", "استلموا تقريرًا شهريًا"], "Lock Screen quick add": ["Ajout rapide écran verrouillé", "إضافة سريعة من شاشة القفل"],
+  "App versions in use": ["Versions utilisées", "الإصدارات المستخدمة"], "Some people haven't opened the app since the last update.": ["Certains n'ont pas ouvert l'app depuis la dernière mise à jour.", "بعضهم لم يفتح التطبيق منذ آخر تحديث."],
+  "Languages": ["Langues", "اللغات"], "Nudge": ["Relancer", "نبّه"], "Everyone is active. 🎉": ["Tout le monde est actif. 🎉", "الجميع نشط. 🎉"], "No errors reported. 👍": ["Aucune erreur signalée. 👍", "لا أخطاء. 👍"],
+  "Insights couldn't load. Tap Refresh.": ["Statistiques indisponibles. Touchez Actualiser.", "تعذّر تحميل الإحصاءات. اضغط تحديث."], "Loading insights…": ["Chargement des statistiques…", "جارٍ تحميل الإحصاءات…"],
+  "Money lent / paid": ["Argent prêté / payé", "مال مُقرض / مدفوع"], "Money received back / borrowed": ["Argent remboursé / emprunté", "مال مُسترد / مُستدان"],
+  "Out of": ["Sur", "من أصل"], "Admin insights": ["Statistiques admin", "إحصاءات المدير"],
+  "Growth, retention, busiest hours, feature use, people drifting away with a Nudge button, app versions, languages and app errors.": ["Croissance, rétention, heures de pointe, fonctions utilisées, utilisateurs inactifs avec bouton Relancer, versions, langues et erreurs.", "النمو، العودة، أوقات الذروة، استخدام الميزات، المستخدمون الغائبون مع زر «نبّه»، الإصدارات، اللغات والأخطاء."]
+});
+window.WALLET_I18N.patterns.push(
+  ["^(\\d+) new accounts in the last 30 days$", "$1 nouveaux comptes en 30 jours", "$1 حسابات جديدة خلال 30 يومًا"],
+  ["^Busiest around (.+)\\. Good time for announcements\\.$", "Pic vers $1. Bon moment pour les annonces.", "الذروة حوالي $1. وقت مناسب للإعلانات."],
+  ["^(\\d+) entries in 30 days$", "$1 opérations en 30 jours", "$1 عملية خلال 30 يومًا"],
+  ["^Out of (\\d+) users$", "Sur $1 utilisateurs", "من أصل $1 مستخدمين"],
+  ["^People drifting away \\((\\d+)\\)$", "Utilisateurs qui s'éloignent ($1)", "مستخدمون يبتعدون ($1)"],
+  ["^App errors, last 14 days \\((\\d+)\\)$", "Erreurs de l'app, 14 jours ($1)", "أخطاء التطبيق، آخر 14 يومًا ($1)"]
+);

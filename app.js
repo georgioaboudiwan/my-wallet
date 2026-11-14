@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.32.0";
+  const VERSION = "3.33.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -791,6 +791,7 @@
         item("loan", "coin", "Loan", () => txnSheet(null, { kind: "loan" })),
         item("split", "people", "Split", () => { go("people"); setTimeout(newGroupSheet, 300); })));
     document.body.append(fan);
+    track("add", "hold_menu");
     requestAnimationFrame(() => fan.classList.add("open"));
     store.set("fanSeen", true);
   }
@@ -2304,6 +2305,15 @@
     if (/Linux/.test(u)) return "linux";
     return "other";
   };
+  const ERR = { n: 0, seen: new Set() };
+  const reportError = msg => {
+    const m = String(msg || "unknown").replace(/^Uncaught\s+/, "").slice(0, 60);
+    if (ERR.n >= 5 || ERR.seen.has(m)) return;
+    ERR.n++; ERR.seen.add(m);
+    track("error", m);
+  };
+  window.addEventListener("error", e => { if (e && e.message && !/Script error/i.test(e.message)) reportError(e.message); });
+  window.addEventListener("unhandledrejection", e => { const r = e && e.reason; if (r && r.message && !/fetch|network|load failed|abort/i.test(r.message)) reportError(r.message); });
   function track(event, detail) {
     if (!S.uid || TRACK.mute) return;
     const d = detail ? String(detail).toLowerCase().replace(/[^a-z0-9_:.-]/g, "_").slice(0, 40) : null;
@@ -4648,9 +4658,92 @@
     if (ADMIN.loading) return;
     ADMIN.loading = true; ADMIN.error = null;
     if (S.view === "admin") render();
-    try { [ADMIN.data] = await Promise.all([adminCall("overview"), loadUsage()]); } catch (e) { ADMIN.error = e.message; }
+    try { [ADMIN.data] = await Promise.all([adminCall("overview"), loadUsage(), loadInsights()]); } catch (e) { ADMIN.error = e.message; }
     ADMIN.loading = false;
     if (S.view === "admin") render();
+  }
+
+  const INSIGHTS = { data: null, error: false };
+  async function loadInsights() {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+      const { data, error } = await sb.rpc("admin_insights", { p_tz: tz });
+      INSIGHTS.error = !!error; if (!error) INSIGHTS.data = data;
+    } catch { INSIGHTS.error = true; }
+  }
+  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+  function bars(list, opts = {}) {
+    const max = Math.max(1, ...list.map(x => x.n));
+    return h("div", { class: "ibars" + (opts.tall ? " tall" : "") }, list.map(x => h("div", { class: "ibar", title: `${x.label}: ${x.n}` },
+      h("span", { class: "ibar-fill" + (x.hot ? " hot" : ""), style: { height: `${Math.max(x.n ? 6 : 0, Math.round(x.n / max * 100))}%` } }),
+      opts.labels ? h("small", null, x.short ?? "") : null)));
+  }
+  function hbar(label, n, total, sub) {
+    return h("div", { class: "hbar" }, h("div", { class: "hbar-top" }, h("span", null, label), h("span", { class: "num" }, sub ?? `${n} · ${pct(n, total)}%`)),
+      h("div", { class: "hbar-track" }, h("span", { style: { width: `${pct(n, total)}%` } })));
+  }
+  function insightsCards() {
+    const d = INSIGHTS.data;
+    if (!d) return [h("p", { class: "hint" }, INSIGHTS.error ? "Insights couldn't load. Tap Refresh." : "Loading insights…")];
+    const days30 = Array.from({ length: 30 }, (_, i) => ymd(new Date(Date.now() - (29 - i) * 864e5)));
+    const byDay = (arr, k = "n") => { const m = new Map((arr || []).map(x => [x.day, x[k]])); return days30.map((day, i) => ({ label: day, n: m.get(day) || 0, short: i % 7 === 0 ? day.slice(8) : "", hot: day === today() })); };
+    const f = d.funnel || {}, r = d.retention || {}, ad = d.adoption || {}, g = d.groups || {};
+    const users = f.signed_up || 0;
+    const cards = [];
+    cards.push(h("section", { class: "card icard" }, h("div", { class: "card-head" }, h("h2", null, "Growth")),
+      h("p", { class: "hint" }, `${(d.signups || []).reduce((t, x) => t + x.n, 0)} new accounts in the last 30 days`), bars(byDay(d.signups), { labels: true }),
+      h("h3", null, "From sign-up to habit"),
+      hbar("Signed up", f.signed_up || 0, users), hbar("Opened the app", f.opened || 0, users), hbar("Added a first entry", f.first_entry || 0, users),
+      hbar("10+ entries", f.ten_entries || 0, users), hbar("50+ entries", f.fifty_entries || 0, users)));
+    cards.push(h("section", { class: "card icard" }, h("div", { class: "card-head" }, h("h2", null, "Do people come back?")),
+      h("div", { class: "facts" },
+        h("div", { class: "fact" }, h("small", null, "Back the next day"), h("strong", { class: "num" }, `${pct(r.day1 || 0, r.day1_cohort || 0)}%`), h("small", null, `${r.day1 || 0} of ${r.day1_cohort || 0}`)),
+        h("div", { class: "fact" }, h("small", null, "Active this week"), h("strong", { class: "num" }, `${pct(r.week_back || 0, r.week_cohort || 0)}%`), h("small", null, `${r.week_back || 0} of ${r.week_cohort || 0} older users`)))));
+    const hours = Array.from({ length: 24 }, (_, i) => ({ label: `${i}:00`, n: Number((d.hours || {})[i] || 0), short: i % 6 === 0 ? String(i) : "" }));
+    const peak = hours.reduce((a, b) => b.n > a.n ? b : a, hours[0]);
+    const WD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const wds = WD.map((w, i) => ({ label: w, n: Number((d.weekdays || {})[i + 1] || 0), short: w.slice(0, 2) }));
+    cards.push(h("section", { class: "card icard" }, h("div", { class: "card-head" }, h("h2", null, "When people open the app")),
+      h("p", { class: "hint" }, peak.n ? `Busiest around ${peak.label}. Good time for announcements.` : "Not enough data yet."),
+      bars(hours.map(x => ({ ...x, hot: x === peak && x.n > 0 })), { labels: true }), bars(wds, { labels: true })));
+    const kinds = d.kinds || {};
+    const KN = { expense: "Expenses", income: "Income", transfer: "Transfers", loan_out: "Money lent / paid", loan_in: "Money received back / borrowed" };
+    const ktotal = Object.values(kinds).reduce((a, b) => a + Number(b), 0);
+    cards.push(h("section", { class: "card icard" }, h("div", { class: "card-head" }, h("h2", null, "Entries added")),
+      h("p", { class: "hint" }, `${ktotal} entries in 30 days`), bars(byDay(d.entries), { labels: true }),
+      ...Object.entries(kinds).sort((a, b) => b[1] - a[1]).map(([k, n]) => hbar(KN[k] || k, Number(n), ktotal))));
+    const FEAT = [["reminders", "Daily reminder on"], ["installed", "Installed on Home Screen"], ["loans", "Loans with people"], ["groups", "Shared groups"], ["budgets", "Category budgets"], ["bills", "Bill reminders"], ["repeats", "Monthly repeats"], ["receipts", "Receipt photos"], ["reports", "Got a monthly report"], ["quick_add", "Lock Screen quick add"]];
+    cards.push(h("section", { class: "card icard" }, h("div", { class: "card-head" }, h("h2", null, "Which features people use")),
+      h("p", { class: "hint" }, `Out of ${users} users`),
+      ...FEAT.map(([k, label]) => ({ k, label, n: Number(ad[k] || 0) })).sort((a, b) => b.n - a.n).map(x => hbar(x.label, x.n, users)),
+      h("p", { class: "hint" }, `Groups: ${g.total || 0} · members ${g.members || 0} · waiting to answer ${g.pending || 0} · email invites ${g.email_invites || 0}`)));
+    const vers = Object.entries(d.versions || {}).sort((a, b) => String(b[0]).localeCompare(String(a[0]), undefined, { numeric: true }));
+    const vtotal = vers.reduce((a, [, n]) => a + Number(n), 0);
+    cards.push(h("section", { class: "card icard" }, h("div", { class: "card-head" }, h("h2", null, "App versions in use")),
+      ...vers.map(([v, n], i) => hbar(`v${v}${v === VERSION ? " · latest" : ""}`, Number(n), vtotal)),
+      vers.length && vers[0][0] !== VERSION ? h("p", { class: "hint" }, "Some people haven't opened the app since the last update.") : null));
+    const LN = { en: "English", fr: "Français", ar: "العربية" };
+    const langs = Object.entries(d.langs || {});
+    const ltotal = langs.reduce((t, [, n]) => t + Number(n), 0);
+    if (langs.length) cards.push(h("section", { class: "card icard" }, h("div", { class: "card-head" }, h("h2", null, "Languages")),
+      ...langs.sort((a, b) => b[1] - a[1]).map(([k, n]) => hbar(LN[k] || k, Number(n), ltotal))));
+    const person = (id, sub) => {
+      const u = ADMIN.data && ADMIN.data.users.find(x => x.id === id);
+      return h("div", { class: "row" }, h("span", { class: "dot neutral" }, (u && u.email || "?").charAt(0).toUpperCase()),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, u ? u.email || "No email" : "Deleted user"), h("span", { class: "row-sub" }, sub)),
+        u ? h("button", { type: "button", class: "chip", on: { click: () => notifySheet(u, { title: "We miss you 👋", body: "Your budget is waiting. Open BudgetSplit and log today's spending, it takes 5 seconds." }) } }, "Nudge") : null);
+    };
+    const quiet = d.quiet || [], never = d.never || [];
+    cards.push(h("section", { class: "card flush icard" }, h("div", { class: "card-head" }, h("h2", null, `People drifting away (${quiet.length + never.length})`)),
+      quiet.length || never.length ? null : h("p", { class: "empty" }, "Everyone is active. 🎉"),
+      ...quiet.slice(0, 15).map(x => person(x.user_id, `Last opened ${ago(x.last)} · ${x.entries} entries`)),
+      ...never.slice(0, 15).map(x => person(x.user_id, `Joined ${ago(x.created)} · never added an entry`))));
+    const errs = d.errors || [];
+    cards.push(h("section", { class: "card flush icard" }, h("div", { class: "card-head" }, h("h2", null, `App errors, last 14 days (${errs.length})`)),
+      errs.length ? errs.map(e => h("div", { class: "row" }, h("span", { class: "dot bad" }, icon("warn", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, String(e.detail || "unknown").replace(/_/g, " ")), h("span", { class: "row-sub" }, `${e.n} times · ${e.users} ${e.users === 1 ? "person" : "people"} · last ${ago(e.last)}`))))
+        : h("p", { class: "empty" }, "No errors reported. 👍")));
+    return cards;
   }
 
   const whenText = iso => iso ? ago(iso) : "never";
@@ -4685,7 +4778,7 @@
       h("div", { class: "row" }, h("span", { class: "dot " + (calls.failed ? "bad" : "ok") }, icon(calls.failed ? "warn" : "check", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Reminder server, last 24 h"), h("span", { class: "row-sub" }, `${calls.ok ?? 0} OK · ${calls.failed ?? 0} failed`)))));
 
-    out.append(usageCard());
+    out.append(usageCard(), ...insightsCards());
     const latest = CHANGES[0];
     const annTitle = `Version ${latest.v} is here`;
     const announced = INBOX.items.some(n => n.title === annTitle);
@@ -4952,6 +5045,7 @@
       if (!file || scanning) return;
       scanning = true; draw();
       try {
+        track("add", "receipt_scan");
         const [res, blob] = await Promise.all([readReceipt(file), shrinkImage(file)]);
         if (blob) f.blob = blob;
         if (res.currency && acc(f.account) && acc(f.account).currency !== res.currency) {
@@ -6140,7 +6234,7 @@
     render();
     if (S.session && lockCfg()) showLock();
     if (S.session && VAULT.key) recoverySheet();
-    if (S.session) { sync(); track("open", "start"); }
+    if (S.session) { sync(); track("open", "start"); track("lang", LANG); }
     if (S.session && location.hash === "#add") { history.replaceState(null, "", location.pathname); txnSheet(null); }
     if (S.session && location.hash === "#split") { history.replaceState(null, "", location.pathname); go("people"); }
   }
