@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.36.0";
+  const VERSION = "3.36.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1877,7 +1877,7 @@
       }
       const step = (n, t, d) => h("div", { class: "prose-part" }, h("h3", null, `${n}. ${t}`), h("p", null, d));
       const easy = SHORTCUT_LINK ? h("section", { class: "card backtap" },
-        h("div", { class: "backtap-head" }, h("span", { class: "backtap-ico" }, icon("plus")), h("div", null, h("strong", null, "Set it up in 3 taps"), h("small", null, "No building needed."))),
+        h("div", { class: "backtap-head" }, h("span", { class: "backtap-ico" }, icon("plus")), h("div", null, h("strong", null, "Set it up in 3 easy steps"), h("small", null, "About one minute. No building needed."))),
         h("ol", { class: "backtap-steps" },
           h("li", null, "Tap Get the Shortcut below. Your key is copied for you."),
           h("li", null, "Tap Add Shortcut, then paste the key when it asks."),
@@ -2155,7 +2155,7 @@
 
   const CHANGES = [
     { v: "3.36.0", items: [
-      ["phone", "Add from the back of your iPhone in 3 taps", "Settings → Add without opening the app → Get the Shortcut. Your key is copied for you. Then turn on Back Tap and double-tap the back of your phone to add an expense."]
+      ["phone", "Add by tapping the back of your iPhone", "Settings → Add without opening the app → Get the Shortcut. Your key is copied for you. Then turn on Back Tap and double-tap the back of your phone to add an expense."]
     ] },
     { v: "3.35.0", items: [
       ["phone", "Double-tap to add", "Double-tap the back of your iPhone, type the amount, and it's saved, without opening the app. Set it up in Settings → Add without opening the app."]
@@ -2542,7 +2542,7 @@
       out.append(h("section", { class: "bill-teaser tap-teaser" },
         h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("tapTeaserOff", true); render(); } } }, icon("close", "ico sm")),
         h("span", { class: "bill-badge" }, icon("phone", "ico sm")),
-        h("div", null, h("strong", null, "Add without opening the app"), h("small", null, "Double-tap the back of your iPhone, type the amount, done. Takes 2 minutes to set up.")),
+        h("div", null, h("strong", null, "Add without opening the app"), h("small", null, "Double-tap the back of your iPhone, type the amount, done. Takes about a minute to set up.")),
         h("button", { type: "button", class: "btn sm", on: { click: quickSheet } }, "Set it up")));
     }
 

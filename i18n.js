@@ -1268,7 +1268,7 @@ window.WALLET_I18N.patterns.push(
 Object.assign(window.WALLET_I18N.words, {
   "Add without opening the app": ["Ajouter sans ouvrir l'app", "أضف دون فتح التطبيق"],
   "Double-tap the back of your iPhone, type the amount, done": ["Tapotez deux fois l'arrière de l'iPhone, tapez le montant, c'est fait", "انقر مرتين على ظهر الآيفون، اكتب المبلغ، انتهى"],
-  "Double-tap the back of your iPhone, type the amount, done. Takes 2 minutes to set up.": ["Tapotez deux fois l'arrière de l'iPhone, tapez le montant, c'est fait. 2 minutes à configurer.", "انقر مرتين على ظهر الآيفون، اكتب المبلغ، انتهى. الإعداد يستغرق دقيقتين."],
+  "Double-tap the back of your iPhone, type the amount, done. Takes about a minute to set up.": ["Tapotez deux fois l'arrière de l'iPhone, tapez le montant, c'est fait. Environ une minute à configurer.", "انقر مرتين على ظهر الآيفون، اكتب المبلغ، انتهى. الإعداد يستغرق دقيقة تقريبًا."],
   "Set it up": ["Configurer", "اضبطه"],
   "Double-tap the back of your iPhone": ["Tapotez deux fois l'arrière de l'iPhone", "انقر مرتين على ظهر الآيفون"],
   "The fastest way: tap twice on the back of the phone, from any screen, even with another app open.": ["Le plus rapide : deux tapes au dos du téléphone, depuis n'importe quel écran, même dans une autre app.", "الأسرع: انقر مرتين على ظهر الهاتف من أي شاشة، حتى داخل تطبيق آخر."],
@@ -1282,7 +1282,7 @@ Object.assign(window.WALLET_I18N.words, {
   "Add an expense in two seconds without opening the app: double-tap the back of your iPhone (or use the Lock Screen or the Action Button), type the amount, and it's saved. It appears in BudgetSplit the next time you open it.": ["Ajoutez une dépense en deux secondes sans ouvrir l'app : tapotez deux fois le dos de l'iPhone (ou l'écran verrouillé, ou le bouton Action), tapez le montant, c'est enregistré.", "أضف مصروفًا في ثانيتين دون فتح التطبيق: انقر مرتين على ظهر الآيفون (أو من شاشة القفل أو زر الإجراء)، اكتب المبلغ فيُحفظ."]
 });
 Object.assign(window.WALLET_I18N.words, {
-  "Set it up in 3 taps": ["Configurez en 3 gestes", "اضبطه في 3 لمسات"], "No building needed.": ["Rien à construire.", "لا حاجة لأي إعداد معقد."],
+  "Set it up in 3 easy steps": ["Configurez en 3 étapes simples", "اضبطه في 3 خطوات سهلة"], "About one minute. No building needed.": ["Environ une minute. Rien à construire.", "دقيقة تقريبًا. لا حاجة لأي إعداد معقد."],
   "Tap Get the Shortcut below. Your key is copied for you.": ["Touchez Obtenir le raccourci. Votre clé est copiée.", "اضغط «احصل على الاختصار» أدناه. يُنسخ مفتاحك تلقائيًا."],
   "Tap Add Shortcut, then paste the key when it asks.": ["Touchez Ajouter le raccourci, puis collez la clé.", "اضغط «إضافة اختصار» ثم الصق المفتاح عند الطلب."],
   "In iPhone Settings → Accessibility → Touch → Back Tap → Double Tap, pick “Add expense”.": ["Dans Réglages → Accessibilité → Toucher → Toucher le dos → Toucher deux fois, choisissez « Add expense ».", "في الإعدادات ← تسهيلات الاستخدام ← اللمس ← النقر على الظهر ← نقر مزدوج، اختر «Add expense»."],
@@ -1290,6 +1290,6 @@ Object.assign(window.WALLET_I18N.words, {
   "Prefer to build it yourself? Here's how:": ["Vous préférez le créer vous-même ? Voici comment :", "تفضّل إنشاءه بنفسك؟ إليك الطريقة:"]
 });
 Object.assign(window.WALLET_I18N.words, {
-  "Add from the back of your iPhone in 3 taps": ["Ajoutez depuis le dos de l'iPhone en 3 gestes", "أضف من ظهر الآيفون في 3 لمسات"],
+  "Add by tapping the back of your iPhone": ["Ajoutez en tapotant le dos de l'iPhone", "أضف بالنقر على ظهر الآيفون"],
   "Settings → Add without opening the app → Get the Shortcut. Your key is copied for you. Then turn on Back Tap and double-tap the back of your phone to add an expense.": ["Réglages → Ajouter sans ouvrir l'app → Obtenir le raccourci. Votre clé est copiée. Activez ensuite Toucher le dos et tapotez deux fois le dos du téléphone.", "الإعدادات ← أضف دون فتح التطبيق ← احصل على الاختصار. يُنسخ مفتاحك تلقائيًا. ثم فعّل النقر على الظهر وانقر مرتين على ظهر الهاتف لإضافة مصروف."]
 });
