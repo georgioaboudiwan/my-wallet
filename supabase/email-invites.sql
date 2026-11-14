@@ -60,3 +60,14 @@ grant execute on function public.resolve_email_invites(uuid) to authenticated;
 select cron.unschedule('wallet-email-invites-cleanup') where exists (select 1 from cron.job where jobname = 'wallet-email-invites-cleanup');
 select cron.schedule('wallet-email-invites-cleanup', '29 3 * * *', $job$ delete from public.group_email_invites where created_at < now() - interval '60 days' $job$);
 grant select, insert, update, delete on public.groups, public.group_members, public.group_entries, public.group_votes, public.group_links, public.group_email_invites, public.user_keys, public.shared_entries, public.loan_links to service_role;
+
+create or replace function public.my_invite_emails(p_group uuid) returns table (user_id uuid, email text)
+language sql stable security definer set search_path = '' as $fn$
+  select m.user_id, lower(u.email)::text
+  from public.group_members m
+  join auth.users u on u.id = m.user_id
+  where m.group_id = p_group and m.invited_by = auth.uid() and m.user_id <> auth.uid()
+    and public.in_group(p_group, true)
+$fn$;
+revoke all on function public.my_invite_emails(uuid) from public, anon;
+grant execute on function public.my_invite_emails(uuid) to authenticated;

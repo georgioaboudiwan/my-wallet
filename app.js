@@ -46,7 +46,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.24.0";
+  const VERSION = "3.24.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3152,7 +3152,22 @@
     }
     return out.filter(x => x.amount > 0);
   }
-  const inviteEmail = (g, key) => { const e = (g.meta.emails || {})[key]; return typeof e === "string" && e.length <= 254 ? e : null; };
+  const inviteEmail = (g, key) => {
+    const em = g.meta.emails || {};
+    const u = key.startsWith("g:") ? (g.meta.claims || {})[key.slice(2)] : null;
+    const e = em[key] || (u ? em["u:" + u] : null);
+    return typeof e === "string" && e.length <= 254 ? e : null;
+  };
+  async function fillInviteEmails(g) {
+    if (!g.joined || !g.members.some(m => m.user_id !== S.uid && !inviteEmail(g, m.id))) return false;
+    const { data, error } = await sb.rpc("my_invite_emails", { p_group: g.id });
+    if (error || !data || !data.length) return false;
+    const emails = { ...(g.meta.emails || {}) };
+    for (const r of data) if (r.user_id && typeof r.email === "string") emails["u:" + r.user_id] = r.email;
+    if (JSON.stringify(emails) === JSON.stringify(g.meta.emails || {})) return false;
+    try { await saveGroupMeta(g, { emails }); } catch { g.meta.emails = emails; }
+    return true;
+  }
   const myGroupBalance = g => gBalances(g).get(memberKey(S.uid)) || 0;
   function groupTotals() {
     let owed = 0, owe = 0;
@@ -3323,6 +3338,8 @@
     openSheet((GROUPS.list.get(id) || { meta: { name: "Group" } }).meta.name, body);
     shown = true;
     loadGroups(true);
+    const g0 = GROUPS.list.get(id);
+    if (g0) fillInviteEmails(g0).then(ch => { if (ch && body.isConnected) draw(); }, () => { });
   }
   const kindLabel = k => k === "payment" ? "Payment" : k === "loan" ? "Loan" : "Expense";
 
