@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.38.0";
+  const VERSION = "3.39.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1142,8 +1142,8 @@
       ? h("small", null, "→ " + fmt(Number(x.to_amount), toAcc.currency))
       : (x.currency !== mainCur() ? h("small", null, "≈ " + money(txMain(x))) : null);
     return h("div", { class: "swipe", "data-sw": x.id },
-      h("button", { type: "button", class: "sw-act sw-edit", tabindex: "-1", "aria-hidden": "true" }, icon("pencil", "ico sm"), "Edit"),
-      h("button", { type: "button", class: "sw-act sw-del", tabindex: "-1", "aria-hidden": "true" }, icon("trash", "ico sm"), "Delete"),
+      h("button", { type: "button", class: "sw-act sw-edit", tabindex: "-1", "aria-hidden": "true" }, h("span", { class: "sw-in" }, icon("pencil", "ico sm"), "Edit")),
+      h("button", { type: "button", class: "sw-act sw-del", tabindex: "-1", "aria-hidden": "true" }, h("span", { class: "sw-in" }, icon("trash", "ico sm"), "Delete")),
       h("button", { type: "button", class: "row sw-front", on: { click: () => txnSheet(x) } },
         dot,
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), sub ? h("span", { class: "row-sub" }, sub) : null),
@@ -1166,51 +1166,61 @@
     openSheet("Delete entry?", body, btn);
   }
 
-  const SW = { el: null, open: null, x0: 0, y0: 0, dx: 0, on: false, id: null, eat: false };
+  const SW = { el: null, open: null, x0: 0, y0: 0, dx: 0, on: false, eat: 0, t0: 0, w: 92 };
+  const swW = el => { const t = el.querySelector(".sw-del .sw-in"); return Math.max(88, Math.min(el.offsetWidth * 0.45, (t ? t.offsetWidth : 60) + 44)); };
   const swShut = el => { if (!el) return; el.classList.remove("sw-l", "sw-r", "sw-drag"); const f = el.querySelector(".sw-front"); if (f) f.style.transform = ""; if (SW.open === el) SW.open = null; };
   function initSwipe() {
-    const W = 92;
-    document.addEventListener("pointerdown", e => {
-      SW.eat = false;
-      const el = e.target.closest && e.target.closest(".swipe");
-      if (SW.open && SW.open !== el) { swShut(SW.open); SW.eat = !el && !e.target.closest(".sheet"); }
-      if (!el || e.button > 0 || !e.target.closest(".sw-front")) return;
-      SW.el = el; SW.x0 = e.clientX; SW.y0 = e.clientY; SW.dx = 0; SW.on = false;
-      SW.base = SW.open === el ? (el.classList.contains("sw-l") ? -W : W) : 0;
-    }, true);
-    document.addEventListener("pointermove", e => {
+    const rtl = () => document.dir === "rtl" ? -1 : 1;
+    const start = (x, y, target) => {
+      const el = target.closest && target.closest(".swipe");
+      if (SW.open && SW.open !== el) { swShut(SW.open); if (!el && !target.closest(".sheet")) SW.eat = Date.now() + 500; }
+      if (!el || !target.closest(".sw-front")) return;
+      SW.el = el; SW.x0 = x; SW.y0 = y; SW.dx = 0; SW.on = false; SW.t0 = Date.now(); SW.w = swW(el);
+      SW.base = SW.open === el ? (el.classList.contains("sw-l") ? -SW.w : SW.w) : 0;
+    };
+    const move = (x, y) => {
       const el = SW.el;
-      if (!el) return;
-      const dx = e.clientX - SW.x0, dy = e.clientY - SW.y0;
+      if (!el) return false;
+      const dx = x - SW.x0, dy = y - SW.y0;
       if (!SW.on) {
-        if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { SW.el = null; return; }
-        if (Math.abs(dx) < 10) return;
-        SW.on = true; el.classList.add("sw-drag");
+        if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx) * 0.8) { SW.el = null; return false; }
+        if (Math.abs(dx) < 8) return false;
+        SW.on = true; SW.x0 = x; el.classList.add("sw-drag");
+        return true;
       }
-      const rtl = document.dir === "rtl" ? -1 : 1;
-      let v = SW.base + dx * rtl;
+      let v = SW.base + (x - SW.x0) * rtl();
       v = Math.max(-el.offsetWidth * 0.8, Math.min(el.offsetWidth * 0.6, v));
       SW.dx = v;
       el.classList.toggle("sw-l", v < 0); el.classList.toggle("sw-r", v > 0);
-      el.querySelector(".sw-front").style.transform = `translateX(${v * rtl}px)`;
-    }, true);
+      el.querySelector(".sw-front").style.transform = `translateX(${v * rtl()}px)`;
+      return true;
+    };
     const end = () => {
       const el = SW.el;
       SW.el = null;
       if (!el || !SW.on) return;
-      SW.eat = true;
+      SW.eat = Date.now() + 500;
       el.classList.remove("sw-drag");
-      const v = SW.dx, f = el.querySelector(".sw-front"), rtl = document.dir === "rtl" ? -1 : 1;
+      const W = SW.w, v = SW.dx, f = el.querySelector(".sw-front"), fast = Date.now() - SW.t0 < 260;
       const x = S.data.transactions.get(el.dataset.sw);
-      if (v > W * 0.9 && x) { swShut(el); txnSheet(x); return; }
-      if (v < -W * 0.6) { el.classList.add("sw-l"); el.classList.remove("sw-r"); f.style.transform = `translateX(${-W * rtl}px)`; SW.open = el; return; }
+      const moved = v - SW.base;
+      if (x && (v > W * 0.9 || (fast && moved > 40 && SW.base >= 0))) { swShut(el); txnSheet(x); return; }
+      if (v < -W * 0.5 || (fast && moved < -40)) { el.classList.add("sw-l"); el.classList.remove("sw-r"); f.style.transform = `translateX(${-W * rtl()}px)`; SW.open = el; return; }
       swShut(el);
     };
-    document.addEventListener("pointerup", end, true);
-    document.addEventListener("pointercancel", () => { if (SW.el && !SW.on) SW.el = null; else end(); }, true);
+    const cancel = () => { if (SW.el && SW.on) end(); else SW.el = null; };
+    document.addEventListener("touchstart", e => { if (e.touches.length > 1) { cancel(); return; } const t = e.touches[0]; start(t.clientX, t.clientY, e.target); }, { capture: true, passive: true });
+    document.addEventListener("touchmove", e => { if (!SW.el) return; const t = e.touches[0]; if (move(t.clientX, t.clientY) && e.cancelable) e.preventDefault(); }, { capture: true, passive: false });
+    document.addEventListener("touchend", end, true);
+    document.addEventListener("touchcancel", cancel, true);
+    document.addEventListener("pointerdown", e => { if (e.pointerType === "touch" || e.button > 0) return; start(e.clientX, e.clientY, e.target); }, true);
+    document.addEventListener("pointermove", e => { if (e.pointerType !== "touch") move(e.clientX, e.clientY); }, true);
+    document.addEventListener("pointerup", e => { if (e.pointerType !== "touch") end(); }, true);
+    document.addEventListener("pointercancel", e => { if (e.pointerType !== "touch") cancel(); }, true);
+    document.addEventListener("contextmenu", e => { if (SW.on || (e.target.closest && e.target.closest(".swipe"))) e.preventDefault(); }, true);
     document.addEventListener("click", e => {
-      if (SW.eat) { SW.eat = false; if (!e.target.closest(".sw-act")) { e.preventDefault(); e.stopPropagation(); return; } }
       const act = e.target.closest && e.target.closest(".sw-act");
+      if (SW.eat > Date.now() && !act) { SW.eat = 0; e.preventDefault(); e.stopPropagation(); return; }
       if (!act) return;
       e.preventDefault(); e.stopPropagation();
       const el = act.closest(".swipe"), x = S.data.transactions.get(el.dataset.sw);
@@ -2223,6 +2233,10 @@
   }
 
   const CHANGES = [
+    { v: "3.39.0", items: [
+      ["swap", "Smoother swipe on Android", "Swiping an entry to edit or delete now works the same on Android, iPhone and computers."],
+      ["phone", "Fits every screen", "The number pad stays in view on small phones, and icons draw cleanly while you scroll."]
+    ] },
     { v: "3.38.0", items: [
       ["phone", "Quick add asks what it was for", "The iPhone Shortcut now lets you pick the category, the account and add a note. Use it by double-tapping the back of your iPhone or by saying “Hey Siri, Add expense”."]
     ] },
