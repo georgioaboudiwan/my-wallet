@@ -1474,7 +1474,10 @@ Object.assign(window.WALLET_I18N.words, {
   "pays you": ["vous paie", "يدفع لك"],
   "pays": ["paie", "يدفع لـ"],
   "I paid": ["J'ai payé", "دفعت"],
-  "Everyone in the group sees this list in their app. Tap Share to send it to people who don't use BudgetSplit.": ["Tout le groupe voit cette liste dans l'app. Touchez Partager pour l'envoyer à ceux qui n'utilisent pas BudgetSplit.", "يرى كل أعضاء المجموعة هذه القائمة في التطبيق. اضغط «شارك» لإرسالها لمن لا يستخدم BudgetSplit."]
+  "Everyone in the group sees this list in their app. Tap Share to send it to people who don't use BudgetSplit.": ["Tout le groupe voit cette liste dans l'app. Touchez Partager pour l'envoyer à ceux qui n'utilisent pas BudgetSplit.", "يرى كل أعضاء المجموعة هذه القائمة في التطبيق. اضغط «شارك» لإرسالها لمن لا يستخدم BudgetSplit."],
+  "A bill to pay every month": ["Une facture à payer chaque mois", "فاتورة تُدفع كل شهر"],
+  "Generator, internet, rent… with a reminder": ["Générateur, internet, loyer… avec un rappel", "مولّد، إنترنت، إيجار… مع تذكير"],
+  "Bill": ["Facture", "فاتورة"]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],

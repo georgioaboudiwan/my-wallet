@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.45.2";
+  const VERSION = "3.45.3";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2451,6 +2451,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.45.3", items: [
+      ["", "Bill in the + screen", "Tap + → More → A bill to pay every month."]
+    ] },
     { v: "3.45.2", items: [
       ["", "Add a bill from the + button", "Hold the + button and pick Bill. Useful after closing the Never miss a bill card."]
     ] },
@@ -5817,7 +5820,8 @@
       const menu = typeMenu ? h("div", { class: "tx-menu" },
         menuItem("swap", "Moved between my accounts", "Like cash to the bank, or to savings", () => setKind("transfer"), accounts.length < 2),
         menuItem("coin", "Lent or borrowed", "Money with a friend or family member", () => setKind("loan")),
-        menuItem("people", "Split a bill with friends", "Dinner, rent, a trip…", () => { closeSheet(); go("people"); setTimeout(newGroupSheet, 350); })) : null;
+        menuItem("people", "Split a bill with friends", "Dinner, rent, a trip…", () => { closeSheet(); go("people"); setTimeout(newGroupSheet, 350); }),
+        menuItem("bell", "A bill to pay every month", "Generator, internet, rent… with a reminder", () => { closeSheet(); setTimeout(() => billSheet(null), 350); })) : null;
 
       const chip = (k, lead, text) => h("button", { type: "button", class: "tx-chip" + (panel === k ? " on" : ""), "aria-expanded": String(panel === k), on: { click: () => open(k) } }, lead, h("span", null, text), icon("down", "ico sm"));
       const metas = h("div", { class: "tx-metas" },
