@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.44.2";
+  const VERSION = "3.45.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2450,6 +2450,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.45.0", items: [
+      ["", "Group totals", "Each group now shows a Totals card: what each person paid, their share, and whether they get money back or owe, plus the total spent together."]
+    ] },
     { v: "3.44.2", items: [
       ["", "Any currency for split groups", "New groups could only use currencies you already had (USD and LBP). Now the picker shows your currencies first, then every supported currency."]
     ] },
@@ -4300,6 +4303,25 @@
         h("button", { type: "button", class: "action", on: { click: () => groupEntrySheet(g.id, "expense") } }, h("span", { class: "action-ico" }, icon("cart")), "Expense"),
         h("button", { type: "button", class: "action", on: { click: () => groupEntrySheet(g.id, "loan") } }, h("span", { class: "action-ico" }, icon("up")), "Loan"),
         h("button", { type: "button", class: "action", on: { click: () => groupEntrySheet(g.id, "payment") } }, h("span", { class: "action-ico" }, icon("swap")), "Payment")));
+      if (g.entries.some(e => e.kind === "expense")) {
+        const paid = new Map(), share = new Map();
+        for (const e of g.entries) {
+          if (e.kind !== "expense") continue;
+          const payer = canon(g, e.payer);
+          paid.set(payer, (paid.get(payer) || 0) + e.amount);
+          for (const [k0, v] of Object.entries(e.shares)) { const k = canon(g, k0); share.set(k, (share.get(k) || 0) + (Number(v) || 0)); }
+        }
+        const total = [...paid.values()].reduce((t, v) => t + v, 0);
+        const tot = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Totals"), h("span", { class: "card-sub num" }, `${tr("Spent together")}: ${fmt(total, cur, { show: true })}`)));
+        for (const p of gParties(g)) {
+          const v = bal.get(p.id) || 0;
+          tot.append(h("div", { class: "row" + (p.me ? " me" : "") },
+            h("span", { class: "dot neutral" }, p.name.charAt(0).toUpperCase()),
+            h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.me ? tr("You") : p.name), h("span", { class: "row-sub" }, `${tr("Paid")} ${fmt(paid.get(p.id) || 0, cur)} · ${tr("Share")} ${fmt(share.get(p.id) || 0, cur)}`)),
+            h("span", { class: "row-end num" + (v > 0.005 ? " pos" : v < -0.005 ? " neg" : "") }, Math.abs(v) < 0.005 ? tr("Even") : (v > 0 ? `${tr("Gets")} ` : `${tr("Owes")} `) + fmt(Math.abs(v), cur))));
+        }
+        kids.push(tot);
+      }
       const settle = gSettle(g);
       const who = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Who owes whom")));
       for (const s of settle) who.append(h("div", { class: "row" + (s.from === memberKey(S.uid) || s.to === memberKey(S.uid) ? " me" : "") },

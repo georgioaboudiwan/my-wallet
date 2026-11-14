@@ -1638,3 +1638,4 @@ main.view.set-snap { transition: transform .25s var(--ease); }
 .sal-go { flex: none; font-weight: 700; color: var(--accent); font-size: 15px; }
 .sal-preview { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); font-weight: 650; font-size: 14.5px; }
 .danger-text { color: var(--neg) !important; }
+.card-head .card-sub { font-size: 13px; color: var(--muted); font-weight: 600; }
