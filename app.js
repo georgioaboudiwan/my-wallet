@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.27.1";
+  const VERSION = "3.27.2";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -756,7 +756,7 @@
     S.view = view;
     track("view", view);
     S.armed = null;
-    if (view === "settings") { PUSH.state = null; S.setPage = null; }
+    if (view === "settings") { S.setPage = null; loadPushState(); }
     if (view === "insights" || view === "plan") S.month = S.month || thisMonth();
     render();
     window.scrollTo(0, 0);
@@ -1329,7 +1329,12 @@
 
   function reminderCard() {
     if (store.get("remindAsk", "") === "no") return null;
-    if (PUSH.state === null) { loadPushState(); return null; }
+    if (PUSH.state === null) {
+      const known = store.get("pushState", null);
+      loadPushState();
+      if (!known) return null;
+      PUSH.state = known.state; PUSH.time = known.time;
+    }
     if (PUSH.state !== "off" && PUSH.state !== "install") return null;
     const later = h("button", { type: "button", class: "btn alt", on: { click: () => { store.set("remindAsk", "no"); render(); toast("You can turn it on later in Settings."); } } }, "Not now");
     if (PUSH.state === "install") return h("section", { class: "card remind" },
@@ -5015,18 +5020,26 @@
   async function loadPushState() {
     if (PUSH.loading) return;
     PUSH.loading = true;
-    let state = "off", time = PUSH.time || "21:00";
+    const known = store.get("pushState", null);
+    let state = known && known.state ? known.state : "off", time = PUSH.time || (known && known.time) || "21:00";
     try {
       if (!pushSupported()) state = /iPhone|iPad|iPod/.test(navigator.userAgent) && !isStandalone() ? "install" : "unsupported";
       else if (Notification.permission === "denied") state = "denied";
+      else if (Notification.permission !== "granted") state = "off";
       else {
         const reg = await navigator.serviceWorker.getRegistration();
         const sub = reg ? await reg.pushManager.getSubscription() : null;
-        const { data } = await sb.from("push_subs").select("enabled, remind_at").eq("id", deviceId()).maybeSingle();
-        if (data && data.remind_at) time = String(data.remind_at).slice(0, 5);
-        state = sub && data && data.enabled ? "on" : "off";
+        if (reg && !sub) state = "off";
+        else if (sub) {
+          const { data, error } = await sb.from("push_subs").select("enabled, remind_at").eq("id", deviceId()).maybeSingle();
+          if (!error) {
+            if (data && data.remind_at) time = String(data.remind_at).slice(0, 5);
+            state = data && data.enabled ? "on" : "off";
+          }
+        }
       }
-    } catch { state = "off"; }
+    } catch { }
+    if (state === "on" || state === "off") store.set("pushState", { state, time });
     PUSH.state = state; PUSH.time = time; PUSH.loading = false;
     if (S.view === "settings" || S.view === "home") render();
   }
@@ -5062,7 +5075,7 @@
       await sb.from("push_subs").delete().eq("endpoint", j.endpoint).neq("id", deviceId());
       const { error: e2 } = await sb.from("push_subs").upsert({ id: deviceId(), user_id: S.uid, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, remind_at: time, tz, enabled: true, last_sent: null }, { onConflict: "id" });
       if (e2) return toast("Couldn't save the reminder. Try again.", "error");
-      PUSH.state = "on"; PUSH.time = time;
+      PUSH.state = "on"; PUSH.time = time; store.set("pushState", { state: "on", time });
       toast(`Reminder set for ${time} every day.`);
     } catch {
       toast("Couldn't turn on notifications. Make sure BudgetSplit is opened from your Home Screen.", "error");
@@ -5079,7 +5092,7 @@
       const reg = await navigator.serviceWorker.getRegistration();
       const sub = reg ? await reg.pushManager.getSubscription() : null;
       if (sub) await sub.unsubscribe();
-      PUSH.state = "off";
+      PUSH.state = "off"; store.set("pushState", { state: "off", time: PUSH.time });
       toast("Daily reminder turned off.");
     } catch {
       toast("Couldn't turn it off. Try again.", "error");
