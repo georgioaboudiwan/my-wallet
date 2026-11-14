@@ -1287,3 +1287,14 @@ input[type="month"].input::-webkit-date-and-time-value, input[type="date"].input
 .adjust-note.down > .ico { color: var(--neg); }
 .adjust-note span { display: grid; gap: 2px; }
 .adjust-note small { color: var(--muted); font-size: 13px; }
+.chip.acc-chip { display: inline-flex; align-items: center; gap: 6px; }
+.chip.acc-chip .ico.sm { width: 15px; height: 15px; }
+.chip.acc-chip.on { color: #fff; border-color: transparent; background: #1f7a5c; }
+.chip.acc-chip.on.k-bank { background: #3b74d0; }
+.chip.acc-chip.on.k-card { background: #7a5cd6; }
+.chip.acc-chip.on.k-wallet { background: #e0534a; }
+.chip.acc-chip.on.k-savings { background: #d4a23c; }
+.acc-head .acc-top { gap: 10px; }
+.acc-head .acc-kind { margin-inline-start: auto; }
+.acc-x { width: 32px; height: 32px; border: 0; border-radius: 50%; display: grid; place-items: center; background: rgb(255 255 255 / .2); color: #fff; flex: none; position: relative; z-index: 1; }
+.acc-x:active { background: rgb(255 255 255 / .32); }

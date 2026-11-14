@@ -1041,3 +1041,4 @@ window.WALLET_I18N.patterns.push(
   ["^What (.+) had when you started\\. Everything else is calculated from your entries\\. Now: (.+)\\.$", "Ce que $1 avait au départ. Le reste est calculé à partir de vos opérations. Actuellement : $2.", "ما كان في $1 عند البدء. الباقي يُحسب من عملياتك. الآن: $2."]
 );
 Object.assign(window.WALLET_I18N.words, { "No entries in this account yet.": ["Aucune opération sur ce compte pour l'instant.", "لا عمليات في هذا الحساب بعد."] });
+Object.assign(window.WALLET_I18N.words, { "All accounts": ["Tous les comptes", "كل الحسابات"], "Show entries from": ["Afficher les opérations de", "عرض العمليات من"], "Show all accounts": ["Afficher tous les comptes", "عرض كل الحسابات"] });

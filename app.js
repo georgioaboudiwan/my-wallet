@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.27.2";
+  const VERSION = "3.27.3";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2280,17 +2280,30 @@
     return out;
   }
 
+  function accountFilterSheet() {
+    const bal = balances();
+    const pick = id => { closeSheet(); S.filter.account = id; S.limit = 150; render(); window.scrollTo(0, 0); };
+    const list = h("section", { class: "card flush" },
+      h("button", { type: "button", class: "row", on: { click: () => pick(null) } }, h("span", { class: "dot neutral" }, icon("list", "ico sm")), h("span", { class: "row-main" }, h("span", { class: "row-title" }, "All accounts")), !S.filter.account ? icon("check", "ico sm") : null),
+      ...rows("accounts").filter(a => !a.archived).sort(bySort).map(a => h("button", { type: "button", class: "row", on: { click: () => pick(a.id) } },
+        h("span", { class: "dot acc-dot k-" + (KIND_ICON[a.kind] ? a.kind : "cash") }, icon(KIND_ICON[a.kind] || "cash", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, a.name), h("span", { class: "row-sub" }, KIND_LABEL[a.kind] || "")),
+        h("span", { class: "row-end num" }, fmt(bal.get(a.id) || 0, a.currency)))));
+    openSheet("Show entries from", list);
+  }
+
   function viewActivity() {
     const out = h("div", { class: "stack" });
     const list = h("div", { class: "stack" });
     const search = h("input", { id: "q", type: "search", placeholder: "Search notes, categories, amounts", autocomplete: "off", enterkeyhint: "search", value: S.filter.q, "aria-label": "Search entries",
       on: { input: e => { S.filter.q = e.target.value; S.limit = 150; fill(); } } });
     const kinds = [["all", "All"], ["expense", "Expenses"], ["income", "Income"], ["transfer", "Transfers"], ["loan", "Loans"]];
+    const picked = S.filter.account && acc(S.filter.account);
     const chips = h("div", { class: "chips" },
-      kinds.map(([k, l]) => h("button", { type: "button", class: "chip", "aria-pressed": String(S.filter.kind === k), on: { click: () => { S.filter.kind = k; S.limit = 150; render(); } } }, l)),
-      S.filter.account && acc(S.filter.account)
-        ? h("button", { type: "button", class: "chip", "aria-pressed": "true", "aria-label": `Showing ${acc(S.filter.account).name} only. Tap to show all accounts.`, on: { click: () => { S.filter.account = null; render(); } } }, acc(S.filter.account).name, icon("close", "ico sm"))
-        : null);
+      picked
+        ? h("button", { type: "button", class: "chip acc-chip on k-" + (KIND_ICON[picked.kind] ? picked.kind : "cash"), "aria-label": `Showing ${picked.name} only. Tap to show all accounts.`, on: { click: () => { S.filter.account = null; render(); } } }, icon(KIND_ICON[picked.kind] || "cash", "ico sm"), picked.name, icon("close", "ico sm"))
+        : h("button", { type: "button", class: "chip acc-chip", on: { click: accountFilterSheet } }, icon("bank", "ico sm"), "All accounts", icon("down", "ico sm")),
+      kinds.map(([k, l]) => h("button", { type: "button", class: "chip", "aria-pressed": String(S.filter.kind === k), on: { click: () => { S.filter.kind = k; S.limit = 150; render(); } } }, l)));
 
     function fill() {
       const q = S.filter.q.trim().toLowerCase();
@@ -2306,7 +2319,8 @@
       const head = sel ? (() => {
         const v = balances().get(sel.id) || 0;
         return h("section", { class: "acc acc-head k-" + (KIND_ICON[sel.kind] ? sel.kind : "cash") },
-          h("span", { class: "acc-top" }, h("span", { class: "acc-ico" }, icon(KIND_ICON[sel.kind] || "cash", "ico sm")), h("span", { class: "acc-kind" }, `${KIND_LABEL[sel.kind] || ""} · ${curTag(sel.currency)}`)),
+          h("span", { class: "acc-top" }, h("span", { class: "acc-ico" }, icon(KIND_ICON[sel.kind] || "cash", "ico sm")), h("span", { class: "acc-kind" }, `${KIND_LABEL[sel.kind] || ""} · ${curTag(sel.currency)}`),
+            h("button", { type: "button", class: "acc-x", "aria-label": "Show all accounts", on: { click: () => { S.filter.account = null; render(); } } }, icon("close", "ico sm"))),
           h("span", { class: "acc-name" }, sel.name),
           h("span", { class: "acc-bal num" + (v < 0 ? " neg" : "") }, fmt(v, sel.currency)),
           sel.currency !== mainCur() ? h("small", { class: "acc-alt num" }, "≈ " + money(toMain(v, sel.currency), { whole: true })) : null,
