@@ -42,11 +42,13 @@
     ["debt", "Loan repayments", "expense", "savings", "#5b7083"],
     ["salary", "Salary", "income", null, "#2e9e6b"],
     ["freelance", "Freelance & side work", "income", null, "#3b7dd8"],
+    ["remit", "Family support & remittances", "income", null, "#0f8a6c"],
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.22.1";
+  const VERSION = "3.23.0";
   const ICONS = {
+    globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
     chart: "M3 3v18h18M7 15l4-4 3 3 6-6",
@@ -352,8 +354,8 @@
   const rows = t => [...S.data[t].values()];
   const acc = id => S.data.accounts.get(id);
   const cat = id => S.data.categories.get(id);
-  const CAT_ICON_KEYS = { groceries: "cart", home: "home", bills: "wifi", generator: "bolt", transport: "car", health: "heart", eating: "cup", shopping: "bag", fun: "star", subs: "repeat", gifts: "gift", debt: "bank", salary: "work", freelance: "laptop", giftsin: "gift", otherin: "coin" };
-  const CAT_ICON_WORDS = [[/grocer|food|super|market/i, "cart"], [/rent|home|house|apart/i, "home"], [/bill|internet|phone|mobile|wifi/i, "wifi"], [/generat|electric|power|ampere/i, "bolt"], [/fuel|petrol|car|transport|taxi|uber|bus/i, "car"], [/health|doctor|pharm|medic|hospital|gym/i, "heart"], [/eat|coffee|restaurant|lunch|dinner|cafe|drink/i, "cup"], [/shop|cloth|amazon/i, "bag"], [/fun|going out|movie|party|travel|trip/i, "star"], [/subscri|netflix|spotify|apple|icloud/i, "repeat"], [/gift|family/i, "gift"], [/loan|debt|bank|repay/i, "bank"], [/salary|work|job|wage/i, "work"], [/freelance|side|client/i, "laptop"]];
+  const CAT_ICON_KEYS = { groceries: "cart", home: "home", bills: "wifi", generator: "bolt", transport: "car", health: "heart", eating: "cup", shopping: "bag", fun: "star", subs: "repeat", gifts: "gift", debt: "bank", salary: "work", freelance: "laptop", giftsin: "gift", remit: "globe", otherin: "coin" };
+  const CAT_ICON_WORDS = [[/grocer|food|super|market/i, "cart"], [/rent|home|house|apart/i, "home"], [/bill|internet|phone|mobile|wifi/i, "wifi"], [/generat|electric|power|ampere/i, "bolt"], [/fuel|petrol|car|transport|taxi|uber|bus/i, "car"], [/health|doctor|pharm|medic|hospital|gym/i, "heart"], [/eat|coffee|restaurant|lunch|dinner|cafe|drink/i, "cup"], [/shop|cloth|amazon/i, "bag"], [/fun|going out|movie|party|travel|trip/i, "star"], [/subscri|netflix|spotify|apple|icloud/i, "repeat"], [/remit|abroad|transfer from|family support/i, "globe"], [/gift|family/i, "gift"], [/loan|debt|bank|repay/i, "bank"], [/salary|work|job|wage/i, "work"], [/freelance|side|client/i, "laptop"]];
   const catIconName = c => {
     if (!c) return null;
     const m = String(c.id).match(/:cat:([a-z]+)$/);
@@ -574,7 +576,17 @@
   }
 
   function ensureDefaults() {
-    if (settings().seeded) return;
+    if (settings().seeded) {
+      if (settings().remit) return;
+      const id = `${S.uid}:cat:remit`;
+      const items = [{ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), remit: true } } }];
+      if (!S.data.categories.has(id) && !rows("categories").some(c => c.kind === "income" && /remit/i.test(c.name))) {
+        const after = S.data.categories.get(`${S.uid}:cat:freelance`) || S.data.categories.get(`${S.uid}:cat:salary`);
+        items.unshift({ t: "categories", r: { id, name: "Family support & remittances", kind: "income", bucket: null, color: "#0f8a6c", budget: null, sort: after ? (after.sort || 0) + 0.5 : rows("categories").length } });
+      }
+      TRACK.mute = true; putMany(items); TRACK.mute = false;
+      return;
+    }
     if (S.data.accounts.size || S.data.categories.size) return saveSettings({ seeded: true });
     const p = S.uid;
     const items = [];
@@ -1781,6 +1793,11 @@
   }
 
   const CHANGES = [
+    { v: "3.23.0", items: [
+      ["coin", "Change a starting balance in one tap", "Open an account from Home and tap Starting balance at the bottom. Just the amount, no note or category."],
+      ["globe", "Family support & remittances", "A new income category for money family or friends send you, from Lebanon or abroad."],
+      ["users", "See who you invited", "Groups now show the email you sent each invite to."]
+    ] },
     { v: "3.22.0", items: [
       ["users", "Groups of two can go back to a loan", "If you made a group and it's only you and one other person, open it and tap Turn back into a loan. The history and balance stay the same."]
     ] },
@@ -2174,8 +2191,13 @@
         const c = cat(x.category_id), a = acc(x.account_id), b = acc(x.to_account_id);
         return [x.note, c && c.name, a && a.name, b && b.name, String(x.amount), isLoanTx(x) ? loanTitle(x) : null].some(v => v && String(v).toLowerCase().includes(q));
       }).sort(byRecent);
+      const fa = S.filter.account && !q && S.filter.kind === "all" ? acc(S.filter.account) : null;
+      const startCard = fa ? h("section", { class: "card flush" }, h("button", { type: "button", class: "row", on: { click: () => openingSheet(fa) } },
+        h("span", { class: "dot neutral" }, icon("coin", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Starting balance"), h("span", { class: "row-sub" }, "What the account had when you added it. Tap to change")),
+        h("span", { class: "row-end num" }, fmt(Number(fa.opening_balance) || 0, fa.currency)))) : null;
       if (!matches.length) {
-        list.replaceChildren(h("p", { class: "empty" }, q || S.filter.kind !== "all" || S.filter.account ? "No entries match your search." : "No entries yet. Tap + to add one."));
+        list.replaceChildren(...[h("p", { class: "empty" }, q || S.filter.kind !== "all" || S.filter.account ? "No entries match your search." : "No entries yet. Tap + to add one."), startCard].filter(Boolean));
         return;
       }
       const shown = matches.slice(0, S.limit);
@@ -2188,6 +2210,7 @@
           xs.map(txnRow));
       });
       if (matches.length > shown.length) cards.push(h("button", { type: "button", class: "btn alt", on: { click: () => { S.limit += 300; fill(); } } }, `Show more (${matches.length - shown.length})`));
+      else if (startCard) cards.push(startCard);
       list.replaceChildren(...cards);
     }
     fill();
@@ -2985,7 +3008,7 @@
             } catch { }
           }
           entries.sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
-          next.set(g.id, { id: g.id, created_by: g.created_by, joined: row.joined, invited_by: ((ms.data || []).find(x => x.group_id === g.id && x.user_id === S.uid) || {}).invited_by, meta: { name: String(meta.name || "Group").slice(0, 40), currency: CUR_RE.test(String(meta.currency)) ? meta.currency : "USD", guests: Array.isArray(meta.guests) ? meta.guests.filter(x => x && typeof x.id === "string" && typeof x.name === "string").slice(0, 30) : [], claims: meta.claims && typeof meta.claims === "object" ? Object.fromEntries(Object.entries(meta.claims).filter(([k, v]) => typeof k === "string" && /^[0-9a-f-]{36}$/i.test(String(v)))) : {} }, members, entries });
+          next.set(g.id, { id: g.id, created_by: g.created_by, joined: row.joined, invited_by: ((ms.data || []).find(x => x.group_id === g.id && x.user_id === S.uid) || {}).invited_by, meta: { name: String(meta.name || "Group").slice(0, 40), currency: CUR_RE.test(String(meta.currency)) ? meta.currency : "USD", guests: Array.isArray(meta.guests) ? meta.guests.filter(x => x && typeof x.id === "string" && typeof x.name === "string").slice(0, 30) : [], claims: meta.claims && typeof meta.claims === "object" ? Object.fromEntries(Object.entries(meta.claims).filter(([k, v]) => typeof k === "string" && /^[0-9a-f-]{36}$/i.test(String(v)))) : {}, emails: meta.emails && typeof meta.emails === "object" ? Object.fromEntries(Object.entries(meta.emails).filter(([k, v]) => /^[gue]:/.test(k) && typeof v === "string" && /^[^@\s<>]{1,64}@[^@\s<>]{1,190}$/.test(v)).slice(0, 60)) : {} }, members, entries });
         }
       }
       const before = GROUPS.list;
@@ -3052,6 +3075,7 @@
     }
     return out.filter(x => x.amount > 0);
   }
+  const inviteEmail = (g, key) => { const e = (g.meta.emails || {})[key]; return typeof e === "string" && e.length <= 254 ? e : null; };
   const myGroupBalance = g => gBalances(g).get(memberKey(S.uid)) || 0;
   function groupTotals() {
     let owed = 0, owe = 0;
@@ -3184,10 +3208,11 @@
       for (const p of gParties(g)) {
         const v = bal.get(p.id) || 0;
         mem.append(h(p.guest ? "button" : "div", { class: "row", type: p.guest ? "button" : null, on: p.guest ? { click: () => guestSheet(g.id, p.id.slice(2)) } : null }, h("span", { class: "dot neutral" }, p.name.charAt(0).toUpperCase()),
-          h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" }, p.guest ? "Name only, no app" : p.me ? "You" : "Uses BudgetSplit")),
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" }, p.me ? "You" : inviteEmail(g, p.id) ? (p.guest ? `Invited · ${inviteEmail(g, p.id)}` : inviteEmail(g, p.id)) : p.guest ? "Name only, no app" : "Uses BudgetSplit")),
           h("span", { class: "row-end num" + (v > 0.005 ? " pos" : v < -0.005 ? " neg" : "") }, Math.abs(v) < 0.005 ? "0" : (v > 0 ? "+" : "−") + fmt(Math.abs(v), cur))));
       }
-      for (const m of g.members.filter(x => !x.joined)) mem.append(h("div", { class: "row pending" }, h("span", { class: "dot neutral" }, "?"), h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Invited"), h("span", { class: "row-sub" }, "Hasn't answered yet"))));
+      for (const m of g.members.filter(x => !x.joined)) mem.append(h("div", { class: "row pending" }, h("span", { class: "dot neutral" }, "?"), h("span", { class: "row-main" }, h("span", { class: "row-title" }, inviteEmail(g, m.id) || "Invited"), h("span", { class: "row-sub" }, "Has the app · hasn't answered yet"))));
+      for (const [k, addr] of Object.entries(g.meta.emails || {})) if (k.startsWith("e:")) mem.append(h("div", { class: "row pending" }, h("span", { class: "dot neutral" }, "@"), h("span", { class: "row-main" }, h("span", { class: "row-title" }, addr), h("span", { class: "row-sub" }, "Invited by email · waiting for them to sign up"))));
       kids.push(mem);
       const parties = gParties(g);
       if (g.created_by === S.uid && parties.length === 2 && g.members.length <= 2) {
@@ -3535,7 +3560,7 @@
       closeSheet();
       await loadGroups(true);
       let msg = `${p.name}'s loan is now a shared group. Add more people or invite ${p.name} by email.`;
-      if (email && GROUPS.list.get(id)) { try { const r = await emailInvite(GROUPS.list.get(id), email, guestId); msg = inviteMessage(r, email); await loadGroups(true); } catch { msg = "The group is ready, but the request couldn't be sent. Open the group and try again."; } }
+      if (email) { try { const r = await emailInvite(GROUPS.list.get(id) || { id, meta, members: [], entries: [] }, email, guestId); msg = inviteMessage(r, email); await loadGroups(true); } catch { msg = "The group is ready, but the request couldn't be sent. Open the group and try again."; } }
       go("people");
       setTimeout(() => groupSheet(id), 350);
       toast(msg);
@@ -3562,6 +3587,11 @@
       groupPing(g.id, data.user_id);
       invited = true;
     }
+    const emails = { ...(g.meta.emails || {}) };
+    if (guestId) emails["g:" + guestId] = addr;
+    if (data && data.user_id) emails["u:" + data.user_id] = addr;
+    if (!guestId && !(data && data.user_id)) emails["e:" + addr] = addr;
+    try { await saveGroupMeta(g, { emails }); } catch { }
     let mail = null;
     try { mail = (await sb.functions.invoke("send-invite", { body: { group_id: g.id, email: addr, name: settings().name || "", existing: !!(data && data.user_id) } })).data; } catch { mail = null; }
     if (invited) sb.from("group_email_invites").delete().eq("group_id", g.id).eq("email", addr).then(() => { }, () => { });
@@ -3583,14 +3613,17 @@
         const { data } = await sb.rpc("resolve_email_invites", { p_group: g.id });
         if (!data || !data.length) continue;
         const claims = { ...(g.meta.claims || {}) };
+        const emails = { ...(g.meta.emails || {}) };
         for (const r of data) {
           const res = await sb.rpc("invite_to_group", { p_group: g.id, p_user: r.user_id, p_sealed: await sealTo(r.pub, GROUPS.keys.get(g.id)) });
           if (res.error) continue;
           if (r.guest_id) claims[r.guest_id] = r.user_id;
+          emails["u:" + r.user_id] = r.email;
+          delete emails["e:" + r.email];
           groupPing(g.id, r.user_id);
           await sb.from("group_email_invites").delete().eq("id", r.id);
         }
-        if (JSON.stringify(claims) !== JSON.stringify(g.meta.claims || {})) await saveGroupMeta(g, { claims });
+        if (JSON.stringify(claims) !== JSON.stringify(g.meta.claims || {}) || JSON.stringify(emails) !== JSON.stringify(g.meta.emails || {})) await saveGroupMeta(g, { claims, emails });
       } catch { }
     }
   }
@@ -4640,6 +4673,25 @@
       } } }, icon("trash", "ico sm"));
     }
     openSheet(x ? "Edit entry" : "New entry", body, saveBtn, { fill: true, headBtn });
+  }
+
+  function openingSheet(a) {
+    const f = { v: String(Number(a.opening_balance) || 0) };
+    const err = h("p", { class: "form-err", role: "alert" });
+    const body = h("form", { class: "form", id: "open-form", novalidate: true },
+      h("p", { class: "hint" }, `The money ${a.name} had when you started using the app. Changing it moves the balance by the same amount. No note or category needed.`),
+      h("label", { class: "field" }, h("span", null, `Starting balance (${curSymbol(a.currency)})`), h("input", { id: "f-open", class: "input num", inputmode: "decimal", autocomplete: "off", value: f.v, on: { input: e => { f.v = e.target.value; } } })),
+      err);
+    const btn = h("button", { type: "submit", class: "btn", form: "open-form" }, "Save");
+    body.addEventListener("submit", ev => {
+      ev.preventDefault();
+      const v = parseSigned(f.v);
+      if (v === null) return fail(err, "Enter the balance as a number, like 250 or -40.", document.getElementById("f-open"));
+      put("accounts", { ...a, opening_balance: roundCur(v, a.currency) });
+      closeSheet();
+      toast(`Starting balance saved. ${a.name} now has ${fmt((balances().get(a.id) || 0), a.currency, { show: true })}.`);
+    });
+    openSheet("Starting balance", body, btn);
   }
 
   function accountSheet(a) {

@@ -967,3 +967,20 @@ Object.assign(window.WALLET_I18N.words, {
   "Groups of two can go back to a loan": ["Les groupes de deux peuvent redevenir un prêt", "يمكن لمجموعات الشخصين أن تعود قرضًا"],
   "If you made a group and it's only you and one other person, open it and tap Turn back into a loan. The history and balance stay the same.": ["Si vous avez créé un groupe avec une seule autre personne, ouvrez-le et touchez Refaire un prêt. L'historique et le solde restent identiques.", "إذا أنشأت مجموعة فيها أنت وشخص واحد فقط، افتحها واضغط «أعده قرضًا». يبقى السجل والرصيد كما هما."]
 });
+Object.assign(window.WALLET_I18N.words, {
+  "Family support & remittances": ["Aide familiale & transferts", "مساعدات عائلية وتحويلات"],
+  "What the account had when you added it. Tap to change": ["Ce que le compte avait à l'ajout. Touchez pour modifier", "ما كان في الحساب عند إضافته. اضغط للتعديل"],
+  "Change a starting balance in one tap": ["Modifiez un solde de départ en un geste", "عدّل الرصيد الافتتاحي بلمسة"],
+  "Open an account from Home and tap Starting balance at the bottom. Just the amount, no note or category.": ["Ouvrez un compte depuis l'Accueil et touchez Solde de départ en bas. Juste le montant, sans note ni catégorie.", "افتح حسابًا من الرئيسية واضغط «الرصيد الافتتاحي» في الأسفل. المبلغ فقط، بلا ملاحظة أو فئة."],
+  "A new income category for money family or friends send you, from Lebanon or abroad.": ["Une nouvelle catégorie de revenu pour l'argent envoyé par la famille ou des amis, du Liban ou de l'étranger.", "فئة دخل جديدة للأموال التي يرسلها لك الأهل أو الأصدقاء من لبنان أو من الخارج."],
+  "See who you invited": ["Voyez qui vous avez invité", "اعرف من دعوت"],
+  "Groups now show the email you sent each invite to.": ["Les groupes affichent maintenant l'e-mail de chaque invitation.", "تعرض المجموعات الآن البريد الذي أُرسلت إليه كل دعوة."],
+  "Has the app · hasn't answered yet": ["A l'app · n'a pas encore répondu", "لديه التطبيق · لم يرد بعد"],
+  "Invited by email · waiting for them to sign up": ["Invité par e-mail · en attente d'inscription", "مدعو بالبريد · بانتظار تسجيله"]
+});
+window.WALLET_I18N.patterns.push(
+  ["^Invited · (.+)$", "Invité · $1", "مدعو · $1"],
+  ["^The money (.+) had when you started using the app\\. Changing it moves the balance by the same amount\\. No note or category needed\\.$", "L'argent que $1 avait quand vous avez commencé. Le modifier change le solde du même montant. Ni note ni catégorie.", "المال الذي كان في $1 عند بدء استخدام التطبيق. تغييره يغيّر الرصيد بالمبلغ نفسه. بلا ملاحظة أو فئة."],
+  ["^Starting balance \\((.+)\\)$", "Solde de départ ($1)", "الرصيد الافتتاحي ($1)"],
+  ["^Starting balance saved\\. (.+) now has (.+)\\.$", "Solde de départ enregistré. $1 a maintenant $2.", "تم حفظ الرصيد الافتتاحي. أصبح في $1 ‏$2."]
+);
