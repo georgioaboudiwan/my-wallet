@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.42.2";
+  const VERSION = "3.43.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -103,6 +103,11 @@
     cal: "M3 9h18M8 3v4M16 3v4M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z",
     note: "M4 20h4L18.5 9.5a2.8 2.8 0 0 0-4-4L4 16z",
     repeat: "M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3",
+    sun: "M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4L7 17M17 7l1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
+    moon: "M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z",
+    chip: "M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3M7 6h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM10 10h4v4h-4z",
+    user: "M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8",
+    tag: "M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9zM7.5 7.5h.01",
     warn: "M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"
   };
 
@@ -114,6 +119,7 @@
     filter: { q: "", kind: "all", account: null }, limit: 150,
     restore: null, armed: null
   };
+  applyTheme();
   let sb = null;
   let renderQueued = false;
   const scheduleRender = () => {
@@ -349,7 +355,7 @@
     S.last = store.get("last", {});
     S.outbox = store.get("outbox", []);
     S.syncedAt = store.get("syncedAt", null);
-    S.hidden = store.get("hidden", false);
+    S.hidden = store.get("hidden", false) || !!storedSettings().hideOnStart;
     loadGroupCache();
     LINKED.clear();
     const cachedLinks = store.get("linked", []);
@@ -1602,7 +1608,7 @@
   function reminderPill() {
     const on = PUSH.state === "on";
     const act = () => {
-      if (on) { go("settings"); S.setPage = "reminders"; return render(); }
+      if (on) { go("settings"); settingsOpen("notifications"); return; }
       if (PUSH.state === "install") return toast("Add BudgetSplit to your Home Screen first, then open it from there.");
       if (PUSH.state === "denied") return toast("Notifications are blocked. Allow them in iPhone Settings → Notifications → Wallet.", "error");
       if (PUSH.state === "unsupported") return toast("This browser can't show notifications.", "error");
@@ -2370,6 +2376,11 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.43.0", items: [
+      ["", "Settings redesign", "Profile card with sync status, search across every setting, 4 quick switches (App lock, Daily reminder, Hide amounts, Note required), colored sections: Money, App, Privacy and data, Help, Account."],
+      ["", "Swipe back and back button", "Sub-pages slide in, swipe from the left edge (right in Arabic) to go back; Android back button and browser back work too."],
+      ["", "New: Appearance, Defaults, Advanced", "Light/Dark/Automatic theme, start with amounts hidden, default pay-from account, check for updates, refresh the app, reload from server, diagnostics with copy (no amounts or notes)."]
+    ] },
     { v: "3.41.0", items: [
       ["", "Hidden: salary confirmation on payday", "Picking Salary under Received turns on Every month by itself. On each payday, Home asks “Did your salary come in?” (Yes, Other amount, Not yet) and only adds it after a yes. Not shown in What's new."],
     ] },
@@ -2385,6 +2396,10 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.43.0", items: [
+      ["gear", "A cleaner Settings", "Everything is grouped and easy to find, with a search box and quick switches at the top. Swipe from the edge to go back."],
+      ["eye", "Light or dark, your choice", "Pick Light, Dark or Match my phone in Settings → Appearance. You can also start with amounts hidden."]
+    ] },
     { v: "3.40.0", items: [
       ["phone", "Quick add sets itself up", "No more copying and pasting a key. Add the Shortcut, tap Connect, and it's linked to your account."]
     ] },
@@ -3307,7 +3322,8 @@
       h("button", { type: "button", class: "row", on: { click: () => quickSheet() } }, h("span", { class: "dot neutral" }, icon("plus", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Add without opening the app"), h("span", { class: "row-sub wrap" }, quickOn ? "On. Tap to see the setup or turn it off" : "Tap the back of your iPhone or say “Hey Siri, Add expense”")), icon("fwd"))));
 
-    out.append(group("Your name", h("div", { class: "row" }, h("span", { class: "row-main" }, nameIn, h("span", { class: "row-sub", style: { marginTop: "6px" } }, "Shown on the private pages you share")))));
+    out.append(group("Your name", h("div", { class: "row" }, h("span", { class: "row-main" }, nameIn, h("span", { class: "row-sub", style: { marginTop: "6px" } }, "Shown on the private pages you share")))),
+      group("Signed in as", h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("mail", "ico sm")), h("span", { class: "row-main" }, h("span", { class: "row-title" }, S.email || "Signed in"), h("span", { class: "row-sub" }, "Your data syncs to every device you sign in on")))));
 
     const fileInput = h("input", { id: "s-restore", type: "file", accept: "application/json,.json", class: "vh", on: { change: onRestoreFile } });
     const importInput = h("input", { id: "s-import", type: "file", accept: ".csv,text/csv", class: "vh", on: { change: onImportFile } });
@@ -3341,8 +3357,8 @@
       h("button", { type: "button", class: "row-btn", on: { click: helpSheet } }, "How each screen works"),
       h("button", { type: "button", class: "row-btn", on: { click: () => whatsNewSheet(true) } }, "What's new"),
       h("p", { class: "hint group-note" }, "To improve the app, it counts when you open it and which screens and buttons you use. It never sends your amounts, notes, names or accounts.")));
-    out.append(group("Language",
-      h("div", { class: "row lang-row" }, seg(Object.entries(LANGS), LANG, setLang, "Language"))));
+    out.append(group("Language", ...Object.entries(LANGS).map(([code, name]) => h("button", { type: "button", class: "row set-pick" + (code === LANG ? " on" : ""), "aria-pressed": String(code === LANG), on: { click: () => setLang(code) } },
+      h("span", { class: "dot neutral lang-dot" }, code.toUpperCase()), h("span", { class: "row-main" }, h("span", { class: "row-title" }, name)), code === LANG ? icon("check", "ico sm pick-check") : null))));
     out.append(group("Security",
       h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("shield", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "App lock"), h("span", { class: "row-sub" }, lockSupported() ? "Ask for Face ID or your passcode when the app opens" : "Not available in this browser")),
@@ -3363,37 +3379,238 @@
       nav("Privacy and your data", "What is stored and who can see it", privacySheet, "eye")));
     out.append(group("Account",
       h("div", { class: "row" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, S.email || "Signed in"), h("span", { class: "row-sub" }, "Your data syncs to every device you sign in on"))),
-      h("button", { type: "button", class: "row-btn danger", on: { click: deleteAccountSheet } }, "Delete account"),
       h("button", { type: "button", class: "row-btn danger", on: { click: () => { if (armed) signOut(); else { S.armed = "signout"; render(); } } } },
-        armed ? (pending ? `Sign out and lose ${pending} unsynced changes?` : "Tap again to sign out") : "Sign out")));
-    const PAGES = [
-      ["general", "General", "Language, your name, currency and notes", "gear", ["Language", "Your name", "Currency", "Entries", "Help"]],
-      ["money", "Accounts and categories", "Accounts, categories and repeating entries", "bank", ["Accounts", "Spending categories", "Income categories", "Every month"]],
-      ["reminders", "Reminders and quick add", "Daily notification and adding from the Lock Screen", "bell", ["Reminders", "Daily reminder", "Quick add"]],
-      ["data", "Sync and backup", "Sync, export, import and restore", "sync", ["Sync", "Your data"]],
-      ["security", "Security and account", "App lock, password, privacy and sign out", "shield", ["Security", "Account"]],
-      ["admin", "Admin", "Users, activity and server health", "users", ["Admin"]]
-    ];
+        armed ? (pending ? `Sign out and lose ${pending} unsynced changes?` : "Tap again to sign out") : "Sign out"),
+      h("button", { type: "button", class: "row-btn danger", on: { click: deleteAccountSheet } }, "Delete account")));
+    const theme = themePref();
+    const ss = storedSettings();
+    out.append(group("Appearance",
+      ...[["system", "Match my phone", "Light or dark, like the rest of your phone", "phone"], ["light", "Light", "Always light", "sun"], ["dark", "Dark", "Always dark", "moon"]].map(([k, t, sub, ic]) => h("button", { type: "button", class: "row set-pick" + (theme === k ? " on" : ""), "aria-pressed": String(theme === k), on: { click: () => setTheme(k) } },
+        h("span", { class: "dot neutral" }, icon(ic, "ico sm")), h("span", { class: "row-main" }, h("span", { class: "row-title" }, t), h("span", { class: "row-sub" }, sub)), theme === k ? icon("check", "ico sm pick-check") : null)),
+      h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("eyeOff", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Start with amounts hidden"), h("span", { class: "row-sub wrap" }, "Handy in public. Tap the eye at the top to show them.")),
+        h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(!!ss.hideOnStart), "aria-label": "Start with amounts hidden", on: { click: () => saveSettings({ hideOnStart: !ss.hideOnStart }) } }, h("span", { class: "knob" })))));
+    const liveAccs = rows("accounts").filter(o => !o.archived).sort(bySort);
+    out.append(group("Defaults",
+      h("label", { class: "row" }, h("span", { class: "dot neutral" }, icon("cash", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Pay from by default"), h("span", { class: "row-sub wrap" }, "The account picked first when you add an expense")),
+        h("select", { id: "s-defacc", class: "input mini-select", "aria-label": "Pay from by default", on: { change: e => saveSettings({ defAcc: e.target.value || "" }) } },
+          h("option", { value: "", selected: !ss.defAcc }, tr("Last used")),
+          ...liveAccs.map(o => h("option", { value: o.id, selected: ss.defAcc === o.id }, o.name))))));
+    out.append(group("Advanced",
+      h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("chip", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, `Version ${VERSION}`), h("span", { class: "row-sub wrap" }, "Updates install by themselves when you open the app"))),
+      h("button", { type: "button", class: "row-btn", on: { click: checkUpdate } }, "Check for updates now"),
+      h("button", { type: "button", class: "row-btn", on: { click: async () => {
+        if (!navigator.onLine) return toast("Connect to the internet to reload your data.", "error");
+        if (S.outbox.length) await flush().catch(() => { });
+        S.fullPull = true;
+        await sync();
+        toast("Reloaded from the server. This device now matches your other devices.");
+      } } }, "Reload everything from the server"),
+      h("button", { type: "button", class: "row-btn", on: { click: refreshApp } }, "Refresh the app"),
+      h("p", { class: "hint group-note" }, "Refresh the app clears saved app files on this device and loads the newest ones. Your data stays.")));
+    out.append(group("Diagnostics", ...diagRows().map(([k, v]) => h("div", { class: "row diag-row" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, k)), h("span", { class: "row-end" }, v))),
+      h("button", { type: "button", class: "row-btn", on: { click: copyDiag } }, "Copy diagnostics"),
+      h("p", { class: "hint group-note" }, "Diagnostics never include your amounts, notes or names. Send them to support if something looks wrong.")));
+
     const sections = [...out.children].filter(el => el.dataset && el.dataset.key);
-    const page = PAGES.find(p => p[0] === S.setPage);
+    const pushOn = PUSH.state === "on";
+    const lockOn = !!lockCfg();
+    const count = n => n ? String(n) : "";
+    const PAGES = [
+      { id: "profile", t: "Profile", keys: ["Your name", "Signed in as"] },
+      { id: "accounts", t: "Accounts", ic: "bank", c: "#3b74d0", keys: ["Accounts"], v: count(rows("accounts").filter(o => !o.archived).length), sec: "Money" },
+      { id: "categories", t: "Categories", ic: "tag", c: "#c14a87", keys: ["Spending categories", "Income categories"], v: count(rows("categories").length), sec: "Money" },
+      { id: "repeat", t: "Repeating and bills", ic: "repeat", c: "#7a5cd6", keys: ["Every month"], v: count(rows("rules").length), sec: "Money" },
+      { id: "currency", t: "Currency and rates", ic: "coin", c: "#d4a23c", keys: ["Currency"], v: mainCur(), sec: "Money" },
+      { id: "appearance", t: "Appearance", ic: "sun", c: "#2f74c9", keys: ["Appearance"], v: tr(theme === "light" ? "Light" : theme === "dark" ? "Dark" : "Automatic"), sec: "App" },
+      { id: "language", t: "Language", ic: "globe", c: "#0d7a59", keys: ["Language"], v: LANGS[LANG], sec: "App" },
+      { id: "notifications", t: "Notifications", ic: "bell", c: "#e0534a", keys: ["Daily reminder", "Email"], v: pushOn ? (PUSH.time || "21:00") : tr("Off"), sec: "App" },
+      { id: "quick", t: "Add without opening the app", ic: "plus", c: "#0f8a6c", fn: () => quickSheet(), v: store.get("quickToken", null) ? tr("On") : "", sec: "App" },
+      { id: "entries", t: "Entries and defaults", ic: "note", c: "#5b7083", keys: ["Entries", "Defaults"], sec: "App" },
+      { id: "security", t: "Security", ic: "shield", c: "#1f7a5c", keys: ["Security"], v: lockOn ? tr("Locked") : "", sec: "Privacy and data" },
+      { id: "data", t: "Sync and backup", ic: "sync", c: "#3b74d0", keys: ["Sync", "Your data"], v: S.outbox.length ? `${S.outbox.length} ${tr("waiting")}` : tr(navigator.onLine ? "Synced" : "Offline"), sec: "Privacy and data" },
+      { id: "privacy", t: "Privacy", ic: "eye", c: "#5b7083", fn: privacySheet, sec: "Privacy and data" },
+      { id: "help", t: "Help and tour", ic: "help", c: "#d4a23c", keys: ["Help"], sec: "Help" },
+      { id: "news", t: "What's new", ic: "star", c: "#e0534a", fn: () => whatsNewSheet(true), sec: "Help" },
+      { id: "advanced", t: "Advanced", ic: "chip", c: "#334155", keys: ["Advanced", "Diagnostics"], sec: "Help" },
+      { id: "admin", t: "Admin dashboard", ic: "users", c: "#b8892a", fn: () => go("admin"), sec: "Admin", only: () => ADMIN.allowed },
+      { id: "account", t: "Account", ic: "user", c: "#c03e2d", keys: ["Account"], v: "", sec: "Account" }
+    ].filter(p => !p.only || p.only());
+    const page = PAGES.find(p => p.id === S.setPage && p.keys);
     if (page) {
-      const keep = sections.filter(el => page[4].includes(el.dataset.key));
+      const keep = sections.filter(el => page.keys.includes(el.dataset.key));
       out.replaceChildren(
-        h("button", { type: "button", class: "back-row", on: { click: () => { S.setPage = null; render(); toTop(); } } }, icon("back", "ico"), h("span", null, "Settings")),
+        h("button", { type: "button", class: "back-row", on: { click: settingsBack } }, icon("back", "ico"), h("span", null, "Settings")),
         ...keep);
-      shell.title.textContent = tr(page[1]);
+      out.classList.add("set-page");
+      shell.title.textContent = tr(page.t);
+      if (S.setFocus) { const k = S.setFocus; S.setFocus = null; requestAnimationFrame(() => { const el = [...document.querySelectorAll("main .group")].find(g => g.dataset.key === k); if (el) { el.scrollIntoView({ block: "center", behavior: "smooth" }); el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 1600); } }); }
       return out;
     }
-    const menu = h("section", { class: "card flush" });
-    for (const [id, title, sub, ic, keys] of PAGES) {
-      if (!sections.some(el => keys.includes(el.dataset.key))) continue;
-      menu.append(h("button", { type: "button", class: "row", on: { click: () => { S.setPage = id; render(); toTop(); } } },
-        h("span", { class: "dot neutral" }, icon(ic, "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), h("span", { class: "row-sub wrap" }, sub)),
-        icon("fwd")));
+    const openPage = p => { if (p.fn) return p.fn(); settingsOpen(p.id); };
+    const ico = p => h("span", { class: "set-ico", style: { "--c": p.c } }, icon(p.ic, "ico sm"));
+    const q = (S.setQuery || "").trim().toLowerCase();
+    const name = settings().name;
+    const syncTxt = !navigator.onLine ? tr("Offline") : S.syncError ? tr("Couldn't sync") : S.outbox.length ? `${S.outbox.length} ${tr("waiting")}` : tr("Up to date");
+    const profile = h("button", { type: "button", class: "set-profile", on: { click: () => settingsOpen("profile") } },
+      h("span", { class: "set-avatar" }, (name || S.email || "?").trim().charAt(0).toUpperCase()),
+      h("span", { class: "set-who" }, h("strong", null, name || tr("Add your name")), h("small", null, S.email || "")),
+      h("span", { class: "set-sync" + (S.syncError || !navigator.onLine ? " bad" : S.outbox.length ? " wait" : "") }, h("i"), syncTxt));
+    const search = h("label", { class: "set-search" }, icon("search", "ico sm"),
+      h("input", { id: "set-q", type: "search", class: "set-q", placeholder: tr("Search settings"), autocomplete: "off", value: S.setQuery || "", "aria-label": "Search settings", on: { input: e => { S.setQuery = e.target.value; render(); } } }),
+      q ? h("button", { type: "button", class: "set-q-x", "aria-label": "Clear", on: { click: () => { S.setQuery = ""; render(); } } }, icon("close", "ico sm")) : null);
+    const kids = [profile, search];
+    if (q) {
+      const hits = [];
+      const seen = new Set();
+      for (const p of PAGES) {
+        if (tr(p.t).toLowerCase().includes(q) || p.t.toLowerCase().includes(q)) { hits.push({ label: tr(p.t), where: tr(p.sec || "Settings"), go: () => { S.setQuery = ""; openPage(p); }, p }); seen.add(p.id + ":"); }
+        for (const el of sections.filter(g => p.keys && p.keys.includes(g.dataset.key))) {
+          for (const t of el.querySelectorAll(".row-title, .row-btn, .group-title")) {
+            const txt = t.textContent.trim();
+            if (!txt || !txt.toLowerCase().includes(q) || seen.has(p.id + ":" + txt)) continue;
+            seen.add(p.id + ":" + txt);
+            hits.push({ label: txt, where: tr(p.t), go: () => { S.setQuery = ""; S.setFocus = el.dataset.key; settingsOpen(p.id); }, p });
+          }
+        }
+      }
+      kids.push(hits.length
+        ? h("section", { class: "card flush set-list" }, hits.slice(0, 30).map(x => h("button", { type: "button", class: "row", on: { click: x.go } }, ico(x.p), h("span", { class: "row-main" }, h("span", { class: "row-title" }, x.label), h("span", { class: "row-sub" }, x.where)), icon("fwd"))))
+        : h("p", { class: "empty" }, "No setting matches that."));
+      out.replaceChildren(...kids);
+      return out;
     }
-    out.replaceChildren(menu, h("p", { class: "about" }, `BudgetSplit · Version ${VERSION}`));
+    const quickToggle = (ic, label, onNow, fn, disabled) => h("button", { type: "button", class: "set-tile" + (onNow ? " on" : ""), "aria-pressed": String(!!onNow), disabled: !!disabled, on: { click: fn } },
+      icon(ic, "ico sm"), h("span", null, label), h("small", null, tr(onNow ? "On" : "Off")));
+    kids.push(h("div", { class: "set-tiles" },
+      quickToggle("lock", "App lock", lockOn, () => (lockOn ? disableLock() : enableLock()), !lockSupported()),
+      quickToggle("bell", "Daily reminder", pushOn, () => pushOn ? disablePush() : PUSH.state === "off" ? enablePush(PUSH.time || "21:00") : settingsOpen("notifications")),
+      quickToggle("eyeOff", "Hide amounts", S.hidden, () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); }),
+      quickToggle("note", "Note required", settings().noteRequired, () => saveSettings({ noteRequired: !settings().noteRequired }))));
+    for (const sec of ["Money", "App", "Privacy and data", "Help", "Admin", "Account"]) {
+      const list = PAGES.filter(p => p.sec === sec);
+      if (!list.length) continue;
+      kids.push(h("section", { class: "group" }, h("h2", { class: "group-title" }, sec),
+        h("div", { class: "card flush set-list" }, list.map(p => h("button", { type: "button", class: "row", on: { click: () => openPage(p) } },
+          ico(p), h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.t)), p.v ? h("span", { class: "set-val" }, p.v) : null, icon("fwd"))))));
+    }
+    kids.push(h("p", { class: "about" }, `BudgetSplit · Version ${VERSION}`));
+    out.replaceChildren(...kids);
     return out;
+  }
+
+  function themePref() { try { const v = localStorage.getItem("wallet:theme"); return v === "light" || v === "dark" ? v : "system"; } catch { return "system"; } }
+  function applyTheme() {
+    const v = themePref();
+    if (v === "system") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", v);
+    const dark = v === "dark" || (v === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    const meta = document.getElementById("theme-color");
+    if (meta) meta.setAttribute("content", dark ? "#070f0c" : "#edf2ee");
+    document.documentElement.style.backgroundColor = dark ? "#070f0c" : "#edf2ee";
+  }
+  function setTheme(v) {
+    try { if (v === "system") localStorage.removeItem("wallet:theme"); else localStorage.setItem("wallet:theme", v); } catch { }
+    applyTheme();
+    track("set", "theme_" + v);
+    render();
+  }
+  function settingsOpen(id) {
+    S.setPage = id;
+    try { history.pushState({ sp: id }, ""); } catch { }
+    if (shell) { shell.main.classList.remove("set-back"); shell.main.classList.add("set-in"); setTimeout(() => shell && shell.main.classList.remove("set-in"), 320); }
+    render();
+    toTop();
+  }
+  function settingsBack() {
+    if (history.state && history.state.sp) { history.back(); return; }
+    settingsClose();
+  }
+  function settingsClose() {
+    if (!S.setPage) return;
+    S.setPage = null;
+    if (shell) { shell.main.style.transform = ""; shell.main.classList.remove("set-in"); shell.main.classList.add("set-back"); setTimeout(() => shell && shell.main.classList.remove("set-back"), 320); }
+    render();
+    toTop();
+  }
+  window.addEventListener("popstate", () => { if (S.view === "settings" && S.setPage) settingsClose(); });
+  function initSettingsSwipe() {
+    const SWB = { on: false, x0: 0, y0: 0, dx: 0, live: false, t0: 0 };
+    document.addEventListener("touchstart", e => {
+      SWB.on = false;
+      if (S.view !== "settings" || !S.setPage || e.touches.length > 1 || document.querySelector(".overlay.open")) return;
+      const t = e.touches[0], rtl = document.dir === "rtl";
+      const edge = rtl ? innerWidth - t.clientX : t.clientX;
+      if (edge > 32) return;
+      Object.assign(SWB, { on: true, x0: t.clientX, y0: t.clientY, dx: 0, live: false, t0: Date.now() });
+    }, { passive: true });
+    document.addEventListener("touchmove", e => {
+      if (!SWB.on) return;
+      const t = e.touches[0], rtl = document.dir === "rtl" ? -1 : 1;
+      const dx = (t.clientX - SWB.x0) * rtl, dy = t.clientY - SWB.y0;
+      if (!SWB.live) {
+        if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { SWB.on = false; return; }
+        if (dx < 8) return;
+        SWB.live = true;
+        shell.main.classList.add("set-drag");
+      }
+      if (e.cancelable) e.preventDefault();
+      SWB.dx = Math.max(0, dx);
+      shell.main.style.transform = `translateX(${SWB.dx * rtl}px)`;
+    }, { passive: false });
+    const end = () => {
+      if (!SWB.on) return;
+      SWB.on = false;
+      if (!SWB.live) return;
+      shell.main.classList.remove("set-drag");
+      const fast = SWB.dx > 60 && Date.now() - SWB.t0 < 300;
+      if (SWB.dx > innerWidth * 0.33 || fast) { shell.main.style.transform = ""; settingsBack(); }
+      else { shell.main.classList.add("set-snap"); shell.main.style.transform = ""; setTimeout(() => shell.main.classList.remove("set-snap"), 260); }
+    };
+    document.addEventListener("touchend", end, true);
+    document.addEventListener("touchcancel", end, true);
+  }
+  function diagRows() {
+    const n = t => rows(t).length;
+    let bytes = 0;
+    try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith("wallet:")) bytes += (localStorage.getItem(k) || "").length * 2; } } catch { }
+    const standalone = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+    return [
+      ["Entries", String(n("transactions"))],
+      ["Accounts", String(n("accounts"))],
+      ["Categories", String(n("categories"))],
+      ["Repeating", String(n("rules"))],
+      ["People", String(n("people"))],
+      ["Groups", String(GROUPS.list.size)],
+      ["Waiting to sync", String(S.outbox.length)],
+      ["Last synced", S.syncedAt ? ago(S.syncedAt) : tr("Never")],
+      ["Saved on this device", bytes > 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`],
+      ["Installed on Home Screen", tr(standalone ? "Yes" : "No")],
+      ["Notifications", tr(PUSH.state === "on" ? "On" : PUSH.state === "denied" ? "Blocked" : "Off")],
+      ["Online", tr(navigator.onLine ? "Yes" : "No")]
+    ];
+  }
+  async function copyDiag() {
+    const text = [`BudgetSplit ${VERSION}`, `${navigator.userAgent}`, `Language: ${LANG} · Theme: ${themePref()}`, ...diagRows().map(([k, v]) => `${k}: ${v}`)].join("\n");
+    try { await navigator.clipboard.writeText(text); toast("Diagnostics copied."); } catch { toast("Couldn't copy. Try again.", "error"); }
+  }
+  async function checkUpdate() {
+    if (!navigator.onLine) return toast("Connect to the internet to check for updates.", "error");
+    if (!("serviceWorker" in navigator)) return toast("You're on the latest version.");
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) return toast("You're on the latest version.");
+      await reg.update();
+      if (reg.installing || reg.waiting) { toast("Updating… the app will restart in a moment."); return; }
+      toast("You're on the latest version.");
+    } catch { toast("Couldn't check right now. Try again.", "error"); }
+  }
+  async function refreshApp() {
+    if (!navigator.onLine) return toast("Connect to the internet first.", "error");
+    try { if (S.outbox.length) await flush(); } catch { }
+    try { if (window.caches) for (const k of await caches.keys()) await caches.delete(k); } catch { }
+    location.reload();
   }
 
   const LINK_RE = /^[A-Za-z0-9_-]{32,64}\.[A-Za-z0-9_-]{43}$/;
@@ -5327,6 +5544,7 @@
     const accounts = rows("accounts").filter(a => !a.archived || (x && (a.id === x.account_id || a.id === x.to_account_id))).sort(bySort);
     if (!accounts.length) { toast("Add an account first."); go("settings"); return; }
     const lastAcc = k => { const id = store.get("lastAcc:" + k, null); return acc(id) && !acc(id).archived ? id : null; };
+    const defAcc = () => { const id = storedSettings().defAcc; return id && acc(id) && !acc(id).archived ? id : null; };
     const f = x
       ? { kind: x.kind, amount: String(Number(x.amount)), account: x.account_id, to: x.to_account_id, toAmount: x.to_amount != null ? String(Number(x.to_amount)) : "", toTouched: true, category: x.category_id, date: x.occurred_on, note: x.note || "", repeat: false }
       : { kind: "expense", amount: "", account: null, to: null, toAmount: "", toTouched: false, category: null, date: today(), note: "", repeat: false };
@@ -5378,7 +5596,7 @@
     const bal = balances();
 
     const pick = () => {
-      if (!f.account || !acc(f.account)) f.account = lastAcc(f.kind) || accounts[0].id;
+      if (!f.account || !acc(f.account)) f.account = (f.kind === "expense" && defAcc()) || lastAcc(f.kind) || accounts[0].id;
       if (f.kind === "transfer" && (!f.to || f.to === f.account || !acc(f.to))) {
         const other = accounts.find(a => a.id !== f.account && a.kind === "savings") || accounts.find(a => a.id !== f.account);
         f.to = other ? other.id : null;
@@ -6565,13 +6783,8 @@
   }
 
   const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
-  const syncThemeColor = () => {
-    const meta = document.getElementById("theme-color");
-    if (meta) meta.setAttribute("content", darkQuery.matches ? "#070f0c" : "#edf2ee");
-    document.documentElement.style.backgroundColor = darkQuery.matches ? "#070f0c" : "#edf2ee";
-  };
-  syncThemeColor();
-  if (darkQuery.addEventListener) darkQuery.addEventListener("change", syncThemeColor);
+  applyTheme();
+  if (darkQuery.addEventListener) darkQuery.addEventListener("change", applyTheme);
   window.addEventListener("hashchange", () => { if (location.hash !== "#add" && location.hash !== "#split" && location.hash !== "") location.reload(); });
   if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", e => {
     if (!e.data || !S.session) return;
@@ -6603,5 +6816,6 @@
     });
   })();
   initSwipe();
+  initSettingsSwipe();
   start();
 })();
