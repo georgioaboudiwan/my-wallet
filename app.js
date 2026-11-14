@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.27.3";
+  const VERSION = "3.28.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1710,7 +1710,31 @@
   }
 
   function onboardSheet() {
-    const f = { step: 1, cur: mainCur(), income: "", bal: {} };
+    const f = { step: 1, cur: mainCur(), income: "", bal: {}, picks: null };
+    const STEPS = 4;
+    const lebanese = () => f.cur === "USD" || f.cur === "LBP";
+    const templates = () => {
+      const c = f.cur, leb = lebanese(), base = leb ? "USD" : c;
+      return [
+        { k: "cash-usd", name: leb ? "Cash (dollars)" : "Cash", currency: base, kind: "cash", hint: "Money in your pocket", on: true },
+        leb ? { k: "cash-lbp", name: "Cash (lira)", currency: "LBP", kind: "cash", hint: "Lebanese pounds", on: true } : null,
+        { k: "bank", name: "Bank account", currency: base, kind: "bank", hint: "Current or salary account", on: true },
+        { k: "card", name: "Credit card", currency: base, kind: "card", hint: "What you spend on credit", on: false },
+        { k: "whish", name: leb ? "Whish" : "E-wallet", currency: base, kind: "wallet", hint: leb ? "Whish Money wallet" : "PayPal, Revolut, Apple Cash…", on: leb },
+        { k: "savings", name: "Savings", currency: base, kind: "savings", hint: "Money you put aside", on: true }
+      ].filter(Boolean);
+    };
+    const applyAccounts = () => {
+      const p = S.uid, list = templates(), items = [];
+      const used = id => rows("transactions").some(x => x.account_id === id || x.to_account_id === id);
+      list.forEach((t, i) => {
+        const id = `${p}:acc:${t.k}`, cur = acc(id);
+        if (f.picks[t.k]) items.push({ t: "accounts", r: { ...(cur || {}), id, name: t.name, currency: cur && used(id) ? cur.currency : t.currency, kind: t.kind, opening_balance: cur ? cur.opening_balance : 0, sort: i, archived: false } });
+      });
+      if (items.length) putMany(items);
+      const keep = new Set(list.filter(t => f.picks[t.k]).map(t => `${p}:acc:${t.k}`));
+      for (const a of rows("accounts")) if (String(a.id).startsWith(`${p}:acc:`) && !keep.has(a.id) && !used(a.id) && !Number(a.opening_balance)) removeRow("accounts", a);
+    };
     const body = h("form", { class: "form onboard", id: "ob-form", novalidate: true });
     const err = h("p", { class: "form-err", role: "alert" });
     const next = h("button", { type: "submit", class: "btn", form: "ob-form" });
@@ -1729,28 +1753,40 @@
       if (items.length) putMany(items);
       saveSettings({ onboarded: true, ...(income ? { incomeMode: "fixed", incomeSteps: { [thisMonth()]: income } } : {}) });
       closeSheet();
-      toast("Your wallet is ready.");
+      toast("You're all set.");
     };
     const draw = () => {
       err.textContent = "";
-      const head = h("div", { class: "onboard-head" }, h("small", null, `Step ${f.step} of 3`), h("div", { class: "bar" }, h("span", { style: { width: (f.step / 3 * 100) + "%" } })));
+      const head = h("div", { class: "onboard-head" }, h("small", null, `Step ${f.step} of ${STEPS}`), h("div", { class: "bar" }, h("span", { style: { width: (f.step / STEPS * 100) + "%" } })));
       let kids;
       if (f.step === 1) kids = [h("h3", null, "Which currency do you think in?"), h("p", { class: "hint" }, "Totals and budgets are shown in it. You can still hold accounts in other currencies."),
         h("div", { class: "chips wrap" }, ["USD", "LBP", "EUR", "AED", "SAR", "GBP"].map(c => h("button", { type: "button", class: "chip", "aria-pressed": String(f.cur === c), on: { click: () => { f.cur = c; draw(); } } }, `${c} · ${curInfo(c).name}`))),
         curSelect("ob-cur", f.cur, c => { f.cur = c; draw(); })];
-      else if (f.step === 2) kids = [h("h3", null, "What is your monthly income?"), h("p", { class: "hint" }, "Leave it empty if it changes every month. The plan will follow what you log."),
+      else if (f.step === 2) {
+        if (!f.picks || f.picks.cur !== f.cur) f.picks = Object.fromEntries([["cur", f.cur], ...templates().map(t => [t.k, t.on])]);
+        kids = [h("h3", null, "Which accounts do you use?"), h("p", { class: "hint" }, "Pick where you keep your money. You can add, rename or hide accounts later in Settings."),
+          h("div", { class: "ob-accs" }, templates().map(t => h("button", { type: "button", class: "ob-acc" + (f.picks[t.k] ? " on" : ""), "aria-pressed": String(!!f.picks[t.k]), on: { click: () => { f.picks[t.k] = !f.picks[t.k]; draw(); } } },
+            h("span", { class: "dot acc-dot k-" + t.kind }, icon(KIND_ICON[t.kind], "ico sm")),
+            h("span", { class: "row-main" }, h("span", { class: "row-title" }, `${t.name} · ${curTag(t.currency)}`), h("span", { class: "row-sub" }, t.hint)),
+            h("span", { class: "ob-check" }, f.picks[t.k] ? icon("check", "ico sm") : null))))];
+      }
+      else if (f.step === 3) kids = [h("h3", null, "What is your monthly income?"), h("p", { class: "hint" }, "Leave it empty if it changes every month. The plan will follow what you log."),
         h("input", { id: "ob-income", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: `${curSymbol(f.cur)} 1500`, value: f.income, "aria-label": "Monthly income", on: { input: e => { f.income = e.target.value; } } })];
       else kids = [h("h3", null, "How much do you have right now?"), h("p", { class: "hint" }, "Enter today's balance for the accounts you use. Skip the rest."),
         ...rows("accounts").filter(a => !a.archived).sort(bySort).map(a => h("label", { class: "field" }, h("span", null, `${tr(a.name)} (${a.currency})`),
           h("input", { class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.bal[a.id] || "", on: { input: e => { f.bal[a.id] = e.target.value; } } })))];
       body.replaceChildren(head, ...kids, err, h("button", { type: "button", class: "link-btn", on: { click: () => finish(true) } }, "Skip for now"));
       back.style.display = f.step === 1 ? "none" : "";
-      next.textContent = tr(f.step === 3 ? "Finish" : "Continue");
+      next.textContent = tr(f.step === STEPS ? "Finish" : "Continue");
     };
     body.addEventListener("submit", ev => {
       ev.preventDefault();
-      if (f.step === 2 && f.income.trim() && !parseAmt(f.income)) return fail(err, "Enter the amount as a number, like 1500.", document.getElementById("ob-income"));
-      if (f.step === 3) {
+      if (f.step === 2) {
+        if (!templates().some(t => f.picks[t.k])) return fail(err, "Pick at least one account.");
+        applyAccounts();
+      }
+      if (f.step === 3 && f.income.trim() && !parseAmt(f.income)) return fail(err, "Enter the amount as a number, like 1500.", document.getElementById("ob-income"));
+      if (f.step === STEPS) {
         if (Object.values(f.bal).some(v => v.trim() && !parseAmt(v))) return fail(err, "Enter each balance as a number, like 250.");
         return finish(false);
       }
@@ -1765,7 +1801,7 @@
       [".hero", "Total balance", "Everything you have across all your accounts, in your main currency. The small pills show each currency separately."],
       [".eye-btn", "Hide amounts", "Tap the eye to hide every number, for example when someone is looking at your screen."],
       [".gear-btn", "Settings", "Accounts, categories, reminders, language, security and backups."],
-      [".acts", "Quick actions", "Expense is money you spent. Income is money you received. Transfer moves money between your own accounts. Plan shows how your income is divided."],
+      [".acts", "Quick actions", "Expense is money you spent. Income is money you received. Transfer moves money between your own accounts. Split shares a bill with friends or records a loan."],
       [".tiles", "Your day and month", "What you spent today and this month, and how much you can still spend per day to stay on plan."],
       [".month-card", "Month plan", "How much of this month's plan is used. Tap it to change your income or your groups."],
       [".quick", "Quick add", "Your most used categories. Tap one to add an expense already filed in that category."],
@@ -1883,6 +1919,10 @@
   }
 
   const CHANGES = [
+    { v: "3.28.0", items: [
+      ["users", "Split is one tap away", "Tap Split on Home to share a bill with friends or record a loan. The Split tab now shows how it works and where to start."],
+      ["bank", "Pick your accounts when you start", "New users choose which accounts they use, with the right currency for where they live."]
+    ] },
     { v: "3.27.0", items: [
       ["pencil", "Change an account's balance the right way", "Open an account and tap Change balance. Enter what it has now, then say where the extra money came from or what it was used for. It's saved as an entry, so your history adds up."],
       ["coin", "Starting balance stays simple", "The starting balance can still be changed any time without questions. Everything else is calculated from it."]
@@ -2157,7 +2197,7 @@
       act("Expense", "down", "neg", () => txnSheet(null, { kind: "expense" })),
       act("Income", "up", "pos", () => txnSheet(null, { kind: "income" })),
       act("Transfer", "swap", "gold", () => txnSheet(null, { kind: "transfer" })),
-      act("Plan", "plan", "plain", () => { S.month = m; go("plan"); })));
+      act("Split", "people", "plain", splitChooser)));
 
     const spentToday = s.days.get(today()) || 0;
     out.append(h("div", { class: "tiles" },
@@ -2251,6 +2291,13 @@
         }),
         h("button", { type: "button", class: "acc acc-add", on: { click: () => accountSheet(null) } }, h("span", { class: "acc-ico" }, icon("plus", "ico sm")), h("span", { class: "acc-name" }, "Add account"), h("small", null, "Cash, bank, card, Whish…"))));
     out.append(accCard);
+    if (!rows("people").length && !GROUPS.list.size && !store.get("splitTeaserOff", false)) {
+      out.append(h("section", { class: "split-teaser" },
+        h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("splitTeaserOff", true); render(); } } }, icon("close", "ico sm")),
+        h("span", { class: "split-badge" }, icon("people", "ico sm")),
+        h("div", null, h("strong", null, "Share costs with friends"), h("small", null, "Split a dinner, the rent or a trip, or track money you lent. Everyone sees who owes whom.")),
+        h("button", { type: "button", class: "btn sm", on: { click: splitChooser } }, "Try Split")));
+    }
 
     if (txns.length) {
       const recent = h("section", { class: "card flush col-b" }, h("div", { class: "card-head" }, h("h2", null, "Recent"), h("button", { type: "button", class: "link-btn", on: { click: () => { S.filter = { q: "", kind: "all", account: null }; go("activity"); } } }, "See all")));
@@ -3238,6 +3285,30 @@
     return { owed, owe };
   }
 
+  function splitChooser() {
+    const opt = (ic, title, sub, fn) => h("button", { type: "button", class: "split-opt", on: { click: () => { closeSheet(); setTimeout(fn, 330); } } },
+      h("span", { class: "split-opt-ico" }, icon(ic)), h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), h("span", { class: "row-sub wrap" }, sub)), icon("chev", "ico sm"));
+    openSheet("Split", h("div", { class: "form" },
+      opt("people", "Split a bill or a trip", "Rent, dinner, a trip… Add everyone, then each expense is split and the app tells who owes whom.", () => { go("people"); newGroupSheet(); }),
+      opt("up", "Lend or borrow money", "Keep track of money you lent to someone or borrowed, and get it back on time.", () => { go("people"); personSheet(null); }),
+      h("button", { type: "button", class: "btn alt", on: { click: () => { closeSheet(); go("people"); } } }, "Open Split")));
+  }
+
+  function splitIntro(big) {
+    const step = (n, title, sub) => h("div", { class: "split-step" }, h("span", { class: "split-num" }, n), h("span", null, h("strong", null, title), h("small", null, sub)));
+    return h("section", { class: "split-hero" + (big ? "" : " slim") },
+      h("div", { class: "split-hero-top" },
+        h("span", { class: "split-badge" }, icon("people", "ico sm")),
+        h("div", null, h("h2", null, big ? "Split bills. Track loans." : "Split or lend"), big ? h("p", null, "Share costs with friends, family or roommates, and never forget who owes what.") : null)),
+      big ? h("div", { class: "split-steps" },
+        step("1", "Create a group", "Like “Trip to Faraya” or “House”."),
+        step("2", "Add what was paid", "Pick who paid and who shares it."),
+        step("3", "See who owes whom", "Settle up with one payment each.")) : null,
+      h("div", { class: "split-ctas" },
+        h("button", { type: "button", class: "btn", on: { click: newGroupSheet } }, icon("people", "ico sm"), "Split a bill"),
+        h("button", { type: "button", class: "btn alt", on: { click: () => personSheet(null) } }, icon("up", "ico sm"), "Lend or borrow")));
+  }
+
   function groupsCard() {
     const list = [...GROUPS.list.values()];
     const card = h("section", { class: "card flush groups-card" }, h("div", { class: "card-head" }, h("h2", null, "Shared groups"), h("button", { type: "button", class: "link-btn", on: { click: newGroupSheet } }, "New")));
@@ -3877,6 +3948,8 @@
     out.append(h("div", { class: "tiles two" },
       h("div", { class: "tile good" }, h("small", null, "Owed to you"), h("strong", null, money(owed))),
       h("div", { class: "tile" + (owe > 0 ? " bad" : "") }, h("small", null, "You owe"), h("strong", null, money(owe)))));
+    const fresh = !people.length && !GROUPS.list.size;
+    out.append(splitIntro(fresh));
     out.append(groupsCard());
     const list = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Your loans")));
     for (const p of people) {

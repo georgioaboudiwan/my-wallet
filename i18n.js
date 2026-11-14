@@ -1042,3 +1042,43 @@ window.WALLET_I18N.patterns.push(
 );
 Object.assign(window.WALLET_I18N.words, { "No entries in this account yet.": ["Aucune opération sur ce compte pour l'instant.", "لا عمليات في هذا الحساب بعد."] });
 Object.assign(window.WALLET_I18N.words, { "All accounts": ["Tous les comptes", "كل الحسابات"], "Show entries from": ["Afficher les opérations de", "عرض العمليات من"], "Show all accounts": ["Afficher tous les comptes", "عرض كل الحسابات"] });
+Object.assign(window.WALLET_I18N.words, {
+  "Which accounts do you use?": ["Quels comptes utilisez-vous ?", "ما الحسابات التي تستخدمها؟"],
+  "Pick where you keep your money. You can add, rename or hide accounts later in Settings.": ["Choisissez où vous gardez votre argent. Vous pourrez ajouter, renommer ou masquer des comptes dans Réglages.", "اختر أين تحتفظ بأموالك. يمكنك إضافة الحسابات أو إعادة تسميتها أو إخفاؤها لاحقًا من الإعدادات."],
+  "Pick at least one account.": ["Choisissez au moins un compte.", "اختر حسابًا واحدًا على الأقل."],
+  "Money in your pocket": ["L'argent dans votre poche", "المال في جيبك"],
+  "Lebanese pounds": ["Livres libanaises", "الليرة اللبنانية"],
+  "Current or salary account": ["Compte courant ou salaire", "حساب جارٍ أو حساب الراتب"],
+  "What you spend on credit": ["Ce que vous dépensez à crédit", "ما تصرفه بالبطاقة الائتمانية"],
+  "Credit card": ["Carte de crédit", "بطاقة ائتمان"],
+  "Whish Money wallet": ["Portefeuille Whish Money", "محفظة Whish Money"],
+  "E-wallet": ["Portefeuille mobile", "محفظة إلكترونية"],
+  "PayPal, Revolut, Apple Cash…": ["PayPal, Revolut, Apple Cash…", "PayPal وRevolut وApple Cash…"],
+  "Money you put aside": ["L'argent mis de côté", "المال الذي تدّخره"],
+  "Cash": ["Espèces", "نقد"],
+  "Split a bill or a trip": ["Partager une note ou un voyage", "قسّم فاتورة أو رحلة"],
+  "Rent, dinner, a trip… Add everyone, then each expense is split and the app tells who owes whom.": ["Loyer, dîner, voyage… Ajoutez tout le monde, chaque dépense est partagée et l'app indique qui doit quoi.", "إيجار، عشاء، رحلة… أضف الجميع فتُقسَّم كل نفقة ويخبرك التطبيق من يدين لمن."],
+  "Lend or borrow money": ["Prêter ou emprunter de l'argent", "أقرض أو استدن مالًا"],
+  "Keep track of money you lent to someone or borrowed, and get it back on time.": ["Suivez l'argent prêté ou emprunté et récupérez-le à temps.", "تابع المال الذي أقرضته أو استدنته واستعده في وقته."],
+  "Open Split": ["Ouvrir Partage", "افتح التقسيم"],
+  "Split bills. Track loans.": ["Partagez les notes. Suivez les prêts.", "قسّم الفواتير. تابع القروض."],
+  "Split or lend": ["Partager ou prêter", "قسّم أو أقرض"],
+  "Share costs with friends, family or roommates, and never forget who owes what.": ["Partagez les frais avec amis, famille ou colocataires, sans jamais oublier qui doit quoi.", "تقاسم المصاريف مع الأصدقاء أو العائلة أو شركاء السكن، ولا تنسَ أبدًا من يدين بماذا."],
+  "Create a group": ["Créez un groupe", "أنشئ مجموعة"],
+  "Like “Trip to Faraya” or “House”.": ["Comme « Voyage à Faraya » ou « Maison ».", "مثل «رحلة إلى فاريا» أو «البيت»."],
+  "Add what was paid": ["Ajoutez ce qui a été payé", "أضف ما دُفع"],
+  "Pick who paid and who shares it.": ["Choisissez qui a payé et qui partage.", "اختر من دفع ومن يتقاسم."],
+  "See who owes whom": ["Voyez qui doit à qui", "اعرف من يدين لمن"],
+  "Settle up with one payment each.": ["Réglez avec un seul paiement chacun.", "سدّد بدفعة واحدة لكل شخص."],
+  "Split a bill": ["Partager une note", "قسّم فاتورة"],
+  "Lend or borrow": ["Prêter ou emprunter", "أقرض أو استدن"],
+  "Share costs with friends": ["Partagez les frais entre amis", "تقاسم المصاريف مع الأصدقاء"],
+  "Split a dinner, the rent or a trip, or track money you lent. Everyone sees who owes whom.": ["Partagez un dîner, le loyer ou un voyage, ou suivez un prêt. Chacun voit qui doit à qui.", "قسّم عشاءً أو الإيجار أو رحلة، أو تابع مالًا أقرضته. الجميع يرى من يدين لمن."],
+  "Try Split": ["Essayer", "جرّب"],
+  "Hide": ["Masquer", "إخفاء"],
+  "Split is one tap away": ["Partage en un geste", "التقسيم بلمسة واحدة"],
+  "Tap Split on Home to share a bill with friends or record a loan. The Split tab now shows how it works and where to start.": ["Touchez Partage sur l'Accueil pour partager une note ou noter un prêt. L'onglet Partage explique maintenant comment commencer.", "اضغط «تقسيم» في الرئيسية لتقاسم فاتورة أو تسجيل قرض. تبويب التقسيم يشرح الآن كيف تبدأ."],
+  "Pick your accounts when you start": ["Choisissez vos comptes au départ", "اختر حساباتك عند البدء"],
+  "New users choose which accounts they use, with the right currency for where they live.": ["Les nouveaux utilisateurs choisissent leurs comptes, dans la bonne devise selon leur pays.", "يختار المستخدمون الجدد حساباتهم بالعملة المناسبة لبلدهم."]
+});
+Object.assign(window.WALLET_I18N.words, { "You're all set.": ["Tout est prêt.", "كل شيء جاهز."] });

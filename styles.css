@@ -1298,3 +1298,38 @@ input[type="month"].input::-webkit-date-and-time-value, input[type="date"].input
 .acc-head .acc-kind { margin-inline-start: auto; }
 .acc-x { width: 32px; height: 32px; border: 0; border-radius: 50%; display: grid; place-items: center; background: rgb(255 255 255 / .2); color: #fff; flex: none; position: relative; z-index: 1; }
 .acc-x:active { background: rgb(255 255 255 / .32); }
+.ob-accs { display: grid; gap: 8px; }
+.ob-acc { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 18px; background: var(--card); color: inherit; text-align: start; transition: border-color .15s, background .15s; }
+.ob-acc.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--card)); }
+.ob-acc:not(.on) .dot { filter: grayscale(.85); opacity: .55; }
+.ob-check { width: 26px; height: 26px; border-radius: 50%; flex: none; display: grid; place-items: center; border: 1.5px solid var(--line); color: var(--on-accent); }
+.ob-acc.on .ob-check { background: var(--accent); border-color: var(--accent); }
+.split-hero { position: relative; overflow: hidden; display: grid; gap: 16px; padding: 20px; border-radius: var(--r-lg); color: #fff; background: radial-gradient(120% 90% at 100% 0%, rgb(246 196 83 / .28), transparent 55%), linear-gradient(150deg, #3a5bd0, #6b3fb5); box-shadow: var(--shadow-lift); }
+.split-hero::after { content: ""; position: absolute; right: -50px; top: -50px; width: 170px; height: 170px; border-radius: 50%; border: 1px solid rgb(255 255 255 / .18); box-shadow: 0 0 0 18px rgb(255 255 255 / .05), 0 0 0 36px rgb(255 255 255 / .03); pointer-events: none; }
+.split-hero > * { position: relative; z-index: 1; }
+.split-hero-top { display: flex; gap: 14px; align-items: center; }
+.split-hero h2 { font-size: 22px; line-height: 1.15; letter-spacing: -.02em; }
+.split-hero p { margin-top: 4px; font-size: 14.5px; opacity: .88; }
+.split-hero.slim { padding: 14px 16px; gap: 12px; }
+.split-hero.slim h2 { font-size: 17px; }
+.split-badge { width: 46px; height: 46px; border-radius: 15px; flex: none; display: grid; place-items: center; background: rgb(255 255 255 / .2); color: #fff; }
+.split-badge .ico.sm { width: 23px; height: 23px; }
+.split-steps { display: grid; gap: 10px; }
+.split-step { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 16px; background: rgb(255 255 255 / .12); }
+.split-step strong { display: block; font-size: 15px; }
+.split-step small { display: block; font-size: 13px; opacity: .85; }
+.split-num { width: 28px; height: 28px; border-radius: 50%; flex: none; display: grid; place-items: center; background: #fff; color: #4a4cc4; font: 800 14px var(--nums); }
+.split-ctas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.split-hero .btn { min-height: 48px; font-size: 15.5px; padding: 10px 12px; background: #fff; color: #3d3fb0; box-shadow: 0 6px 16px rgb(0 0 0 / .18); }
+.split-hero .btn.alt { background: rgb(255 255 255 / .18); color: #fff; box-shadow: none; }
+.split-hero .btn .ico.sm { width: 18px; height: 18px; }
+.split-teaser { position: relative; display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: var(--r); color: #fff; background: linear-gradient(140deg, #3a5bd0, #6b3fb5); box-shadow: var(--shadow); }
+.split-teaser > div { flex: 1; min-width: 0; display: grid; gap: 3px; padding-inline-end: 6px; }
+.split-teaser strong { font-size: 16px; }
+.split-teaser small { font-size: 13px; opacity: .88; line-height: 1.35; }
+.split-teaser .btn.sm { width: auto; min-height: 40px; padding: 8px 14px; font-size: 14.5px; background: #fff; color: #3d3fb0; box-shadow: none; flex: none; align-self: flex-end; }
+.split-teaser-x { position: absolute; top: 8px; inset-inline-end: 8px; width: 26px; height: 26px; border: 0; border-radius: 50%; display: grid; place-items: center; background: rgb(255 255 255 / .18); color: #fff; }
+.split-teaser-x .ico.sm { width: 14px; height: 14px; }
+.split-opt { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px; border: 0; border-radius: 20px; background: var(--card); color: inherit; text-align: start; box-shadow: var(--shadow); }
+.split-opt-ico { width: 48px; height: 48px; border-radius: 15px; flex: none; display: grid; place-items: center; color: #fff; background: linear-gradient(140deg, #3a5bd0, #6b3fb5); }
+.split-opt .row-sub.wrap { white-space: normal; }
