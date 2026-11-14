@@ -17,7 +17,7 @@ create table if not exists public.accounts (
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   name text not null check (char_length(name) between 1 and 60),
   currency text not null check (currency in ('USD', 'LBP')),
-  kind text not null check (kind in ('cash', 'bank', 'card', 'savings')),
+  kind text not null check (kind in ('cash', 'bank', 'card', 'savings', 'wallet')),
   opening_balance numeric(20, 2) not null default 0 check (abs(opening_balance) < 1e15),
   sort integer not null default 0,
   archived boolean not null default false,

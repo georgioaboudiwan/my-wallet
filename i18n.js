@@ -1004,3 +1004,13 @@ Object.assign(window.WALLET_I18N.words, {
   "We also sent you an email about it. If it's not in your inbox, check Junk or Spam. You don't need the email: go to Split and tap Accept.": ["Nous vous avons aussi envoyé un e-mail. S'il n'est pas dans votre boîte, regardez dans les indésirables. Pas besoin de l'e-mail : allez dans Partage et touchez Accepter.", "أرسلنا لك بريدًا أيضًا. إن لم تجده في الوارد، تحقق من البريد غير المرغوب. لا حاجة للبريد: اذهب إلى «تقسيم» واضغط «قبول»."]
 });
 window.WALLET_I18N.patterns.push(["^(.+) invited you to a shared group$", "$1 vous a invité dans un groupe partagé", "دعاك $1 إلى مجموعة مشتركة"]);
+Object.assign(window.WALLET_I18N.words, {
+  "E-wallet": ["Portefeuille mobile", "محفظة إلكترونية"],
+  "Add account": ["Ajouter un compte", "إضافة حساب"],
+  "Cash, bank, card, Whish…": ["Espèces, banque, carte, Whish…", "نقد، بنك، بطاقة، Whish…"],
+  "New look for your accounts": ["Nouveau look pour vos comptes", "شكل جديد لحساباتك"],
+  "Each account is now a card with its own icon and color, so cash, bank, card, e-wallet and savings are easy to tell apart.": ["Chaque compte est une carte avec son icône et sa couleur : espèces, banque, carte, portefeuille mobile et épargne se distinguent facilement.", "كل حساب أصبح بطاقة بأيقونة ولون خاصين، فتميّز بسهولة بين النقد والبنك والبطاقة والمحفظة الإلكترونية والادخار."],
+  "Whish account added": ["Compte Whish ajouté", "أُضيف حساب Whish"],
+  "You now have a Whish e-wallet account. Set its balance or hide it from Settings → Accounts if you don't use it.": ["Vous avez maintenant un compte Whish. Réglez son solde ou masquez-le dans Réglages → Comptes si vous ne l'utilisez pas.", "لديك الآن حساب محفظة Whish. حدّد رصيده أو أخفه من الإعدادات ← الحسابات إن لم تستخدمه."]
+});
+window.WALLET_I18N.patterns.push(["^Your accounts \\((\\d+)\\)$", "Vos comptes ($1)", "حساباتك ($1)"]);

@@ -26,7 +26,8 @@
     { id: "wants", name: "Wants", pct: 30, color: "#c14a87", save: false },
     { id: "savings", name: "Savings", pct: 20, color: "#b8892a", save: true }
   ];
-  const KIND_LABEL = { cash: "Cash", bank: "Bank", card: "Card", savings: "Savings" };
+  const KIND_LABEL = { cash: "Cash", bank: "Bank", card: "Card", wallet: "E-wallet", savings: "Savings" };
+  const KIND_ICON = { cash: "cash", bank: "bank", card: "card", wallet: "phone", savings: "piggy" };
   const DEFAULT_CATS = [
     ["groceries", "Groceries", "expense", "needs", "#2e9e6b"],
     ["home", "Rent & home", "expense", "needs", "#3b7dd8"],
@@ -46,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.25.2";
+  const VERSION = "3.26.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -81,6 +82,10 @@
     bag: "M6 7h12l1 13H5zM9 7a3 3 0 0 1 6 0",
     star: "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z",
     gift: "M3 9h18v4H3zM5 13v8h14v-8M12 9v12M12 9S10 4 7.5 4a2.5 2.5 0 0 0 0 5M12 9s2-5 4.5-5a2.5 2.5 0 0 1 0 5",
+    cash: "M2.5 6.5h19v11h-19zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM6 9.5v5M18 9.5v5",
+    card: "M2.5 5.5h19v13h-19zM2.5 10h19M6.5 15h4",
+    phone: "M7 2.5h10a1 1 0 0 1 1 1v17a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-17a1 1 0 0 1 1-1zM10.5 18.5h3M9 7.5h6M9 11h6",
+    piggy: "M4 11.5C4 8 7.6 5.5 11.5 5.5c1.6 0 3 .4 4.2 1L18 5v3.2c.9.8 1.5 1.8 1.8 2.8H21v3.5h-1.6a6 6 0 0 1-2.4 2.6V20h-3v-1.6a9 9 0 0 1-2.5.1V20h-3v-2.4C5.6 16.4 4 14.1 4 11.5zM15.5 10h.01M10 8.5h3",
     bank: "M3 21h18M5 21V10M19 21V10M9 21v-6M15 21v-6M2 10l10-6 10 6z",
     work: "M3 8h18v12H3zM8 8V5h8v3M3 13h18",
     laptop: "M4 5h16v11H4zM2 19h20",
@@ -578,12 +583,18 @@
 
   function ensureDefaults() {
     if (settings().seeded) {
-      if (storedSettings().remit) return;
+      if (storedSettings().v326) return;
+      const items = [{ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), remit: true, whish: true, v326: true } } }];
       const id = `${S.uid}:cat:remit`;
-      const items = [{ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), remit: true } } }];
-      if (!S.data.categories.has(id) && !rows("categories").some(c => c.kind === "income" && /remit/i.test(c.name))) {
+      const cur = S.data.categories.get(id);
+      if (cur) items.unshift({ t: "categories", r: { ...cur, sort: Math.round(Number(cur.sort) || 0) } });
+      else if (!rows("categories").some(c => c.kind === "income" && /remit/i.test(c.name))) {
         const after = S.data.categories.get(`${S.uid}:cat:freelance`) || S.data.categories.get(`${S.uid}:cat:salary`);
-        items.unshift({ t: "categories", r: { id, name: "Family support & remittances", kind: "income", bucket: null, color: "#0f8a6c", budget: null, sort: after ? (after.sort || 0) + 0.5 : rows("categories").length } });
+        items.unshift({ t: "categories", r: { id, name: "Family support & remittances", kind: "income", bucket: null, color: "#0f8a6c", budget: null, sort: after ? Math.round(Number(after.sort) || 0) : rows("categories").length } });
+      }
+      const wid = `${S.uid}:acc:whish`;
+      if (!S.data.accounts.has(wid) && !rows("accounts").some(a => /whish/i.test(a.name))) {
+        items.unshift({ t: "accounts", r: { id: wid, name: "Whish", currency: "USD", kind: "wallet", opening_balance: 0, sort: Math.max(-1, ...rows("accounts").map(a => Math.round(Number(a.sort) || 0))) + 1, archived: false } });
       }
       TRACK.mute = true; putMany(items); TRACK.mute = false;
       return;
@@ -591,7 +602,7 @@
     if (S.data.accounts.size || S.data.categories.size) return saveSettings({ seeded: true });
     const p = S.uid;
     const items = [];
-    [["cash-usd", "Cash (dollars)", "USD", "cash"], ["cash-lbp", "Cash (lira)", "LBP", "cash"], ["bank", "Bank account", "USD", "bank"], ["savings", "Savings", "USD", "savings"]]
+    [["cash-usd", "Cash (dollars)", "USD", "cash"], ["cash-lbp", "Cash (lira)", "LBP", "cash"], ["bank", "Bank account", "USD", "bank"], ["whish", "Whish", "USD", "wallet"], ["savings", "Savings", "USD", "savings"]]
       .forEach(([k, name, currency, kind], i) => items.push({ t: "accounts", r: { id: `${p}:acc:${k}`, name, currency, kind, opening_balance: 0, sort: i, archived: false } }));
     DEFAULT_CATS.forEach(([k, name, kind, bucket, color], i) => items.push({ t: "categories", r: { id: `${p}:cat:${k}`, name, kind, bucket, color, budget: null, sort: i } }));
     items.push({ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), seeded: true } } });
@@ -1867,6 +1878,10 @@
   }
 
   const CHANGES = [
+    { v: "3.26.0", items: [
+      ["card", "New look for your accounts", "Each account is now a card with its own icon and color, so cash, bank, card, e-wallet and savings are easy to tell apart."],
+      ["phone", "Whish account added", "You now have a Whish e-wallet account. Set its balance or hide it from Settings → Accounts if you don't use it."]
+    ] },
     { v: "3.25.0", items: [
       ["bell", "Invites show up in the app", "When someone invites you to a group, you get a notification and a message in your inbox. No need to find the email: open Split and tap Accept."],
       ["swap", "Notifications open the right place", "Tapping a group or loan notification takes you straight to Split."]
@@ -2213,15 +2228,19 @@
           icon("fwd")))));
     }
 
-    const accCard = h("section", { class: "card flush col-a" }, h("div", { class: "card-head" }, h("h2", null, "Accounts"), h("button", { type: "button", class: "link-btn", on: { click: () => accountSheet(null) } }, "Add")));
-    for (const a of accounts) {
-      const v = bal.get(a.id) || 0;
-      accCard.append(h("button", { type: "button", class: "row", on: { click: () => { S.filter = { q: "", kind: "all", account: a.id }; go("activity"); } } },
-        h("span", { class: "dot neutral" }, curTag(a.currency)),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, a.name), h("span", { class: "row-sub" }, KIND_LABEL[a.kind] || "")),
-        h("span", { class: "row-end" + (v < 0 ? " neg" : "") }, fmt(v, a.currency), a.currency !== mainCur() ? h("small", null, "≈ " + money(toMain(v, a.currency), { whole: true })) : null)));
-    }
-    if (!accounts.length) accCard.append(h("p", { class: "empty" }, "No accounts yet."));
+    const accTotal = accounts.reduce((t, a) => t + toMain(bal.get(a.id) || 0, a.currency), 0);
+    const accCard = h("section", { class: "card col-a accs-card" },
+      h("div", { class: "card-head" }, h("h2", null, `Your accounts (${accounts.length})`), h("span", { class: "accs-total num" }, money(accTotal, { whole: true }))),
+      h("div", { class: "accs" },
+        accounts.map(a => {
+          const v = bal.get(a.id) || 0;
+          return h("button", { type: "button", class: "acc k-" + (KIND_ICON[a.kind] ? a.kind : "cash"), "aria-label": `${a.name}, ${KIND_LABEL[a.kind] || ""}, ${fmt(v, a.currency)}`, on: { click: () => { S.filter = { q: "", kind: "all", account: a.id }; go("activity"); } } },
+            h("span", { class: "acc-top" }, h("span", { class: "acc-ico" }, icon(KIND_ICON[a.kind] || "cash", "ico sm")), h("span", { class: "acc-kind" }, `${KIND_LABEL[a.kind] || ""} · ${curTag(a.currency)}`)),
+            h("span", { class: "acc-name" }, a.name),
+            h("span", { class: "acc-bal num" + (v < 0 ? " neg" : "") }, fmt(v, a.currency)),
+            a.currency !== mainCur() ? h("small", { class: "acc-alt num" }, "≈ " + money(toMain(v, a.currency), { whole: true })) : null);
+        }),
+        h("button", { type: "button", class: "acc acc-add", on: { click: () => accountSheet(null) } }, h("span", { class: "acc-ico" }, icon("plus", "ico sm")), h("span", { class: "acc-name" }, "Add account"), h("small", null, "Cash, bank, card, Whish…"))));
     out.append(accCard);
 
     if (txns.length) {
@@ -2636,7 +2655,7 @@
     out.append(currencyGroup(group));
 
     const accRows = rows("accounts").sort((a, b) => (a.archived - b.archived) || bySort(a, b)).map(a => h("button", { type: "button", class: "row", on: { click: () => accountSheet(a) } },
-      h("span", { class: "dot neutral" }, curTag(a.currency)),
+      h("span", { class: "dot acc-dot k-" + (KIND_ICON[a.kind] ? a.kind : "cash") }, icon(KIND_ICON[a.kind] || "cash", "ico sm")),
       h("span", { class: "row-main" }, h("span", { class: "row-title" }, a.name), h("span", { class: "row-sub" }, [KIND_LABEL[a.kind], a.currency, a.archived ? "Hidden" : null].filter(Boolean).join(" · "))),
       h("span", { class: "row-end" }, fmt(bal.get(a.id) || 0, a.currency))));
     out.append(group("Accounts", ...accRows, h("button", { type: "button", class: "row-btn", on: { click: () => accountSheet(null) } }, "Add account")));
