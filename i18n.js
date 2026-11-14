@@ -1316,3 +1316,7 @@ Object.assign(window.WALLET_I18N.words, {
   "Close": ["Fermer", "إغلاق"], "Set it up again": ["Recommencer", "أعد الإعداد"], "More options": ["Plus d'options", "خيارات أكثر"], "One moment…": ["Un instant…", "لحظة…"]
 });
 Object.assign(window.WALLET_I18N.words, { "Tap the back of your iPhone twice, type the amount, and it's saved. Takes about a minute to set up.": ["Tapotez deux fois le dos de l'iPhone, tapez le montant : c'est enregistré. Environ une minute à configurer.", "انقر مرتين على ظهر الآيفون، اكتب المبلغ، فيُحفظ. الإعداد يستغرق دقيقة تقريبًا."] });
+Object.assign(window.WALLET_I18N.words, {
+  "Easier double-tap setup": ["Configuration du double toucher simplifiée", "إعداد أسهل للنقر المزدوج"],
+  "A simple 2-step guide: get the Shortcut (your key is copied for you), then turn on Back Tap. Find it on Home or in Settings.": ["Un guide en 2 étapes : obtenez le raccourci (votre clé est copiée), puis activez Toucher le dos. Sur l'Accueil ou dans Réglages.", "دليل من خطوتين: احصل على الاختصار (يُنسخ مفتاحك تلقائيًا)، ثم فعّل النقر على الظهر. تجده في الرئيسية أو الإعدادات."]
+});

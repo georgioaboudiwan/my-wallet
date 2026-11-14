@@ -2200,7 +2200,7 @@
 
   const CHANGES = [
     { v: "3.37.0", items: [
-      ["phone", "Easier double-tap setup", "A simple 2-step guide: get the Shortcut (your key is pasted in for you), then turn on Back Tap. Find it on Home or in Settings."]
+      ["phone", "Easier double-tap setup", "A simple 2-step guide: get the Shortcut (your key is copied for you), then turn on Back Tap. Find it on Home or in Settings."]
     ] },
     { v: "3.36.0", items: [
       ["phone", "Add by tapping the back of your iPhone", "Settings → Add without opening the app → Get the Shortcut. Your key is copied for you. Then turn on Back Tap and double-tap the back of your phone to add an expense."]
