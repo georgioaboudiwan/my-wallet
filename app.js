@@ -47,7 +47,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.33.0";
+  const VERSION = "3.33.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2453,6 +2453,13 @@
 
     const loans = loansCard();
     if (loans) out.append(loans);
+    if (!rows("people").length && !GROUPS.list.size && !store.get("splitTeaserOff", false)) {
+      out.append(h("section", { class: "split-teaser" },
+        h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("splitTeaserOff", true); render(); } } }, icon("close", "ico sm")),
+        h("span", { class: "split-badge" }, icon("people", "ico sm")),
+        h("div", null, h("strong", null, "Share costs with friends"), h("small", null, "Split a dinner, the rent or a trip, or track money you lent. Everyone sees who owes whom.")),
+        h("button", { type: "button", class: "btn sm", on: { click: splitChooser } }, "Try Split")));
+    }
 
     const spentToday = s.days.get(today()) || 0;
     out.append(h("div", { class: "tiles" },
@@ -2546,13 +2553,6 @@
         }),
         h("button", { type: "button", class: "acc acc-add", on: { click: () => accountSheet(null) } }, h("span", { class: "acc-ico" }, icon("plus", "ico sm")), h("span", { class: "acc-name" }, "Add account"), h("small", null, "Cash, bank, card, Whish…"))));
     out.append(accCard);
-    if (!rows("people").length && !GROUPS.list.size && !store.get("splitTeaserOff", false)) {
-      out.append(h("section", { class: "split-teaser" },
-        h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("splitTeaserOff", true); render(); } } }, icon("close", "ico sm")),
-        h("span", { class: "split-badge" }, icon("people", "ico sm")),
-        h("div", null, h("strong", null, "Share costs with friends"), h("small", null, "Split a dinner, the rent or a trip, or track money you lent. Everyone sees who owes whom.")),
-        h("button", { type: "button", class: "btn sm", on: { click: splitChooser } }, "Try Split")));
-    }
 
     if (txns.length) {
       const recent = h("section", { class: "card flush col-b" }, h("div", { class: "card-head" }, h("h2", null, "Recent"), h("button", { type: "button", class: "link-btn", on: { click: () => { S.filter = { q: "", kind: "all", account: null }; go("activity"); } } }, "See all")));
