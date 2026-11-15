@@ -34,6 +34,7 @@
     ["bills", "Bills & internet", "expense", "needs", "#7a5cd6"],
     ["generator", "Generator & electricity", "expense", "needs", "#d9a521"],
     ["transport", "Fuel & transport", "expense", "needs", "#d9622b"],
+    ["parking", "Parking", "expense", "needs", "#4f7cac"],
     ["health", "Health", "expense", "needs", "#d6455d"],
     ["eating", "Eating out & coffee", "expense", "wants", "#c2508f"],
     ["shopping", "Shopping", "expense", "wants", "#1f9bb0"],
@@ -47,7 +48,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.46.0";
+  const VERSION = "3.46.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -105,6 +106,7 @@
     repeat: "M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3",
     sun: "M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4L7 17M17 7l1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
     moon: "M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z",
+    park: "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM10 17V7h3a3 3 0 0 1 0 6h-3",
     chip: "M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3M7 6h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM10 10h4v4h-4z",
     user: "M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8",
     tag: "M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9zM7.5 7.5h.01",
@@ -366,8 +368,8 @@
   const rows = t => [...S.data[t].values()];
   const acc = id => S.data.accounts.get(id);
   const cat = id => S.data.categories.get(id);
-  const CAT_ICON_KEYS = { groceries: "cart", home: "home", bills: "wifi", generator: "bolt", transport: "car", health: "heart", eating: "cup", shopping: "bag", fun: "star", subs: "repeat", gifts: "gift", debt: "bank", salary: "work", freelance: "laptop", giftsin: "gift", remit: "globe", otherin: "coin" };
-  const CAT_ICON_WORDS = [[/grocer|food|super|market/i, "cart"], [/rent|home|house|apart/i, "home"], [/bill|internet|phone|mobile|wifi/i, "wifi"], [/generat|electric|power|ampere/i, "bolt"], [/fuel|petrol|car|transport|taxi|uber|bus/i, "car"], [/health|doctor|pharm|medic|hospital|gym/i, "heart"], [/eat|coffee|restaurant|lunch|dinner|cafe|drink/i, "cup"], [/shop|cloth|amazon/i, "bag"], [/fun|going out|movie|party|travel|trip/i, "star"], [/subscri|netflix|spotify|apple|icloud/i, "repeat"], [/remit|abroad|transfer from|family support/i, "globe"], [/gift|family/i, "gift"], [/loan|debt|bank|repay/i, "bank"], [/salary|work|job|wage/i, "work"], [/freelance|side|client/i, "laptop"]];
+  const CAT_ICON_KEYS = { groceries: "cart", home: "home", bills: "wifi", generator: "bolt", transport: "car", parking: "park", health: "heart", eating: "cup", shopping: "bag", fun: "star", subs: "repeat", gifts: "gift", debt: "bank", salary: "work", freelance: "laptop", giftsin: "gift", remit: "globe", otherin: "coin" };
+  const CAT_ICON_WORDS = [[/parking|valet|garage/i, "park"], [/grocer|food|super|market/i, "cart"], [/rent|home|house|apart/i, "home"], [/bill|internet|phone|mobile|wifi/i, "wifi"], [/generat|electric|power|ampere/i, "bolt"], [/fuel|petrol|car|transport|taxi|uber|bus/i, "car"], [/health|doctor|pharm|medic|hospital|gym/i, "heart"], [/eat|coffee|restaurant|lunch|dinner|cafe|drink/i, "cup"], [/shop|cloth|amazon/i, "bag"], [/fun|going out|movie|party|travel|trip/i, "star"], [/subscri|netflix|spotify|apple|icloud/i, "repeat"], [/remit|abroad|transfer from|family support/i, "globe"], [/gift|family/i, "gift"], [/loan|debt|bank|repay/i, "bank"], [/salary|work|job|wage/i, "work"], [/freelance|side|client/i, "laptop"]];
   const catIconName = c => {
     if (!c) return null;
     const m = String(c.id).match(/:cat:([a-z]+)$/);
@@ -589,8 +591,18 @@
 
   function ensureDefaults() {
     if (settings().seeded) {
-      if (storedSettings().v326) return;
-      const items = [{ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), remit: true, whish: true, v326: true } } }];
+      const ss = storedSettings();
+      if (ss.v326 && ss.v346) return;
+      const items = [];
+      if (!ss.v346) {
+        const pid = `${S.uid}:cat:parking`;
+        if (!S.data.categories.has(pid) && !rows("categories").some(c => c.kind === "expense" && /park/i.test(c.name))) {
+          const after = S.data.categories.get(`${S.uid}:cat:transport`);
+          items.push({ t: "categories", r: { id: pid, name: "Parking", kind: "expense", bucket: "needs", color: "#4f7cac", budget: null, sort: after ? Math.round(Number(after.sort) || 0) : rows("categories").length } });
+        }
+      }
+      if (ss.v326) { items.push({ t: "settings", r: { id: settingsId(), data: { ...ss, v346: true } } }); TRACK.mute = true; putMany(items); TRACK.mute = false; return; }
+      items.push({ t: "settings", r: { id: settingsId(), data: { ...ss, remit: true, whish: true, v326: true, v346: true } } });
       const id = `${S.uid}:cat:remit`;
       const cur = S.data.categories.get(id);
       if (cur) items.unshift({ t: "categories", r: { ...cur, sort: Math.round(Number(cur.sort) || 0) } });
@@ -617,7 +629,7 @@
     TRACK.mute = false;
   }
 
-  const NOTE_SKIP_DEFAULT = ["groceries", "home", "bills", "generator", "transport", "subs", "salary", "debt"];
+  const NOTE_SKIP_DEFAULT = ["groceries", "home", "bills", "generator", "transport", "parking", "subs", "salary", "debt"];
   function noteSkipSet() {
     const v = storedSettings().noteSkip;
     if (Array.isArray(v)) return new Set(v);
@@ -2458,6 +2470,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.46.1", items: [
+      ["", "Parking category", "New spending category Parking (Needs, no note needed), added for new and existing users."]
+    ] },
     { v: "3.46.0", items: [
       ["", "Notes only where they help", "Note required now skips everyday categories (Groceries, Rent & home, Bills, Generator, Fuel, Subscriptions, Salary, Loan repayments). Users change the list in Settings → Entries and defaults."]
     ] },

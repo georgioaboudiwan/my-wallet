@@ -1481,7 +1481,8 @@ Object.assign(window.WALLET_I18N.words, {
   "No note needed for these. Tap to change:": ["Pas de note pour celles-ci. Touchez pour changer :", "لا حاجة لملاحظة لهذه الفئات. اضغط للتغيير:"],
   "Fewer notes to write": ["Moins de notes à écrire", "ملاحظات أقل"],
   "Everyday things like groceries, fuel or bills no longer need a note. Pick which categories need one in Settings → Entries and defaults.": ["Les dépenses courantes comme les courses, l'essence ou les factures n'ont plus besoin de note. Choisissez lesquelles en demandent dans Réglages → Opérations.", "الأشياء اليومية مثل البقالة والوقود والفواتير لم تعد تحتاج ملاحظة. اختر الفئات التي تحتاجها من الإعدادات ← العمليات."],
-  "Asked for every category except the ones ticked below": ["Demandée pour toutes les catégories sauf celles cochées ci-dessous", "مطلوبة لكل الفئات ما عدا المحددة أدناه"]
+  "Asked for every category except the ones ticked below": ["Demandée pour toutes les catégories sauf celles cochées ci-dessous", "مطلوبة لكل الفئات ما عدا المحددة أدناه"],
+  "Parking": ["Parking", "موقف السيارات"]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
