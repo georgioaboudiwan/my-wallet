@@ -48,7 +48,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.47.0";
+  const VERSION = "3.47.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2474,6 +2474,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.47.1", items: [
+      ["", "Lighter on the phone's graphics chip", "Removed blur effects from things that scroll (search, month picker, top bar shadow, buttons), sheets open in 0.3 s instead of 0.42 s, bar charts animate faster, and Activity only draws the day cards on screen."]
+    ] },
     { v: "3.47.0", items: [
       ["", "Top bar follows the theme natively", "Same setup as Ishtirak: two theme colors (light and dark) so iPhone switches the top bar by itself with Match my phone. The chosen theme is applied before the first paint. Forcing Light or Dark only reloads when the look really changes."],
       ["", "Faster everywhere", "Dates and amounts reuse cached formatters, today's date is cached, Activity shows 50 entries first and loads more as you scroll, screen transitions are shorter. With 3,000 entries on a phone-speed CPU: boot about 60 ms, tab switches about 40% faster."]
