@@ -48,7 +48,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.46.1";
+  const VERSION = "3.46.2";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2470,6 +2470,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.46.2", items: [
+      ["", "Top bar follows the theme", "The status bar area at the top now switches with Light or Dark right away."]
+    ] },
     { v: "3.46.1", items: [
       ["", "Parking category", "New spending category Parking (Needs, no note needed), added for new and existing users."]
     ] },
@@ -3653,9 +3656,18 @@
     const v = themePref();
     if (v === "system") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", v);
     const dark = v === "dark" || (v === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    const meta = document.getElementById("theme-color");
-    if (meta) meta.setAttribute("content", dark ? "#070f0c" : "#edf2ee");
-    document.documentElement.style.backgroundColor = dark ? "#070f0c" : "#edf2ee";
+    const color = dark ? "#070f0c" : "#edf2ee";
+    document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.remove());
+    const meta = document.createElement("meta");
+    meta.name = "theme-color";
+    meta.id = "theme-color";
+    meta.content = color;
+    document.head.append(meta);
+    const scheme = document.querySelector('meta[name="color-scheme"]') || document.head.appendChild(Object.assign(document.createElement("meta"), { name: "color-scheme" }));
+    scheme.content = v === "system" ? "light dark" : v;
+    document.documentElement.style.backgroundColor = color;
+    document.documentElement.style.colorScheme = v === "system" ? "" : v;
+    if (document.body) document.body.style.backgroundColor = color;
   }
   function setTheme(v) {
     try { if (v === "system") localStorage.removeItem("wallet:theme"); else localStorage.setItem("wallet:theme", v); } catch { }
