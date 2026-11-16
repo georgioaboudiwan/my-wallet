@@ -48,7 +48,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.47.2";
+  const VERSION = "3.47.3";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -314,9 +314,10 @@
 
   const fmt = (n, cur, opts = {}) => {
     if (S.hidden && !opts.show) return withSymbol(cur, "•••");
-    const neg = n < 0;
-    const a = Math.abs(Number(n) || 0);
     const dec = curDec(cur);
+    const raw = Number(n) || 0;
+    const a = Math.abs(raw);
+    const neg = raw < 0 && (dec === 0 || opts.whole ? Math.round(a) : Math.round(a * 100) / 100) > 0;
     let num;
     if (opts.compact && a >= 1e6) num = nfmt({ maximumFractionDigits: 1 }).format((a / 1e6)) + "M";
     else if (opts.compact && a >= 1e4 && !isBig(cur)) num = nfmt({ maximumFractionDigits: 1 }).format((a / 1e3)) + "k";
@@ -2475,6 +2476,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.47.3", items: [
+      ["", "No more −$0", "Amounts that round to zero (tiny leftovers from exchange rates) show as $0 instead of −$0."]
+    ] },
     { v: "3.47.2", items: [
       ["", "Blank icon on new entries", "Each entry row now has its own identity, so a new entry is drawn fresh instead of repainting the old top row (iPhone sometimes lost the color doing that)."],
       ["", "No note for salary", "Salary never asks for a note, and a balance change only asks where the money came from when the category doesn't already say it."]
