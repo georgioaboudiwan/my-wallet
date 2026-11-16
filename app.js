@@ -48,7 +48,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.47.1";
+  const VERSION = "3.47.2";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -640,6 +640,7 @@
     return new Set(rows("categories").filter(c => NOTE_SKIP_DEFAULT.includes(String(c.id).split(":cat:")[1])).map(c => c.id));
   }
   const noteNeeded = catId => settings().noteRequired && !(catId && noteSkipSet().has(catId));
+  const noteRule = f => f.kind === "loan" ? noteNeeded(null) : f.adjust ? !(f.category && (noteSkipSet().has(f.category) || isSalaryCat(cat(f.category)))) : noteNeeded(f.category) && !isSalaryCat(cat(f.category));
   const isSalaryCat = c => !!c && c.kind === "income" && (/:cat:salary$/.test(c.id) || /salary|salaire|wage|راتب|معاش/i.test(c.name));
   function settlePlan(payday) {
     const src = acc(payday.account_id);
@@ -1351,7 +1352,7 @@
     const other = x.kind === "transfer" && toAcc && toAcc.currency !== x.currency && x.to_amount
       ? h("small", null, "→ " + fmt(Number(x.to_amount), toAcc.currency))
       : (x.currency !== mainCur() ? h("small", null, "≈ " + money(txMain(x))) : null);
-    return h("div", { class: "swipe", "data-sw": x.id },
+    return h("div", { class: "swipe", id: "tx-" + x.id, "data-sw": x.id },
       h("button", { type: "button", class: "sw-act sw-edit", tabindex: "-1", "aria-hidden": "true" }, h("span", { class: "sw-in" }, icon("pencil", "ico sm"), "Edit")),
       h("button", { type: "button", class: "sw-act sw-del", tabindex: "-1", "aria-hidden": "true" }, h("span", { class: "sw-in" }, icon("trash", "ico sm"), "Delete")),
       h("button", { type: "button", class: "row sw-front", on: { click: () => txnSheet(x) } },
@@ -2474,6 +2475,10 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.47.2", items: [
+      ["", "Blank icon on new entries", "Each entry row now has its own identity, so a new entry is drawn fresh instead of repainting the old top row (iPhone sometimes lost the color doing that)."],
+      ["", "No note for salary", "Salary never asks for a note, and a balance change only asks where the money came from when the category doesn't already say it."]
+    ] },
     { v: "3.47.1", items: [
       ["", "Lighter on the phone's graphics chip", "Removed blur effects from things that scroll (search, month picker, top bar shadow, buttons), sheets open in 0.3 s instead of 0.42 s, bar charts animate faster, and Activity only draws the day cards on screen."]
     ] },
@@ -5854,7 +5859,7 @@
       const yest = ymd(new Date(Date.now() - 864e5));
       const dateText = f.date === today() ? "Today" : f.date === yest ? "Yesterday" : dayLabel(f.date);
       const lp = loanPerson();
-      const needNote = (noteNeeded(f.kind === "loan" ? null : f.category) || !!f.adjust) && !x && f.kind !== "transfer";
+      const needNote = noteRule(f) && !x && f.kind !== "transfer";
       const noteHint = f.kind === "expense" ? "Add a note, like what you bought" : f.kind === "income" ? "Add a note, like who sent it" : f.kind === "loan" ? "What is it for?" : "Add a note";
       const open = k => { err.textContent = ""; panel = panel === k ? "none" : k; draw(); };
       const accDot = o => h("span", { class: "tx-dot k-" + (KIND_ICON[o.kind] ? o.kind : "cash") }, icon(KIND_ICON[o.kind] || "cash", "ico sm"));
@@ -5971,7 +5976,7 @@
       if ((f.kind === "expense" || f.kind === "income") && !f.category) { attn = true; draw(); fail(err, f.kind === "expense" ? "Pick what it was for." : "Pick where it came from.", body.querySelector(".tx-pick")); return; }
       if (f.kind === "loan" && !loanPerson()) { attn = true; draw(); fail(err, "Pick who it's with.", body.querySelector(".tx-pick")); return; }
       if (!DATE_RE.test(f.date)) { fail(err, "Pick a date."); return; }
-      if ((noteNeeded(f.kind === "loan" ? null : f.category) || f.adjust) && !x && f.kind !== "transfer" && !f.note.trim()) { fail(err, f.adjust ? (f.kind === "income" ? "Write where this money came from." : "Write what this money was used for.") : "Write a short note so you remember what it was."); const n = document.getElementById("f-note"); if (n) n.focus(); return; }
+      if (noteRule(f) && !x && f.kind !== "transfer" && !f.note.trim()) { fail(err, f.adjust ? (f.kind === "income" ? "Write where this money came from." : "Write what this money was used for.") : "Write a short note so you remember what it was."); const n = document.getElementById("f-note"); if (n) n.focus(); return; }
       if (f.adjust && !x && !f.category) { attn = true; draw(); fail(err, f.kind === "income" ? "Pick what kind of money this is." : "Pick what it was spent on."); return; }
       if (f.kind === "loan") {
         const p = loanPerson();
