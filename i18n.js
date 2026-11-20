@@ -1559,7 +1559,9 @@ Object.assign(window.WALLET_I18N.words, {
   "Show portfolio": ["Afficher le portefeuille", "اعرض المحفظة"],
   "Show total balance": ["Afficher le solde total", "اعرض الرصيد الإجمالي"],
   "Real gold, a minted +": ["De l'or véritable, un + frappé", "ذهب حقيقي و+ مسكوك"],
-  "The Portfolio is now a polished gold card with a hologram and a gold coin in the middle. The + button is a minted coin that flips when you tap it.": ["Le portefeuille est maintenant une carte en or poli avec un hologramme et une pièce d'or au centre. Le bouton + est une pièce frappée qui se retourne quand vous la touchez.", "أصبحت المحفظة بطاقة ذهبية لامعة مع هولوغرام وعملة ذهبية في الوسط. وزر + عملة مسكوكة تنقلب عند الضغط عليها."]
+  "The Portfolio is now a polished gold card with a hologram and a gold coin in the middle. The + button is a minted coin that flips when you tap it.": ["Le portefeuille est maintenant une carte en or poli avec un hologramme et une pièce d'or au centre. Le bouton + est une pièce frappée qui se retourne quand vous la touchez.", "أصبحت المحفظة بطاقة ذهبية لامعة مع هولوغرام وعملة ذهبية في الوسط. وزر + عملة مسكوكة تنقلب عند الضغط عليها."],
+  "A living + button": ["Un bouton + vivant", "زر + حيّ"],
+  "The + button is now a soft liquid shape in emerald and gold that slowly moves and wobbles like jelly when you tap it.": ["Le bouton + est maintenant une forme liquide émeraude et or qui bouge doucement et ondule comme de la gelée quand vous le touchez.", "أصبح زر + شكلًا سائلًا بالأخضر الزمردي والذهبي يتحرك ببطء ويهتز كالهلام عند الضغط عليه."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],

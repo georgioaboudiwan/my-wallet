@@ -51,7 +51,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.56.0";
+  const VERSION = "3.57.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2001,7 +2001,7 @@
   document.addEventListener("click", e => {
     const b = !RM.matches && e.target.closest && e.target.closest(".tab-add");
     const r = b && b.querySelector(".tab-add-ring");
-    if (r) r.animate([{ transform: "perspective(300px) rotateY(0deg) scale(.92)" }, { transform: "perspective(300px) rotateY(360deg) scale(1)" }], { duration: 700, easing: "cubic-bezier(.2,.9,.25,1.1)" });
+    if (r) r.animate([{ transform: "scale(1)" }, { transform: "scale(1.24, .8)" }, { transform: "scale(.86, 1.16)" }, { transform: "scale(1.08, .94)" }, { transform: "scale(.97, 1.03)" }, { transform: "scale(1)" }], { duration: 700, easing: "ease-out" });
   }, true);
   let fxQ = 0, fxReveal = false;
   function queueFx(reveal) {
@@ -2027,16 +2027,7 @@
     const bg = document.createElementNS(NS, "circle");
     bg.setAttribute("class", "pf-track");
     for (const [k, v] of [["cx", 66], ["cy", 66], ["r", r], ["fill", "none"], ["stroke", "rgba(255,255,255,.08)"], ["stroke-width", 12]]) bg.setAttribute(k, v);
-    const defs = document.createElementNS(NS, "defs");
-    const rg = document.createElementNS(NS, "radialGradient");
-    for (const [k, v] of [["id", "pfCoin"], ["cx", "38%"], ["cy", "30%"], ["r", "75%"]]) rg.setAttribute(k, v);
-    for (const [o, c] of [["0", "#fff6d2"], [".45", "#ecc865"], [".8", "#c8922c"], ["1", "#9a6714"]]) { const st = document.createElementNS(NS, "stop"); st.setAttribute("offset", o); st.setAttribute("stop-color", c); rg.append(st); }
-    defs.append(rg);
-    const coin = document.createElementNS(NS, "circle");
-    for (const [k, v] of [["cx", 66], ["cy", 66], ["r", 43], ["class", "pf-coin"], ["fill", "url(#pfCoin)"]]) coin.setAttribute(k, v);
-    const mill = document.createElementNS(NS, "circle");
-    for (const [k, v] of [["cx", 66], ["cy", 66], ["r", 40.5], ["fill", "none"], ["class", "pf-mill"], ["stroke-dasharray", "1.1 2.2"]]) mill.setAttribute(k, v);
-    svg.append(defs, bg, coin, mill);
+    svg.append(bg);
     let off = 0;
     for (const t of HOLD_TYPES) {
       const v = by[t]; if (!v || !total) continue;
@@ -2075,9 +2066,7 @@
     return h("section", { id: "w-pf", class: "pf-card", role: "button", tabindex: "0", "aria-label": "Open portfolio", on: { click: e => { if (!e.target.closest(".pf-add")) portfolioSheet(); }, keydown: e => { if (e.key === "Enter") portfolioSheet(); } } },
       h("span", { class: "pf-grid", "aria-hidden": "true" }),
       h("span", { class: "fx-glare", "aria-hidden": "true" }),
-      h("span", { class: "pf-brush", "aria-hidden": "true" }),
       h("div", { class: "pf-head" }, h("span", { class: "pf-kicker" }, h("i", { class: "pf-live" }), "Portfolio · live"),
-        h("span", { class: "pf-holo", "aria-hidden": "true" }),
         h("button", { type: "button", class: "pf-add", "aria-label": "Add an investment", on: { click: () => holdingSheet(null) } }, icon("plus", "ico sm"))),
       h("div", { class: "pf-main" },
         h("div", { class: "pf-nums" },
@@ -2095,7 +2084,7 @@
       const total = st.value;
       const ats = list.map(priceOf).filter(Boolean).map(p => p.at).sort();
       const kids = [
-        h("div", { class: "pf-hero" }, h("span", { class: "pf-grid", "aria-hidden": "true" }), h("span", { class: "pf-brush", "aria-hidden": "true" }), h("span", { class: "fx-glare", "aria-hidden": "true" }), h("span", { class: "pf-holo corner", "aria-hidden": "true" }),
+        h("div", { class: "pf-hero" }, h("span", { class: "pf-grid", "aria-hidden": "true" }), h("span", { class: "fx-glare", "aria-hidden": "true" }),
           h("span", { class: "pf-kicker" }, h("i", { class: "pf-live" }), ats.length ? `${tr("Live")} · ${tr("updated")} ${ago(ats[0])}` : tr("Portfolio")),
           h("div", { class: "pf-main col" },
             h("div", { class: "pf-nums" },
@@ -2915,6 +2904,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.57.0", items: [
+      ["", "Morphing + and gold card revert", "Gold card put back to the 3.55 look (no hologram, no coin center, no brushed layer). The 3.56 What's new note was removed. + button is now a morphing blob: organic shape that changes every 6 seconds, rotating emerald and gold gradient with a glossy highlight, a blurred glow that morphs the other way behind it, a jelly squash and stretch on tap and the plus turns 90 degrees while pressed."]
+    ] },
     { v: "3.56.0", items: [
       ["", "Gold card and + coin", "Gold card: richer multi-stop metal with two light bands, brushed texture layer, double beveled frame, engraved text (light and dark edge), recessed chips and legend, gold coin with a milled edge at the center of the ring, a rainbow hologram sticker that slowly shifts, stronger moving shine and a glare that follows the finger. + button: emerald coin face with a reeded gold rim that slowly turns, a rotating emerald-and-gold aura, a light glint every few seconds, an engraved gold plus, and a 3D coin flip on tap. The + no longer gets the tap ripple."]
     ] },
@@ -3009,8 +3001,8 @@
     ] }
   ];
   const CHANGES = [
-    { v: "3.56.0", items: [
-      ["coin", "Real gold, a minted +", "The Portfolio is now a polished gold card with a hologram and a gold coin in the middle. The + button is a minted coin that flips when you tap it."]
+    { v: "3.57.0", items: [
+      ["plus", "A living + button", "The + button is now a soft liquid shape in emerald and gold that slowly moves and wobbles like jelly when you tap it."]
     ] },
     { v: "3.55.0", items: [
       ["gem", "Your wallet", "Your balance and your investments are now two cards in one wallet. Portfolio is a gold card: tap the card behind to bring it to the front."]
