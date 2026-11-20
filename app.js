@@ -51,7 +51,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.53.0";
+  const VERSION = "3.54.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2897,6 +2897,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.54.0", items: [
+      ["", "Home balance card", "30-day balance trend on the total balance card, rebuilt backwards from today's total using every entry (income, spending, loans and transfers, converted to the main currency), drawn as a glowing emerald-to-gold line with a pulsing dot for today. Change over 30 days shown under the total. Scrub the line to see the date and balance of any day. Tap the card to flip it in 3D: the back has a magnetic stripe, this month's spent, received and safe to spend per day, and the user name. Hidden amounts disable scrubbing."]
+    ] },
     { v: "3.53.0", items: [
       ["", "Interactive layer (inmind.ai style)", "Canvas particle globe in gold and emerald (drag to spin with inertia, gentle breathing wave) on the sign-in hero, the unlock screen behind the logo and the empty Portfolio card. It pauses off screen, in the background and with reduce motion. 3D tilt with a light glare that follows the finger on the balance card, Portfolio card, Portfolio sheet and sign-in card. Count-up animation on the total balance and Portfolio totals when the value changes. Cards below the fold rise in as you scroll. Light ripple on buttons, keypad keys, settings tiles and the + button. Sign-in card bars recolored to emerald and gold."]
     ] },
@@ -2982,6 +2985,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.54.0", items: [
+      ["chart", "A living balance card", "Your card now shows how your balance moved in the last 30 days. Slide your finger on the line to see any day. Tap the card to flip it and see this month at a glance."]
+    ] },
     { v: "3.53.0", items: [
       ["gem", "Touch your money", "Your balance card and Portfolio tilt and shine as you touch them, totals count up, and the gold globe spins when you swipe it."]
     ] },
@@ -3323,6 +3329,107 @@
     return card;
   }
 
+  const CARD = { back: false };
+  const trendMemo = { k: "", v: null };
+  function balanceTrend(total) {
+    const k = ver + ":" + today() + ":" + mainCur() + ":" + Math.round(total * 100);
+    if (trendMemo.k === k) return trendMemo.v;
+    const n = 30, now = new Date(today() + "T12:00:00");
+    const dates = [];
+    for (let i = n - 1; i >= 0; i--) dates.push(ymd(new Date(now.getTime() - i * 864e5)));
+    const day = new Map(dates.map(d => [d, 0]));
+    const accCur = id => { const a = S.data.accounts.get(id); return a ? a.currency : mainCur(); };
+    for (const x of rows("transactions")) {
+      if (x.occurred_on <= dates[0]) continue;
+      const d = x.occurred_on > dates[n - 1] ? dates[n - 1] : x.occurred_on;
+      const amt = Number(x.amount) || 0;
+      let e = 0;
+      if (x.kind === "income" || x.kind === "loan_in") e = toMain(amt, x.currency);
+      else if (x.kind === "expense" || x.kind === "loan_out") e = -toMain(amt, x.currency);
+      else e = -toMain(amt, accCur(x.account_id)) + (x.to_account_id ? toMain(Number(x.to_amount) || 0, accCur(x.to_account_id)) : 0);
+      day.set(d, (day.get(d) || 0) + e);
+    }
+    const vals = new Array(n);
+    vals[n - 1] = total;
+    for (let i = n - 1; i > 0; i--) vals[i - 1] = vals[i] - (day.get(dates[i]) || 0);
+    const v = { dates, vals, moved: vals.some(x => Math.abs(x - total) > 0.5) };
+    trendMemo.k = k; trendMemo.v = v;
+    return v;
+  }
+  function trendView(tr0, hero) {
+    const { dates, vals } = tr0, n = vals.length;
+    let lo = Math.min(...vals), hi = Math.max(...vals);
+    if (hi - lo < 1e-6) { lo -= 1; hi += 1; }
+    const W = 300, H = 64, y = v => 8 + (1 - (v - lo) / (hi - lo)) * (H - 14);
+    const pts = vals.map((v, i) => [i / (n - 1) * W, y(v)]);
+    let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+    for (let i = 1; i < n; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], mx = (x0 + x1) / 2; d += ` C${mx.toFixed(1)} ${y0.toFixed(1)} ${mx.toFixed(1)} ${y1.toFixed(1)} ${x1.toFixed(1)} ${y1.toFixed(1)}`; }
+    const NS = "http://www.w3.org/2000/svg", mk = (t, a) => { const e = document.createElementNS(NS, t); for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); return e; };
+    const svg = mk("svg", { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "none", class: "ht-svg", "aria-hidden": "true" });
+    const defs = mk("defs", {});
+    const g = mk("linearGradient", { id: "htFill", x1: "0", y1: "0", x2: "0", y2: "1" });
+    g.append(mk("stop", { offset: "0", "stop-color": "#f5c451", "stop-opacity": ".32" }), mk("stop", { offset: "1", "stop-color": "#f5c451", "stop-opacity": "0" }));
+    const gl = mk("linearGradient", { id: "htLine", x1: "0", y1: "0", x2: "1", y2: "0" });
+    gl.append(mk("stop", { offset: "0", "stop-color": "#3ee8a5" }), mk("stop", { offset: "1", "stop-color": "#f5c451" }));
+    defs.append(g, gl);
+    svg.append(defs, mk("path", { d: d + ` L${W} ${H} L0 ${H} Z`, class: "ht-area", fill: "url(#htFill)" }), mk("path", { d, class: "ht-line", fill: "none", stroke: "url(#htLine)", "stroke-width": "2.4", "stroke-linecap": "round", "vector-effect": "non-scaling-stroke" }));
+    let saved = null;
+    const cur = h("i", { class: "ht-cur" }), dot = h("i", { class: "ht-dot", style: { top: (pts[n - 1][1] / H * 100).toFixed(1) + "%" } });
+    const at = (e, el) => {
+      const r = el.getBoundingClientRect(), i = Math.round(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (n - 1));
+      const card = el.closest(".hero"), lab = card.querySelector(".hero-label"), tot = card.querySelector(".hero-total"), dl = card.querySelector(".hero-delta");
+      if (!saved) saved = { lab: lab.textContent, tot: tot.textContent, dl: dl ? dl.style.visibility : "" };
+      lab.textContent = i === n - 1 ? tr("Today") : dayLabel(dates[i]);
+      tot.textContent = money(vals[i]);
+      if (dl) dl.style.visibility = "hidden";
+      el.style.setProperty("--cx", (i / (n - 1) * 100).toFixed(2) + "%");
+      el.style.setProperty("--cy", (pts[i][1] / H * 100).toFixed(1) + "%");
+      el.classList.add("scrub");
+    };
+    const end = el => {
+      if (!saved) return;
+      const card = el.closest(".hero");
+      if (card) { card.querySelector(".hero-label").textContent = saved.lab; card.querySelector(".hero-total").textContent = saved.tot; const dl = card.querySelector(".hero-delta"); if (dl) dl.style.visibility = saved.dl; }
+      saved = null;
+      el.classList.remove("scrub");
+    };
+    return h("div", { class: "hero-trend", on: {
+      pointerdown(e) { if (S.hidden) return; this.__down = e.clientX; },
+      pointermove(e) { if (S.hidden || this.__down == null) return; if (saved || Math.abs(e.clientX - this.__down) > 4) at(e, this); },
+      pointerup(e) { if (this.__down != null && !saved && !S.hidden) { at(e, this); setTimeout(() => end(this), 1400); } else end(this); this.__down = null; },
+      pointercancel() { end(this); this.__down = null; },
+      pointerleave() { end(this); this.__down = null; } } }, svg, cur, dot);
+  }
+  function flipCard(el) {
+    if (!el || el.__flipping) return;
+    if (RM.matches) { CARD.back = !CARD.back; render(); return; }
+    el.__flipping = true;
+    const dir = CARD.back ? -1 : 1;
+    const a = el.animate([{ transform: "perspective(900px) rotateY(0deg)" }, { transform: `perspective(900px) rotateY(${90 * dir}deg)` }], { duration: 170, easing: "cubic-bezier(.5,0,.9,.5)" });
+    a.onfinish = () => {
+      el.__flipping = false;
+      CARD.back = !CARD.back;
+      render();
+      const n = document.querySelector(".home-grid > .hero");
+      if (n) n.animate([{ transform: `perspective(900px) rotateY(${-90 * dir}deg)` }, { transform: "perspective(900px) rotateY(0deg)" }], { duration: 480, easing: "cubic-bezier(.2,1.5,.4,1)" });
+    };
+  }
+  function heroBack(st, m, s, safe) {
+    const row = (label, val, cls) => h("div", { class: "hb-stat " + cls }, h("small", null, label), h("strong", { class: "num" }, val));
+    return h("section", { class: "hero back", role: "button", tabindex: "0", "aria-label": "Flip card", on: { click(e) { if (!e.target.closest("button")) flipCard(this); }, keydown(e) { if (e.key === "Enter") flipCard(this); } } },
+      h("span", { class: "fx-glare", "aria-hidden": "true" }),
+      h("span", { class: "hb-stripe", "aria-hidden": "true" }),
+      h("p", { class: "hero-label" }, monthName(m)),
+      h("div", { class: "hb-grid" },
+        row("Spent", money(s.spent, { whole: true }), "out"),
+        row("Received", money(s.income, { whole: true }), "in"),
+        row("Safe to spend", safe ? `${money(safe.perDay, { whole: true })}${tr("/day")}` : "—", "safe")),
+      h("div", { class: "hb-foot" },
+        h("span", { class: "hb-num num" }, `••••  ••••  ••••  ${today().slice(0, 4)}`),
+        h("span", { class: "hb-name" }, String(st.name || "BudgetSplit").toUpperCase().slice(0, 26))),
+      h("span", { class: "hb-hint" }, icon("sync", "ico sm"), "Tap to flip"));
+  }
+
   function viewHome() {
     const st = settings();
     const bal = balances();
@@ -3340,14 +3447,19 @@
     const accounts = rows("accounts").filter(a => !a.archived).sort(bySort);
     const out = h("div", { class: "stack home-grid" });
 
-    out.append(h("section", { class: "hero" },
+    const trend = balanceTrend(total);
+    const tDelta = total - trend.vals[0];
+    if (CARD.back) out.append(heroBack(st, m, s, safe));
+    else out.append(h("section", { class: "hero", on: { click(e) { if (!e.target.closest("button, .hero-trend")) flipCard(this); } } },
       h("span", { class: "fx-glare", "aria-hidden": "true" }),
       h("p", { class: "hero-label" }, "Total balance"),
       h("p", { class: "hero-total num" }, money(total)),
+      trend.moved && !S.hidden ? h("p", { class: "hero-delta num " + (tDelta >= 0 ? "up" : "down") }, `${tDelta >= 0 ? "▲" : "▼"} ${money(Math.abs(tDelta), { whole: true })}`, h("small", null, tr("last 30 days"))) : null,
       h("div", { class: "hero-hold" },
         [...holds].sort((p, q) => (q[0] === mainCur()) - (p[0] === mainCur()) || toMain(q[1], q[0]) - toMain(p[1], p[0])).map(([c, v]) => h("span", { class: "num", title: curInfo(c).name }, fmt(v, c, { compact: true }))),
         (() => { const t = owedTotals(); return t.owed > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: () => go("people") } }, `+${money(t.owed, { whole: true })} ${tr("owed to you")}`) : null; })(),
-        (() => { if (!holdings().length) return null; const v = holdTotals().value; return v > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: portfolioSheet } }, `${money(v, { whole: true })} ${tr("invested")}`) : null; })())));
+        (() => { if (!holdings().length) return null; const v = holdTotals().value; return v > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: portfolioSheet } }, `${money(v, { whole: true })} ${tr("invested")}`) : null; })()),
+      trend.moved ? trendView(trend) : null));
 
     const pay = paydayCard();
     if (pay) out.append(pay);

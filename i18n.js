@@ -1547,7 +1547,13 @@ Object.assign(window.WALLET_I18N.words, {
   "Made for money": ["Pensé pour l'argent", "مصمم للمال"],
   "Emerald and gold colors, banknote-style patterns, and a total balance that looks like a premium bank card.": ["Couleurs émeraude et or, motifs de billets de banque et un solde total qui ressemble à une carte bancaire premium.", "ألوان زمردية وذهبية، ونقوش تشبه الأوراق النقدية، ورصيد إجمالي يبدو كبطاقة مصرفية فاخرة."],
   "Touch your money": ["Touchez votre argent", "المس أموالك"],
-  "Your balance card and Portfolio tilt and shine as you touch them, totals count up, and the gold globe spins when you swipe it.": ["Votre carte de solde et votre portefeuille s'inclinent et brillent quand vous les touchez, les totaux défilent, et le globe doré tourne quand vous le balayez.", "تميل بطاقة رصيدك ومحفظتك وتلمعان عند لمسهما، وتتصاعد المجاميع، وتدور الكرة الذهبية عند سحبها."]
+  "Your balance card and Portfolio tilt and shine as you touch them, totals count up, and the gold globe spins when you swipe it.": ["Votre carte de solde et votre portefeuille s'inclinent et brillent quand vous les touchez, les totaux défilent, et le globe doré tourne quand vous le balayez.", "تميل بطاقة رصيدك ومحفظتك وتلمعان عند لمسهما، وتتصاعد المجاميع، وتدور الكرة الذهبية عند سحبها."],
+  "last 30 days": ["30 derniers jours", "آخر 30 يومًا"],
+  "Tap to flip": ["Touchez pour retourner", "اضغط للقلب"],
+  "Flip card": ["Retourner la carte", "اقلب البطاقة"],
+  "/day": ["/jour", "/يوم"],
+  "A living balance card": ["Une carte de solde vivante", "بطاقة رصيد حيّة"],
+  "Your card now shows how your balance moved in the last 30 days. Slide your finger on the line to see any day. Tap the card to flip it and see this month at a glance.": ["Votre carte montre maintenant l'évolution de votre solde sur les 30 derniers jours. Glissez le doigt sur la courbe pour voir n'importe quel jour. Touchez la carte pour la retourner et voir ce mois en un coup d'œil.", "تعرض بطاقتك الآن تغيّر رصيدك خلال آخر 30 يومًا. مرّر إصبعك على الخط لرؤية أي يوم. اضغط على البطاقة لقلبها ورؤية هذا الشهر بلمحة."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
