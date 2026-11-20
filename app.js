@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.71.0";
+  const VERSION = "3.72.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1613,7 +1613,7 @@
   function upcomingRules(days) {
     const t = today();
     const end = ymd(new Date(Date.now() + days * 864e5));
-    return rows("rules").filter(r => acc(r.account_id) && DATE_RE.test(r.next_on) && ((isBill(r) && r.next_on <= ymd(new Date(Date.now() + 10 * 864e5))) || (r.active && r.next_on > t && r.next_on <= end))).sort((a, b) => a.next_on.localeCompare(b.next_on));
+    return rows("rules").filter(r => acc(r.account_id) && DATE_RE.test(r.next_on) && ((isBill(r) && r.next_on <= end) || (r.active && r.next_on >= t && r.next_on <= end))).sort((a, b) => a.next_on.localeCompare(b.next_on));
   }
 
   function payBill(r) {
@@ -1671,8 +1671,29 @@
     openSheet(r ? f.name || "Bill" : "Add a bill", body, h("button", { type: "submit", class: "btn", form: "bill-form" }, r ? "Save" : "Add bill"));
   }
 
+  function upcomingRow(r) {
+    const c = cat(r.category_id);
+    const d = daysTo(r.next_on);
+    const bill = isBill(r);
+    const when = d < 0 ? (d === -1 ? tr("Due yesterday") : `${-d} ${tr("days late")}`) : d === 0 ? tr("Due today") : d === 1 ? tr("Tomorrow") : `${tr("In")} ${d} ${tr("days")}`;
+    const dt = new Date(r.next_on + "T12:00:00");
+    return h("div", { class: "row bill-row up-row" + (bill && d <= 0 ? " due" : "") },
+      h("button", { type: "button", class: "row-hit", "aria-label": r.note || (c ? c.name : "Bill"), on: { click: () => bill ? billSheet(r) : ruleSheet(r) } }),
+      h("span", { class: "up-date" + (d <= 0 ? " now" : d <= 3 ? " soon" : "") }, h("b", { class: "num" }, String(dt.getDate())), h("small", null, dfmt({ month: "short" }).format(dt))),
+      h("span", { class: "row-main" }, h("span", { class: "row-title" }, r.note || (c ? c.name : "Repeating entry")), h("span", { class: "row-sub" + (bill && d < 0 ? " late" : "") }, [when, bill ? tr("Bill") : r.active ? tr("Added automatically") : null, (acc(r.account_id) || {}).name].filter(Boolean).join(" · "))),
+      bill && !r.active ? h("button", { type: "button", class: "chip on pay-chip", on: { click: () => payBill(r) } }, `${tr("Pay")} ${fmt(Number(r.amount), r.currency, { whole: true })}`) : h("span", { class: "row-end num " + (r.kind === "income" ? "pos" : "neg") }, (r.kind === "income" ? "+" : "−") + fmt(Number(r.amount), r.currency, { whole: true })));
+  }
+  function upcomingAll() {
+    const list = upcomingRules(90);
+    const out = toMain(list.filter(r => r.kind !== "income").reduce((t, r) => t + toMain(Number(r.amount), r.currency), 0), mainCur());
+    const body = h("div", { class: "stack" },
+      h("div", { class: "mk-hero k-expense" }, h("small", null, "Next 90 days"), h("strong", { class: "num" }, money(out, { whole: true })), h("span", null, `${list.length} ${tr(list.length === 1 ? "payment" : "payments")}`)),
+      list.length ? h("section", { class: "card flush" }, list.map(upcomingRow)) : h("p", { class: "empty" }, "Nothing scheduled."),
+      h("button", { type: "button", class: "btn alt", on: { click: () => { closeSheet(); setTimeout(() => billSheet(null), 300); } } }, icon("plus", "ico sm"), "Add a bill"));
+    openSheet("Coming up", body, null, { fill: true });
+  }
   function upcomingCard() {
-    const list = upcomingRules(7);
+    const list = upcomingRules(30);
     const hasBills = rows("rules").some(isBill);
     if (!list.length) {
       if (hasBills || store.get("billTeaserOff", false)) return null;
@@ -1682,19 +1703,13 @@
         h("div", null, h("strong", null, "Never miss a bill"), h("small", null, (mainCur() === "USD" || mainCur() === "LBP") ? "Generator, internet, rent, school fees… Get a reminder before each one is due." : "Rent, internet, phone, school fees… Get a reminder before each one is due.")),
         h("button", { type: "button", class: "btn sm", on: { click: () => billSheet(null) } }, "Add a bill"));
     }
-    const card = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Bills & coming up"), h("button", { type: "button", class: "link-btn", on: { click: () => billSheet(null) } }, "Add bill")));
-    for (const r of list.slice(0, 6)) {
-      const c = cat(r.category_id);
-      const d = daysTo(r.next_on);
-      const bill = isBill(r);
-      const when = d < 0 ? (d === -1 ? "Due yesterday" : `${-d} days late`) : d === 0 ? "Due today" : d === 1 ? "Tomorrow" : `In ${d} days · ${dayLabel(r.next_on)}`;
-      card.append(h("div", { class: "row bill-row" + (bill && d <= 0 ? " due" : "") },
-        h("button", { type: "button", class: "row-hit", "aria-label": r.note || (c ? c.name : "Bill"), on: { click: () => bill ? billSheet(r) : ruleSheet(r) } }),
-        h("span", { class: "dot", style: { background: c ? c.color : "#5b7083" } }, c ? catGlyph(c, "ico sm") : icon(bill ? "bell" : "repeat", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, r.note || (c ? c.name : "Repeating entry")), h("span", { class: "row-sub" + (bill && d < 0 ? " late" : "") }, `${when} · ${(r.kind === "income" ? "+" : "") + fmt(Number(r.amount), r.currency)}`)),
-        bill && !r.active ? h("button", { type: "button", class: "chip on pay-chip", on: { click: () => payBill(r) } }, "Pay") : h("span", { class: "row-end " + (r.kind === "income" ? "pos" : "neg") }, (r.kind === "income" ? "+" : "−") + fmt(Number(r.amount), r.currency))));
-    }
-    return card;
+    const due = list.filter(r => r.kind !== "income").reduce((t, r) => t + toMain(Number(r.amount), r.currency), 0);
+    const week = list.filter(r => r.kind !== "income" && daysTo(r.next_on) <= 7).reduce((t, r) => t + toMain(Number(r.amount), r.currency), 0);
+    return h("section", { class: "card flush up-card" },
+      h("div", { class: "card-head" }, h("h2", null, "Coming up"), h("button", { type: "button", class: "link-btn", on: { click: upcomingAll } }, "See all")),
+      h("div", { class: "up-sum" }, h("div", null, h("small", null, "This week"), h("b", { class: "num" }, money(week, { whole: true }))), h("div", null, h("small", null, "Next 30 days"), h("b", { class: "num" }, money(due, { whole: true })))),
+      list.slice(0, 4).map(upcomingRow),
+      list.length > 4 ? h("button", { type: "button", class: "row-btn", on: { click: upcomingAll } }, `${tr("See all")} ${list.length}`) : null);
   }
 
   function recapData(m) {
@@ -2981,6 +2996,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.72.0", items: [
+      ["", "Coming up card", "Home Coming up card moved right under the balance card (and payday card): totals due this week and in the next 30 days, the next 4 bills and repeating entries with a date badge (amber within 3 days, red when due or late), status, account, and a Pay button for bills. See all opens a 90 day list with the total and Add a bill. upcomingRules now uses the requested window for bills too (was fixed 10 days) and includes active repeating entries due today. The Never miss a bill teaser stays lower on Home."]
+    ] },
     { v: "3.71.0", items: [
       ["", "View only shared loans", "Shared loans are view only by default: new column loan_links.view_only (default true for new links, existing links keep editing), insert policy on shared_entries now requires not view_only so members cannot add entries server side, and new RPC set_loan_view_only(token, on) for the owner. Owner sees whether the other person can only see or can also add, with a button to switch. Member side reads view_only, hides the give/get buttons, shows a view only note and excludes that person from the add screen loan list. Private link text explains it."]
     ] },
@@ -3129,6 +3147,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.72.0", items: [
+      ["cal", "Coming up on Home", "Your next bills and scheduled payments now show near the top of Home, with how much is due this week and in the next 30 days. Tap See all for the next 3 months."]
+    ] },
     { v: "3.71.0", items: [
       ["link", "Share a loan, view only", "Send someone their private link. They see the balance and every entry in their own app, but only you can change it. You can let them add entries if you want."]
     ] },
@@ -3786,6 +3807,8 @@
 
     const pay = paydayCard();
     if (pay) out.append(pay);
+    const coming = upcomingCard();
+    if (coming && !coming.classList.contains("bill-teaser")) out.append(coming);
     else { const sug = salarySuggest(); if (sug) out.append(sug); }
     if (!hasPf) { const inv = portfolioCard(); if (inv) out.append(inv); }
     if (!rows("people").length && !GROUPS.list.size && !store.get("splitTeaserOff", false)) {
@@ -3855,8 +3878,7 @@
     }
     const recap = recapCard();
     if (recap) out.append(recap);
-    const coming = upcomingCard();
-    if (coming) out.append(coming);
+    if (coming && coming.classList.contains("bill-teaser")) out.append(coming);
     if (/iPhone/.test(navigator.userAgent) && store.get("qwiz", 0) < 3 && !store.get("tapTeaserOff", false)) {
       out.append(h("section", { class: "bill-teaser tap-teaser" },
         h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("tapTeaserOff", true); render(); } } }, icon("close", "ico sm")),

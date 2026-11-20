@@ -2303,3 +2303,13 @@ html.kb .sheet-foot { padding-bottom: 10px; }
 .row.tap:active { background: var(--sunk); }
 .btn.alt.danger { color: var(--neg) !important; }
 .ro-note { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-radius: 16px; background: var(--sunk); color: var(--muted); font-size: 14px; }
+.up-sum { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px 8px; }
+.up-sum > div { display: grid; gap: 2px; padding: 10px 12px; border-radius: 14px; background: var(--sunk); }
+.up-sum small { font-size: 12px; color: var(--muted); font-weight: 600; }
+.up-sum b { font: 800 19px var(--nums); }
+.up-row { gap: 12px; }
+.up-date { width: 44px; height: 46px; flex: none; display: grid; place-content: center; justify-items: center; border-radius: 13px; background: var(--sunk); color: var(--ink); line-height: 1; position: relative; z-index: 1; pointer-events: none; }
+.up-date b { font: 800 18px var(--nums); }
+.up-date small { font: 700 10px var(--ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 3px; }
+.up-date.soon { background: color-mix(in srgb, #f5a524 18%, var(--card)); }
+.up-date.now { background: color-mix(in srgb, var(--neg) 16%, var(--card)); color: var(--neg); }

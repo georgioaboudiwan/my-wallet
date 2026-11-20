@@ -1666,7 +1666,20 @@ Object.assign(window.WALLET_I18N.words, {
   "can add or change entries.": ["peut ajouter ou modifier des opérations.", "يمكنه إضافة أو تعديل الإدخالات."],
   "sees their balance and history, but can't change anything. No account needed. If they use BudgetSplit, opening the link while signed in adds it to their app, view only.": ["voit son solde et son historique, sans pouvoir rien modifier. Aucun compte requis. S'il utilise BudgetSplit, ouvrir le lien connecté l'ajoute à son app, en lecture seule.", "يرى رصيده وسجله دون أن يستطيع تعديل شيء. لا يحتاج حسابًا. إن كان يستخدم التطبيق، فتح الرابط وهو مسجل الدخول يضيفه إلى تطبيقه للعرض فقط."],
   "Share a loan, view only": ["Partager un prêt en lecture seule", "شارك قرضًا للعرض فقط"],
-  "Send someone their private link. They see the balance and every entry in their own app, but only you can change it. You can let them add entries if you want.": ["Envoyez son lien privé à quelqu'un. Il voit le solde et chaque opération dans son app, mais vous seul pouvez le modifier. Vous pouvez le laisser ajouter des opérations si vous voulez.", "أرسل لشخص رابطه الخاص. يرى الرصيد وكل إدخال في تطبيقه، وأنت فقط تستطيع التعديل. يمكنك السماح له بالإضافة إن أردت."]
+  "Send someone their private link. They see the balance and every entry in their own app, but only you can change it. You can let them add entries if you want.": ["Envoyez son lien privé à quelqu'un. Il voit le solde et chaque opération dans son app, mais vous seul pouvez le modifier. Vous pouvez le laisser ajouter des opérations si vous voulez.", "أرسل لشخص رابطه الخاص. يرى الرصيد وكل إدخال في تطبيقه، وأنت فقط تستطيع التعديل. يمكنك السماح له بالإضافة إن أردت."],
+  "Coming up": ["À venir", "قادم"],
+  "This week": ["Cette semaine", "هذا الأسبوع"],
+  "Next 30 days": ["30 prochains jours", "الـ30 يومًا القادمة"],
+  "Next 90 days": ["90 prochains jours", "الـ90 يومًا القادمة"],
+  "payment": ["paiement", "دفعة"],
+  "payments": ["paiements", "دفعات"],
+  "Nothing scheduled.": ["Rien de prévu.", "لا شيء مجدول."],
+  "days late": ["jours de retard", "أيام تأخير"],
+  "In": ["Dans", "بعد"],
+  "days": ["jours", "أيام"],
+  "Added automatically": ["Ajouté automatiquement", "يُضاف تلقائيًا"],
+  "Coming up on Home": ["À venir sur l'accueil", "القادم في الرئيسية"],
+  "Your next bills and scheduled payments now show near the top of Home, with how much is due this week and in the next 30 days. Tap See all for the next 3 months.": ["Vos prochaines factures et paiements prévus apparaissent en haut de l'accueil, avec ce qui est dû cette semaine et dans les 30 prochains jours. Touchez Tout voir pour les 3 prochains mois.", "تظهر فواتيرك ودفعاتك المجدولة القادمة أعلى الرئيسية، مع المستحق هذا الأسبوع وخلال 30 يومًا. اضغط عرض الكل لرؤية الأشهر الثلاثة القادمة."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
