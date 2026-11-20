@@ -1545,7 +1545,9 @@ Object.assign(window.WALLET_I18N.words, {
   "asset": ["actif", "أصل"],
   "assets": ["actifs", "أصول"],
   "Made for money": ["Pensé pour l'argent", "مصمم للمال"],
-  "Emerald and gold colors, banknote-style patterns, and a total balance that looks like a premium bank card.": ["Couleurs émeraude et or, motifs de billets de banque et un solde total qui ressemble à une carte bancaire premium.", "ألوان زمردية وذهبية، ونقوش تشبه الأوراق النقدية، ورصيد إجمالي يبدو كبطاقة مصرفية فاخرة."]
+  "Emerald and gold colors, banknote-style patterns, and a total balance that looks like a premium bank card.": ["Couleurs émeraude et or, motifs de billets de banque et un solde total qui ressemble à une carte bancaire premium.", "ألوان زمردية وذهبية، ونقوش تشبه الأوراق النقدية، ورصيد إجمالي يبدو كبطاقة مصرفية فاخرة."],
+  "Touch your money": ["Touchez votre argent", "المس أموالك"],
+  "Your balance card and Portfolio tilt and shine as you touch them, totals count up, and the gold globe spins when you swipe it.": ["Votre carte de solde et votre portefeuille s'inclinent et brillent quand vous les touchez, les totaux défilent, et le globe doré tourne quand vous le balayez.", "تميل بطاقة رصيدك ومحفظتك وتلمعان عند لمسهما، وتتصاعد المجاميع، وتدور الكرة الذهبية عند سحبها."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],

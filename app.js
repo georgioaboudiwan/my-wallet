@@ -51,7 +51,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.52.0";
+  const VERSION = "3.53.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1163,6 +1163,7 @@
     maybeMonthlyReport();
     queueQuickSummary();
     queueQuickLists();
+    queueFx(!sameView);
   }
 
   function renderSetup() {
@@ -1299,11 +1300,13 @@
     if (notice) err.textContent = notice;
     root.replaceChildren(h("div", { class: "login" },
       h("header", { class: "login-hero" },
+        orb(380, "login-orb"),
         h("div", { class: "login-brand" },
           h("img", { class: "login-logo", src: "icons/icon-192-b.png", alt: "" }),
           h("h1", null, "Budget", h("span", { class: "brand-split" }, "Split")),
           h("p", null, "Budget, track spending, split bills and loans.")),
         h("div", { class: "login-card", "aria-hidden": "true" },
+          h("span", { class: "fx-glare" }),
           h("span", { class: "lc-label" }, "Total balance"),
           h("span", { class: "lc-total num" }, "$2,450"),
           h("span", { class: "lc-row" }, h("i", { class: "lc-bar a" }), h("i", { class: "lc-bar b" }), h("i", { class: "lc-bar c" }))),
@@ -1312,6 +1315,7 @@
           h("li", null, icon("plan", "ico sm"), "Budgets"),
           h("li", null, icon("people", "ico sm"), "Split bills"))),
       panel));
+    queueFx();
   }
 
   const isLoanTx = x => x.kind === "loan_out" || x.kind === "loan_in";
@@ -1829,6 +1833,186 @@
     return { ...t, by, day: dayBase ? convert(dayUSD, "USD", mainCur()) : null, dayPct: dayBase ? dayUSD / (dayBase - dayUSD) * 100 : null };
   }
   const sgn = v => v >= 0 ? "+" : "−";
+  const RM = matchMedia("(prefers-reduced-motion: reduce)");
+  const ORBS = new Set();
+  let orbRaf = 0, orbLast = 0;
+  function orb(size, cls = "") {
+    return h("canvas", { class: "orb " + cls, "data-size": String(size), "aria-hidden": "true" });
+  }
+  function orbInit(c) {
+    const size = Number(c.dataset.size) || 200;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    c.width = c.height = Math.round(size * dpr);
+    c.style.width = c.style.height = size + "px";
+    const n = size > 260 ? 900 : size > 160 ? 620 : 420;
+    const pts = new Float32Array(n * 3);
+    const ga = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < n; i++) {
+      const y = 1 - (i / (n - 1)) * 2, r = Math.sqrt(1 - y * y), t = ga * i;
+      pts[i * 3] = Math.cos(t) * r; pts[i * 3 + 1] = y; pts[i * 3 + 2] = Math.sin(t) * r;
+    }
+    const cols = [];
+    for (let k = 0; k < 8; k++) {
+      const m = k / 7, rr = Math.round(245 + (52 - 245) * m), gg = Math.round(196 + (211 - 196) * m), bb = Math.round(81 + (153 - 81) * m);
+      for (let a = 1; a <= 4; a++) cols.push(`rgba(${rr},${gg},${bb},${(0.25 + a * 0.185).toFixed(2)})`);
+    }
+    const o = { c, ctx: c.getContext("2d"), size, dpr, pts, n, cols, ry: Math.random() * 6, rx: -0.35, vy: 0.35, auto: 0.35, drag: null, vis: true, t: 0 };
+    c.__orb = o;
+    c.style.touchAction = "pan-y";
+    c.addEventListener("pointerdown", e => { o.drag = { x: e.clientX, y: e.clientY, lx: e.clientX, lt: performance.now(), moved: 0 }; try { c.setPointerCapture(e.pointerId); } catch { } });
+    c.addEventListener("pointermove", e => {
+      const d = o.drag; if (!d) return;
+      const now = performance.now(), dx = e.clientX - d.lx;
+      d.moved += Math.abs(dx) + Math.abs(e.clientY - d.y) * 0;
+      o.ry += dx * 0.012;
+      o.rx = Math.max(-1, Math.min(1, o.rx + (e.clientY - d.y) * 0.004)); d.y = e.clientY;
+      o.vy = dx * 0.012 / Math.max(0.008, (now - d.lt) / 1000);
+      d.lx = e.clientX; d.lt = now;
+      if (RM.matches) orbDraw(o);
+    });
+    const end = () => { if (o.drag && o.drag.moved > 6) { const stop = ev => { ev.stopPropagation(); ev.preventDefault(); }; window.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => window.removeEventListener("click", stop, true), 60); } o.drag = null; };
+    c.addEventListener("pointerup", end);
+    c.addEventListener("pointercancel", () => { o.drag = null; });
+    if ("IntersectionObserver" in window) new IntersectionObserver(es => { for (const en of es) o.vis = en.isIntersecting; orbKick(); }).observe(c);
+    ORBS.add(o);
+    orbDraw(o);
+    orbKick();
+  }
+  function orbDraw(o) {
+    const { ctx, size, dpr, pts, n, cols } = o;
+    const W = size * dpr, R = W * 0.4, cx = W / 2, cy = W / 2;
+    ctx.clearRect(0, 0, W, W);
+    const sy = Math.sin(o.ry), cyy = Math.cos(o.ry), sx = Math.sin(o.rx), cxx = Math.cos(o.rx);
+    for (let i = 0; i < n; i++) {
+      let x = pts[i * 3], y = pts[i * 3 + 1], z = pts[i * 3 + 2];
+      const w = 1 + 0.045 * Math.sin(o.t * 1.6 + y * 5 + x * 2);
+      x *= w; y *= w; z *= w;
+      const x1 = x * cyy - z * sy, z1 = x * sy + z * cyy;
+      const y2 = y * cxx - z1 * sx, z2 = y * sx + z1 * cxx;
+      const p = 2.6 / (2.6 - z2);
+      const px = cx + x1 * R * p, py = cy + y2 * R * p;
+      const depth = (z2 + 1) / 2;
+      const a = Math.min(3, Math.floor(depth * 4));
+      const k = Math.max(0, Math.min(7, Math.round((x1 + 1) / 2 * 7)));
+      ctx.fillStyle = cols[k * 4 + a];
+      const d = (0.9 + depth * 1.8) * dpr;
+      ctx.fillRect(px - d / 2, py - d / 2, d, d);
+    }
+  }
+  function orbKick() {
+    if (orbRaf || RM.matches) return;
+    orbLast = performance.now();
+    orbRaf = requestAnimationFrame(orbTick);
+  }
+  function orbTick(now) {
+    orbRaf = 0;
+    const dt = Math.min(0.05, (now - orbLast) / 1000); orbLast = now;
+    let any = false;
+    for (const o of ORBS) {
+      if (!o.c.isConnected) { ORBS.delete(o); continue; }
+      if (!o.vis || document.hidden) continue;
+      any = true;
+      o.t += dt;
+      if (!o.drag) { o.vy += (o.auto - o.vy) * Math.min(1, dt * 1.6); o.ry += o.vy * dt; o.rx += (-0.35 - o.rx) * Math.min(1, dt * 0.8); }
+      orbDraw(o);
+    }
+    if (any) orbRaf = requestAnimationFrame(orbTick);
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) orbKick(); });
+
+  function tiltInit(el) {
+    el.__tilt = true;
+    let on = false, raf = 0, tx = 0, ty = 0;
+    const paint = () => { raf = 0; const r = el.getBoundingClientRect(); const px = Math.max(0, Math.min(1, (tx - r.left) / r.width)), py = Math.max(0, Math.min(1, (ty - r.top) / r.height)); el.style.setProperty("--rx", ((0.5 - py) * 7).toFixed(2) + "deg"); el.style.setProperty("--ry", ((px - 0.5) * 9).toFixed(2) + "deg"); el.style.setProperty("--gx", (px * 100).toFixed(1) + "%"); el.style.setProperty("--gy", (py * 100).toFixed(1) + "%"); el.style.setProperty("--go", "1"); };
+    const move = e => { if (!on && e.pointerType !== "mouse") return; tx = e.clientX; ty = e.clientY; if (!raf) raf = requestAnimationFrame(paint); };
+    const reset = () => { on = false; if (raf) cancelAnimationFrame(raf), raf = 0; for (const k of ["--rx", "--ry", "--go"]) el.style.removeProperty(k); };
+    el.addEventListener("pointerdown", e => { if (RM.matches) return; on = true; move(e); });
+    el.addEventListener("pointermove", e => { if (!RM.matches) move(e); });
+    el.addEventListener("pointerup", () => { if (on) setTimeout(reset, 120); });
+    el.addEventListener("pointercancel", reset);
+    el.addEventListener("pointerleave", reset);
+  }
+
+  const CU = new Map();
+  function parseMoneyText(t) {
+    const m = t.match(/\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?/);
+    if (!m) return null;
+    const num = m[0], dot = num.indexOf(".");
+    return { pre: t.slice(0, m.index), post: t.slice(m.index + num.length), v: parseFloat(num.replace(/,/g, "")), dec: dot < 0 ? 0 : num.length - dot - 1, comma: num.includes(",") || parseFloat(num.replace(/,/g, "")) < 1000 };
+  }
+  function countUp(el, key) {
+    const target = el.textContent;
+    if (el.__cu && el.__cu.to === target) return;
+    if (el.__cu && el.__cu.last === target) return;
+    const p = parseMoneyText(target);
+    if (!p) { CU.delete(key); el.__cu = { to: target }; return; }
+    const from = CU.has(key) ? CU.get(key) : 0;
+    CU.set(key, p.v);
+    if (RM.matches || Math.abs(from - p.v) < 0.005) { el.__cu = { to: target }; return; }
+    const nf = new Intl.NumberFormat("en-US", { minimumFractionDigits: p.dec, maximumFractionDigits: p.dec, useGrouping: p.comma });
+    const st = { to: target, last: null }, t0 = performance.now(), D = 1000;
+    el.__cu = st;
+    const step = now => {
+      if (el.__cu !== st || !el.isConnected) return;
+      if (st.last !== null && el.textContent !== st.last && el.textContent !== target) { el.__cu = null; countUp(el, key); return; }
+      const k = Math.min(1, (now - t0) / D), e = k >= 1 ? 1 : 1 - Math.pow(2, -10 * k);
+      const s = k >= 1 ? target : p.pre + nf.format(from + (p.v - from) * e) + p.post;
+      if (el.textContent !== s) el.textContent = s;
+      st.last = s;
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  let rvRaf = 0;
+  function revealCheck() {
+    rvRaf = 0;
+    const lim = innerHeight * 0.94;
+    for (const el of document.querySelectorAll(".rv:not(.rv-in)")) if (el.getBoundingClientRect().top < lim) el.classList.add("rv-in");
+  }
+  addEventListener("scroll", () => { if (!rvRaf) rvRaf = requestAnimationFrame(revealCheck); }, { passive: true, capture: true });
+  addEventListener("resize", () => { if (!rvRaf) rvRaf = requestAnimationFrame(revealCheck); }, { passive: true });
+  function revealIn(view) {
+    if (!view || RM.matches) return;
+    const lim = innerHeight - 8;
+    let i = 0;
+    for (const el of view.children) {
+      if (i++ > 40) break;
+      if (el.__rv) continue;
+      el.__rv = true;
+      if (el.getBoundingClientRect().top < lim) continue;
+      el.classList.add("rv");
+    }
+  }
+
+  document.addEventListener("pointerdown", e => {
+    if (RM.matches) return;
+    const b = e.target.closest && e.target.closest(".btn, .pf-cta, .key, .tab-add-ring, .set-tile");
+    if (!b || b.disabled) return;
+    const r = b.getBoundingClientRect(), d = Math.max(r.width, r.height) * 2.2;
+    const sp = document.createElement("span");
+    sp.className = "fx-ripple";
+    sp.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX - r.left - d / 2}px;top:${e.clientY - r.top - d / 2}px`;
+    b.append(sp);
+    const a = sp.animate([{ transform: "scale(0)", opacity: 0.38 }, { transform: "scale(1)", opacity: 0 }], { duration: 650, easing: "cubic-bezier(.2,.7,.2,1)" });
+    a.onfinish = () => sp.remove();
+  }, { passive: true });
+
+  let fxQ = 0, fxReveal = false;
+  function queueFx(reveal) {
+    if (reveal) fxReveal = true;
+    if (fxQ) return;
+    fxQ = requestAnimationFrame(() => {
+      fxQ = 0;
+      for (const c of document.querySelectorAll("canvas.orb")) if (!c.__orb) orbInit(c);
+      for (const el of document.querySelectorAll(".home-grid > .hero, .pf-card:not(.pf-empty), .pf-hero, .login-card")) if (!el.__tilt) tiltInit(el);
+      const a = document.querySelector(".home-grid > .hero .hero-total"); if (a) countUp(a, "home");
+      const b = document.querySelector(".pf-card .pf-total"); if (b) countUp(b, "pf");
+      const c = document.querySelector(".pf-hero .pf-total"); if (c) countUp(c, "pfs");
+      if (fxReveal) { fxReveal = false; if (shell && shell.main) revealIn(shell.main.firstElementChild); }
+    });
+  }
+
   function pfRing(by, total, size = 132) {
     const r = 54, c = 2 * Math.PI * r;
     const NS = "http://www.w3.org/2000/svg";
@@ -1862,6 +2046,7 @@
       if (store.get("pfTeaserOff", false)) return null;
       return h("section", { class: "pf-card pf-empty", role: "button", tabindex: "0", on: { click: e => { if (!e.target.closest(".pf-x")) holdingSheet(null); } } },
         h("span", { class: "pf-grid", "aria-hidden": "true" }),
+        orb(190, "pf-orb"),
         h("button", { type: "button", class: "pf-x", "aria-label": "Hide", on: { click: () => { store.set("pfTeaserOff", true); render(); } } }, icon("close", "ico sm")),
         h("span", { class: "pf-kicker" }, icon("gem", "ico sm"), "Portfolio"),
         h("strong", { class: "pf-empty-title" }, "Track gold, crypto and stocks"),
@@ -1873,6 +2058,7 @@
     const total = st.value;
     return h("section", { class: "pf-card", role: "button", tabindex: "0", "aria-label": "Open portfolio", on: { click: e => { if (!e.target.closest(".pf-add")) portfolioSheet(); }, keydown: e => { if (e.key === "Enter") portfolioSheet(); } } },
       h("span", { class: "pf-grid", "aria-hidden": "true" }),
+      h("span", { class: "fx-glare", "aria-hidden": "true" }),
       h("div", { class: "pf-head" }, h("span", { class: "pf-kicker" }, h("i", { class: "pf-live" }), "Portfolio · live"),
         h("button", { type: "button", class: "pf-add", "aria-label": "Add an investment", on: { click: () => holdingSheet(null) } }, icon("plus", "ico sm"))),
       h("div", { class: "pf-main" },
@@ -1891,7 +2077,7 @@
       const total = st.value;
       const ats = list.map(priceOf).filter(Boolean).map(p => p.at).sort();
       const kids = [
-        h("div", { class: "pf-hero" }, h("span", { class: "pf-grid", "aria-hidden": "true" }),
+        h("div", { class: "pf-hero" }, h("span", { class: "pf-grid", "aria-hidden": "true" }), h("span", { class: "fx-glare", "aria-hidden": "true" }),
           h("span", { class: "pf-kicker" }, h("i", { class: "pf-live" }), ats.length ? `${tr("Live")} · ${tr("updated")} ${ago(ats[0])}` : tr("Portfolio")),
           h("div", { class: "pf-main col" },
             h("div", { class: "pf-nums" },
@@ -1909,6 +2095,7 @@
       }
       if (list.length) kids.push(h("p", { class: "hint center" }, "Tap an investment to change or remove it. Prices refresh every 10 minutes."));
       body.replaceChildren(...kids);
+      queueFx();
     };
     draw();
     PF.draw = draw;
@@ -2710,6 +2897,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.53.0", items: [
+      ["", "Interactive layer (inmind.ai style)", "Canvas particle globe in gold and emerald (drag to spin with inertia, gentle breathing wave) on the sign-in hero, the unlock screen behind the logo and the empty Portfolio card. It pauses off screen, in the background and with reduce motion. 3D tilt with a light glare that follows the finger on the balance card, Portfolio card, Portfolio sheet and sign-in card. Count-up animation on the total balance and Portfolio totals when the value changes. Cards below the fold rise in as you scroll. Light ripple on buttons, keypad keys, settings tiles and the + button. Sign-in card bars recolored to emerald and gold."]
+    ] },
     { v: "3.52.0", items: [
       ["", "Money theme", "Palette moved from navy and violet to emerald vault green and gold in both themes. Gold card chip and guilloche banknote pattern on the balance card, gold-foil totals on the balance and Portfolio, gold Portfolio buttons and labels, gold ring around the + button, gold settings avatar and sheet handles, green-and-gold suggestion cards and background glow. Status bar colors updated to match."]
     ] },
@@ -2792,6 +2982,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.53.0", items: [
+      ["gem", "Touch your money", "Your balance card and Portfolio tilt and shine as you touch them, totals count up, and the gold globe spins when you swipe it."]
+    ] },
     { v: "3.52.0", items: [
       ["gem", "Made for money", "Emerald and gold colors, banknote-style patterns, and a total balance that looks like a premium bank card."]
     ] },
@@ -3148,6 +3341,7 @@
     const out = h("div", { class: "stack home-grid" });
 
     out.append(h("section", { class: "hero" },
+      h("span", { class: "fx-glare", "aria-hidden": "true" }),
       h("p", { class: "hero-label" }, "Total balance"),
       h("p", { class: "hero-total num" }, money(total)),
       h("div", { class: "hero-hold" },
@@ -6799,6 +6993,7 @@
       sync();
     });
     root.replaceChildren(h("div", { class: "login" }, panel));
+    queueFx();
     input.focus();
   }
 
@@ -7115,7 +7310,7 @@
     const rec = needRecovery ? h("input", { id: "ul-rec", class: "input", autocomplete: "off", autocapitalize: "characters", spellcheck: "false", placeholder: "XXXX-XXXX-XXXX-XXXX-XXXX-XXXX", "aria-label": "Recovery key" }) : null;
     const btn = h("button", { class: "btn login-go", type: "submit" }, "Unlock");
     const panel = h("form", { class: "login-panel solo", novalidate: true },
-      h("div", { class: "login-title" }, h("img", { class: "login-logo", src: "icons/icon-192-b.png", alt: "" }), h("h2", null, "Unlock your data"),
+      h("div", { class: "login-title" }, h("div", { class: "orb-wrap" }, orb(210, "unlock-orb"), h("img", { class: "login-logo", src: "icons/icon-192-b.png", alt: "" })), h("h2", null, "Unlock your data"),
         h("p", null, oauth ? "Reset by email is turned off for this account, so your recovery key is needed to open your encrypted data on this device." : needRecovery ? "Your password was changed by email, so your recovery key is needed once to open your encrypted data." : "Your data is encrypted with your password. Enter it once on this device.")),
       h("div", { class: "login-fields" }, oauth ? null : h("label", { class: "login-field", for: "ul-pass" }, icon("lock", "ico"), pass), rec ? h("label", { class: "login-field", for: "ul-rec" }, icon("shield", "ico"), rec) : null),
       err, btn,
@@ -7141,6 +7336,7 @@
       sync();
     });
     root.replaceChildren(h("div", { class: "login" }, panel));
+    queueFx();
     (oauth ? rec : pass).focus();
   }
 
