@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.62.0";
+  const VERSION = "3.63.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -168,6 +168,7 @@
     trCache.set(str, out);
     return out;
   };
+  const brandMark = () => { const [a, b] = LANG === "ar" ? ["ميزانية ", "وتقسيم"] : ["Budget", "Split"]; return [document.createTextNode(a), h("span", { class: "brand-split" }, document.createTextNode(b))]; };
   const dateLocale = () => LANG === "fr" ? "fr-FR" : LANG === "ar" ? "ar-LB-u-nu-latn" : "en-GB";
   const applyLang = () => { document.documentElement.lang = LANG; document.documentElement.dir = LANG === "ar" ? "rtl" : "ltr"; };
   const setLang = v => { if (!LANGS[v] || v === LANG) return; LANG = v; trCache.clear(); try { localStorage.setItem("wallet:lang", v); } catch { } applyLang(); shell = null; render(); };
@@ -1070,7 +1071,7 @@
       click: () => { if (held) { held = false; return; } if (document.querySelector(".add-fan")) return closeFan(); txnSheet(null); }
     } }, h("span", { class: "tab-add-ring" }, icon("plus")));
     const lens = h("span", { class: "lens", "aria-hidden": "true" });
-    const brand = h("div", { class: "side-brand" }, h("img", { src: "icons/icon-192-b.png", alt: "" }), h("span", null, "Budget", h("span", { class: "brand-split" }, "Split")));
+    const brand = h("div", { class: "side-brand" }, h("img", { src: "icons/icon-192-b.png", alt: "" }), h("span", null, ...brandMark()));
     const sideAdd = h("button", { type: "button", class: "side-add", on: { click: () => txnSheet(null) } }, icon("plus", "ico"), "New entry");
     const sideSettings = h("button", { type: "button", class: "tab side-only", "data-view": "settings", on: { click: () => go("settings") } }, icon("gear"), h("span", null, "Settings"));
     const tabsEl = h("div", { class: "tabs glass" }, lens, tabs[0], tabs[1], add, tabs[2], tabs[3], sideSettings);
@@ -1148,7 +1149,7 @@
     if (!shell) buildShell();
     maybeOnboard();
     const v = VIEWS[S.view] || VIEWS.home;
-    if (v.title === "BudgetSplit") shell.title.replaceChildren(document.createTextNode("Budget"), h("span", { class: "brand-split" }, "Split"));
+    if (v.title === "BudgetSplit") shell.title.replaceChildren(...brandMark());
     else shell.title.textContent = tr(v.title);
     shell.eye.replaceChildren(icon(S.hidden ? "eyeOff" : "eye"));
     shell.eye.setAttribute("aria-label", tr(S.hidden ? "Show amounts" : "Hide amounts"));
@@ -1318,7 +1319,7 @@
         orb(380, "login-orb"),
         h("div", { class: "login-brand" },
           h("img", { class: "login-logo", src: "icons/icon-192-b.png", alt: "" }),
-          h("h1", null, "Budget", h("span", { class: "brand-split" }, "Split")),
+          h("h1", null, ...brandMark()),
           h("p", null, "Budget, track spending, split bills and loans.")),
         h("div", { class: "login-card", "aria-hidden": "true" },
           h("span", { class: "fx-glare" }),
@@ -1832,7 +1833,8 @@
     const v = holdMain(x), c = costMain(x), p = priceOf(x);
     const gain = v != null && c ? v - c : null;
     return h("button", { type: "button", class: "row", on: { click: () => holdingSheet(x) } }, holdIcon(x),
-      h("span", { class: "row-main" }, h("span", { class: "row-title" }, holdTitle(x)), h("span", { class: "row-sub" }, holdSub(x))),
+      h("span", { class: "row-main" }, h("span", { class: "row-title" }, holdTitle(x)), h("span", { class: "row-sub" }, holdSub(x)),
+        c && v != null ? h("span", { class: "row-sub hold-pv num" }, h("span", null, `${tr("Paid")} ${money(c, { whole: true })}`), h("i", null, "→"), h("b", { class: v >= c ? "pos" : "neg" }, `${tr("Now")} ${money(v, { whole: true })}`)) : null),
       h("span", { class: "row-end num" }, v == null ? h("span", { class: "muted" }, "…") : money(v),
         gain != null ? h("small", { class: gain >= 0 ? "pos" : "neg" }, `${gain >= 0 ? "+" : "−"}${money(Math.abs(gain), { whole: true })} · ${gain >= 0 ? "+" : "−"}${Math.abs(gain / c * 100).toFixed(1)}%`)
           : p && p.chg != null ? h("small", { class: p.chg >= 0 ? "pos" : "neg" }, `${p.chg >= 0 ? "+" : "−"}${Math.abs(p.chg).toFixed(1)}% ${tr("today")}`) : null));
@@ -1850,9 +1852,11 @@
   const sgn = v => v >= 0 ? "+" : "−";
   const RM = matchMedia("(prefers-reduced-motion: reduce)");
   const ORBS = new Set();
+  const ORB_DRAG = { at: 0 };
   let orbRaf = 0, orbLast = 0;
-  function orb(size, cls = "") {
-    return h("canvas", { class: "orb " + cls, "data-size": String(size), "aria-hidden": "true" });
+  function orb(size, cls = "", extra = {}) {
+    const px = Math.round(size * Math.min(2, window.devicePixelRatio || 1));
+    return h("canvas", { class: "orb " + cls, "data-size": String(size), width: String(px), height: String(px), style: { width: size + "px", height: size + "px" }, "aria-hidden": "true", ...extra });
   }
   function orbInit(c) {
     const size = Number(c.dataset.size) || 200;
@@ -1871,7 +1875,8 @@
       const m = k / 7, rr = Math.round(245 + (52 - 245) * m), gg = Math.round(196 + (211 - 196) * m), bb = Math.round(81 + (153 - 81) * m);
       for (let a = 1; a <= 4; a++) cols.push(`rgba(${rr},${gg},${bb},${(0.25 + a * 0.185).toFixed(2)})`);
     }
-    const o = { c, ctx: c.getContext("2d"), size, dpr, pts, n, cols, ry: Math.random() * 6, rx: -0.35, vy: 0.35, auto: 0.35, drag: null, vis: true, t: 0 };
+    const o = { c, ctx: c.getContext("2d"), size, dpr, pts, n, cols, ry: Math.random() * 6, rx: -0.35, vy: 0.35, auto: 0.35, drag: null, vis: true, t: 0, mix: null, pc: null };
+    orbMix(o);
     c.__orb = o;
     c.style.touchAction = "pan-y";
     c.addEventListener("pointerdown", e => { o.drag = { x: e.clientX, y: e.clientY, lx: e.clientX, lt: performance.now(), moved: 0 }; try { c.setPointerCapture(e.pointerId); } catch { } });
@@ -1885,13 +1890,34 @@
       d.lx = e.clientX; d.lt = now;
       if (RM.matches) orbDraw(o);
     });
-    const end = () => { if (o.drag && o.drag.moved > 6) { const stop = ev => { ev.stopPropagation(); ev.preventDefault(); }; window.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => window.removeEventListener("click", stop, true), 60); } o.drag = null; };
+    const end = () => { if (o.drag && o.drag.moved > 6) { ORB_DRAG.at = performance.now(); const stop = ev => { ev.stopPropagation(); ev.preventDefault(); }; window.addEventListener("click", stop, { capture: true, once: true }); setTimeout(() => window.removeEventListener("click", stop, true), 60); } o.drag = null; };
     c.addEventListener("pointerup", end);
     c.addEventListener("pointercancel", () => { o.drag = null; });
     if ("IntersectionObserver" in window) new IntersectionObserver(es => { for (const en of es) o.vis = en.isIntersecting; orbKick(); }).observe(c);
     ORBS.add(o);
     orbDraw(o);
     orbKick();
+  }
+  function orbMix(o) {
+    const raw = o.c.dataset.mix || "";
+    if (raw === o.mix) return;
+    o.mix = raw;
+    if (!raw) { o.pc = null; return; }
+    let parts;
+    try { parts = JSON.parse(raw); } catch { o.pc = null; return; }
+    const tot = parts.reduce((a, p) => a + p[1], 0);
+    if (!tot) { o.pc = null; return; }
+    const pal = [];
+    for (const [hex] of parts) {
+      const m = /^#?([0-9a-f]{6})$/i.exec(hex) || [0, "34d399"], v = parseInt(m[1], 16), r = v >> 16 & 255, g = v >> 8 & 255, b = v & 255;
+      const L = x => Math.min(255, Math.round(x + (255 - x) * 0.18));
+      for (let a = 1; a <= 4; a++) pal.push(`rgba(${L(r)},${L(g)},${L(b)},${(0.42 + a * 0.145).toFixed(2)})`);
+    }
+    const pc = new Uint8Array(o.n);
+    let acc = 0, k = 0, lim = parts[0][1] / tot * o.n;
+    for (let i = 0; i < o.n; i++) { while (i >= lim && k < parts.length - 1) { acc = lim; k++; lim = acc + parts[k][1] / tot * o.n; } pc[i] = k; }
+    o.pal = pal; o.pc = pc;
+    if (RM.matches) orbDraw(o);
   }
   function orbDraw(o) {
     const { ctx, size, dpr, pts, n, cols } = o;
@@ -1909,8 +1935,8 @@
       const depth = (z2 + 1) / 2;
       const a = Math.min(3, Math.floor(depth * 4));
       const k = Math.max(0, Math.min(7, Math.round((x1 + 1) / 2 * 7)));
-      ctx.fillStyle = cols[k * 4 + a];
-      const d = (0.9 + depth * 1.8) * dpr;
+      ctx.fillStyle = o.pc ? o.pal[o.pc[i] * 4 + a] : cols[k * 4 + a];
+      const d = (o.pc ? 1.2 + depth * 2.1 : 0.9 + depth * 1.8) * dpr;
       ctx.fillRect(px - d / 2, py - d / 2, d, d);
     }
   }
@@ -1934,6 +1960,7 @@
     if (any) orbRaf = requestAnimationFrame(orbTick);
   }
   document.addEventListener("visibilitychange", () => { if (!document.hidden) orbKick(); });
+
 
   function tiltInit(el) {
     el.__tilt = true;
@@ -2031,7 +2058,7 @@
     if (fxQ) return;
     fxQ = requestAnimationFrame(() => {
       fxQ = 0;
-      for (const c of document.querySelectorAll("canvas.orb")) if (!c.__orb) orbInit(c);
+      for (const c of document.querySelectorAll("canvas.orb")) if (!c.__orb) orbInit(c); else orbMix(c.__orb);
       for (const el of document.querySelectorAll(".wallet > .hero, .pf-card:not(.pf-empty), .pf-hero, .login-card")) if (!el.__tilt) tiltInit(el);
       const a = document.querySelector(".wallet > .hero .hero-total"); if (a) countUp(a, "home");
       const b = document.querySelector(".pf-card .pf-total"); if (b) countUp(b, "pf");
@@ -2093,6 +2120,7 @@
       h("div", { class: "pf-main" },
         h("div", { class: "pf-nums" },
           h("strong", { class: "pf-total num" }, money(total)),
+          st.cost > 0 ? h("span", { class: "pf-paid num" }, h("small", null, tr("You paid")), ` ${money(st.cost, { whole: true })}`) : null,
           st.gain != null ? h("span", { class: "pf-delta num " + (st.gain >= 0 ? "up" : "down") }, `${sgn(st.gain)}${money(Math.abs(st.gain), { whole: true })} · ${sgn(st.gain)}${Math.abs(st.gain / st.cost * 100).toFixed(1)}%`, h("small", null, tr("all time"))) : null,
           st.day != null ? h("span", { class: "pf-delta small num " + (st.day >= 0 ? "up" : "down") }, `${sgn(st.day)}${money(Math.abs(st.day), { whole: true })} · ${sgn(st.dayPct)}${Math.abs(st.dayPct).toFixed(2)}%`, h("small", null, tr("today"))) : null),
         pfRing(st.by, total, 104, PLATE_COLOR)),
@@ -2111,6 +2139,8 @@
           h("div", { class: "pf-main col" },
             h("div", { class: "pf-nums" },
               h("strong", { class: "pf-total big num" }, money(total)),
+              st.cost > 0 ? h("div", { class: "pf-pv" }, h("div", null, h("small", null, "You paid"), h("b", { class: "num" }, money(st.cost))), h("i", null, "→"), h("div", null, h("small", null, "Worth now"), h("b", { class: "num" }, money(st.costed != null ? st.costed : total)))) : null,
+              st.cost > 0 && st.costed < total - 0.5 ? h("p", { class: "pf-pv-note" }, "Only investments where you entered what you paid.") : null,
               st.gain != null ? h("span", { class: "pf-delta num " + (st.gain >= 0 ? "up" : "down") }, `${sgn(st.gain)}${money(Math.abs(st.gain))} · ${sgn(st.gain)}${Math.abs(st.gain / st.cost * 100).toFixed(1)}%`, h("small", null, tr("all time"))) : h("span", { class: "pf-hint" }, "Add what you paid to see your gain"),
               st.day != null ? h("span", { class: "pf-delta small num " + (st.day >= 0 ? "up" : "down") }, `${sgn(st.day)}${money(Math.abs(st.day))} · ${sgn(st.dayPct)}${Math.abs(st.dayPct).toFixed(2)}%`, h("small", null, tr("today"))) : null),
             total > 0 ? h("div", { class: "pf-split" }, pfRing(st.by, total, 124, PLATE_COLOR),
@@ -2926,6 +2956,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.63.0", items: [
+      ["", "Planet, portfolio cost, owe chip, Arabic title", "Money planet: interactive particle globe on Home (after the tiles) and Insights (after the summary button) with bands colored by this month's spending per category (up to 14), drag to spin with inertia, legend of the top 3 (Home) or 5 (Insights); tapping the Home card opens Insights, a swipe does not. Portfolio: total \"You paid\" on the gold card, a You paid → Worth now block in the Portfolio sheet (only holdings with a purchase price, with a note when some have none), and Paid → Now under each holding. Balance card: added a \"you owe\" chip next to \"owed to you\" (the total balance itself only counts money in accounts; lent and borrowed money moved through an account are already reflected there). Arabic: app title shows ميزانية وتقسيم on one line; total balance label no longer hides under the card chip. Fixed: canvas globes lost their size after a re-render."]
+    ] },
     { v: "3.62.0", items: [
       ["", "Two-step add flow", "Add sheet rebuilt as two steps. Step 1: type tabs, money card with the amount, balance or balance after, account and date chips, and a large number pad at thumb height. The button reads Choose category (or Choose who for loans, Next for moves) in gold; it reads Save directly when everything is already set (preset category from Quick add, editing an entry, or a move between same-currency accounts). A chip on the card shows the picked category and opens step 2. Step 2: a summary bar with the amount, account and date (tap to go back), a search field when there are more than 9 categories, every category as a 4-column tile grid sorted by use (selected tile fills with its color and shows a check), then the note with quick-note chips, receipt camera and Every month. Picking a category that needs a note opens the keyboard on the note right away and the grid collapses to the chosen tile; otherwise the Save button pulses. Steps slide left and right. The 3.58 single-screen layout and the 3.61 note-mode hiding of the pad are replaced by this flow."]
     ] },
@@ -3041,6 +3074,10 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.63.0", items: [
+      ["gem", "Your money planet", "A spinning planet on Home and Insights shows where your money went this month, one color per category. Swipe it to spin it."],
+      ["coin", "What you paid, what it's worth", "The Portfolio now shows how much you paid next to what your investments are worth today, for each one and in total."]
+    ] },
     { v: "3.62.0", items: [
       ["plus", "Adding is now two simple steps", "First type the amount on a big number pad. Then pick the category from a clear grid, add a note if you want, and save."]
     ] },
@@ -3533,6 +3570,22 @@
       h("span", { class: "hb-hint" }, icon("sync", "ico sm"), "Tap to flip"));
   }
 
+  function moneyPlanet(m, s, big) {
+    const cats = [...s.byCat].filter(e => e[1] > 0).sort((p, q) => q[1] - p[1]);
+    if (!cats.length) return null;
+    const top = cats.slice(0, 5);
+    const parts = cats.slice(0, 14).map(([id, v]) => [(cat(id) || {}).color || "#5b7083", Math.round(v * 100) / 100]);
+    const legend = top.slice(0, big ? 5 : 3).map(([id, v]) => { const c = cat(id); return h("span", { class: "mp-leg", style: { "--c": c ? c.color : "#5b7083" } }, h("i"), h("span", null, c ? c.name : "Uncategorized"), h("b", { class: "num" }, `${Math.round(v / s.spent * 100)}%`)); });
+    return h("section", { class: "money-planet" + (big ? " big" : ""), role: big ? null : "button", tabindex: big ? null : "0", on: big ? {} : { click: e => { if (e.target.closest("canvas") || performance.now() - ORB_DRAG.at < 500) return; S.month = m; go("insights"); } } },
+      h("div", { class: "mp-text" },
+        h("span", { class: "mp-kicker" }, "Your money planet"),
+        h("strong", { class: "mp-total num" }, money(s.spent, { whole: true })),
+        h("span", { class: "mp-sub" }, `${tr("spent in")} ${monthName(m)}`),
+        h("div", { class: "mp-legend" }, legend),
+        h("span", { class: "mp-hint" }, "Swipe the planet to spin it")),
+      orb(big ? 230 : 160, "mp-orb", { "data-mix": JSON.stringify(parts) }));
+  }
+
   function viewHome() {
     const st = settings();
     const bal = balances();
@@ -3563,7 +3616,7 @@
       trend.moved && !S.hidden ? h("p", { class: "hero-delta num " + (tDelta >= 0 ? "up" : "down") }, `${tDelta >= 0 ? "▲" : "▼"} ${money(Math.abs(tDelta), { whole: true })}`, h("small", null, tr("last 30 days"))) : null,
       h("div", { class: "hero-hold" },
         [...holds].sort((p, q) => (q[0] === mainCur()) - (p[0] === mainCur()) || toMain(q[1], q[0]) - toMain(p[1], p[0])).map(([c, v]) => h("span", { class: "num", title: curInfo(c).name }, fmt(v, c, { compact: true }))),
-        (() => { const t = owedTotals(); return t.owed > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: () => go("people") } }, `+${money(t.owed, { whole: true })} ${tr("owed to you")}`) : null; })(),
+        (() => { const t = owedTotals(); return [t.owed > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: () => go("people") } }, `+${money(t.owed, { whole: true })} ${tr("owed to you")}`) : null, t.owe > 0.5 ? h("button", { type: "button", class: "num hero-owed hero-owe", on: { click: () => go("people") } }, `−${money(t.owe, { whole: true })} ${tr("you owe")}`) : null]; })(),
       ),
       trend.moved ? trendView(trend) : null));
     out.append(h("div", { class: "wallet" + (hasPf ? " stacked" : "") }, hasPf ? (CARD.front === "pf" ? [walletPeek("bal", total, tDelta), portfolioCard()] : [walletPeek("pf"), balCard]) : balCard));
@@ -3589,6 +3642,9 @@
       safe
         ? h("button", { type: "button", class: "tile " + (safe.left >= 0 ? "good" : "bad"), on: { click: () => { S.month = m; go("plan"); } } }, h("small", null, "Safe to spend"), h("strong", null, money(safe.perDay, { whole: true })), h("span", null, "per day"))
         : h("button", { type: "button", class: "tile", on: { click: () => go("plan") } }, h("small", null, "Safe to spend"), h("strong", null, "—"), h("span", null, "Set a plan"))));
+
+    const planet = moneyPlanet(m, s, false);
+    if (planet) out.append(planet);
 
     const plan = planFor(m);
     if (plan.base > 0) {
@@ -3819,6 +3875,8 @@
       h("div", { class: "tile" }, h("small", null, "Came in"), h("strong", null, money(s.income, { whole: true }))),
       h("div", { class: "tile " + (left >= 0 ? "good" : "bad") }, h("small", null, left >= 0 ? "Left over" : "Overspent"), h("strong", null, money(Math.abs(left), { whole: true })))));
     if (s.count) out.append(h("button", { type: "button", class: "btn alt", on: { click: () => recapSheet(m) } }, `${monthName(m)} summary`));
+    const bigPlanet = moneyPlanet(m, s, true);
+    if (bigPlanet) out.append(bigPlanet);
 
     const where = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Where it went")));
     const cats = [...s.byCat].sort((a, b) => b[1] - a[1]);

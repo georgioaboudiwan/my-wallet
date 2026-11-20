@@ -1578,7 +1578,17 @@ Object.assign(window.WALLET_I18N.words, {
   "No category with that name.": ["Aucune catégorie avec ce nom.", "لا توجد فئة بهذا الاسم."],
   "Change the amount": ["Modifier le montant", "غيّر المبلغ"],
   "Adding is now two simple steps": ["Ajouter se fait maintenant en deux étapes simples", "الإضافة الآن بخطوتين بسيطتين"],
-  "First type the amount on a big number pad. Then pick the category from a clear grid, add a note if you want, and save.": ["Tapez d'abord le montant sur un grand pavé numérique. Choisissez ensuite la catégorie dans une grille claire, ajoutez une note si vous voulez, puis enregistrez.", "اكتب المبلغ أولًا على لوحة أرقام كبيرة. ثم اختر الفئة من شبكة واضحة، وأضف ملاحظة إن أردت، واحفظ."]
+  "First type the amount on a big number pad. Then pick the category from a clear grid, add a note if you want, and save.": ["Tapez d'abord le montant sur un grand pavé numérique. Choisissez ensuite la catégorie dans une grille claire, ajoutez une note si vous voulez, puis enregistrez.", "اكتب المبلغ أولًا على لوحة أرقام كبيرة. ثم اختر الفئة من شبكة واضحة، وأضف ملاحظة إن أردت، واحفظ."],
+  "you owe": ["vous devez", "عليك"],
+  "Now": ["Maintenant", "الآن"],
+  "You paid": ["Vous avez payé", "دفعت"],
+  "Only investments where you entered what you paid.": ["Seulement les investissements dont vous avez saisi le prix payé.", "فقط الاستثمارات التي أدخلت ما دفعته فيها."],
+  "Your money planet": ["Votre planète argent", "كوكب أموالك"],
+  "spent in": ["dépensé en", "صُرف في"],
+  "Swipe the planet to spin it": ["Faites glisser la planète pour la tourner", "اسحب الكوكب ليدور"],
+  "A spinning planet on Home and Insights shows where your money went this month, one color per category. Swipe it to spin it.": ["Une planète qui tourne sur l'accueil et les analyses montre où est allé votre argent ce mois-ci, une couleur par catégorie. Faites-la glisser pour la tourner.", "كوكب يدور في الرئيسية والتحليلات يُظهر أين ذهبت أموالك هذا الشهر، بلون لكل فئة. اسحبه ليدور."],
+  "What you paid, what it's worth": ["Ce que vous avez payé, ce que ça vaut", "ما دفعته وما يساويه"],
+  "The Portfolio now shows how much you paid next to what your investments are worth today, for each one and in total.": ["Le portefeuille affiche maintenant ce que vous avez payé à côté de la valeur actuelle de vos investissements, pour chacun et au total.", "تعرض المحفظة الآن ما دفعته بجانب قيمة استثماراتك اليوم، لكل استثمار وللمجموع."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
