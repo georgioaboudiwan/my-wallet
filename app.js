@@ -51,7 +51,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.49.0";
+  const VERSION = "3.50.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -110,6 +110,7 @@
     sun: "M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4L7 17M17 7l1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
     moon: "M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z",
     park: "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM10 17V7h3a3 3 0 0 1 0 6h-3",
+    gem: "M6 3h12l4 6-10 12L2 9zM2 9h20M12 21 8 9l4-6 4 6z",
     chip: "M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3M7 6h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM10 10h4v4h-4z",
     user: "M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8",
     tag: "M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9zM7.5 7.5h.01",
@@ -1041,6 +1042,7 @@
     const eye = h("button", { type: "button", class: "icon-btn eye-btn", on: { click: () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); } } });
     const help = h("button", { type: "button", class: "icon-btn help-btn", "aria-label": "Help", on: { click: helpSheet } }, icon("help"));
     const gear = h("button", { type: "button", class: "icon-btn gear-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, icon("gear"));
+    const gem = h("button", { type: "button", class: "icon-btn gem-btn", "aria-label": "Portfolio", on: { click: () => portfolioSheet() } }, icon("gem"));
     const main = h("main", { class: "view" });
     const tab = (view, label, ic) => h("button", { type: "button", class: "tab", "data-view": view, on: { click: () => go(view) } }, icon(ic), h("span", null, label));
     const tabs = [tab("home", "Home", "home"), tab("activity", "Activity", "list"), tab("insights", "Insights", "chart"), tab("people", "Split", "people")];
@@ -1089,7 +1091,7 @@
     tabsEl.addEventListener("pointercancel", dragDone);
     tabsEl.addEventListener("click", e => { if (Date.now() - dragEnd < 400) { e.stopPropagation(); e.preventDefault(); } }, true);
     const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, tabsEl);
-    const top = h("header", { class: "top" }, title, h("div", { class: "tool glass" }, status, bell, eye, help, gear));
+    const top = h("header", { class: "top" }, title, h("div", { class: "tool glass" }, status, gem, bell, eye, help, gear));
     const ptr = h("div", { class: "ptr", "aria-hidden": "true" }, icon("sync"));
     root.replaceChildren(h("div", { class: "shell" }, top, ptr, main, nav));
     shell = { title, status, eye, bell, main, tabs: [...tabs, sideSettings], top, ptr, lens, lastView: null };
@@ -1816,23 +1818,106 @@
         gain != null ? h("small", { class: gain >= 0 ? "pos" : "neg" }, `${gain >= 0 ? "+" : "−"}${money(Math.abs(gain), { whole: true })} · ${gain >= 0 ? "+" : "−"}${Math.abs(gain / c * 100).toFixed(1)}%`)
           : p && p.chg != null ? h("small", { class: p.chg >= 0 ? "pos" : "neg" }, `${p.chg >= 0 ? "+" : "−"}${Math.abs(p.chg).toFixed(1)}% ${tr("today")}`) : null));
   }
-  function investCard(always) {
+  const TYPE_COLOR = { gold: "#f5c451", silver: "#c9d4e2", crypto: "#ff9f43", stock: "#4cc9f0", other: "#b388ff" };
+  function pfStats() {
     const list = holdings();
-    if (!list.length && !always) return null;
-    loadPrices(false);
     const t = holdTotals();
-    const card = h("section", { class: "card flush invest" },
-      h("div", { class: "card-head" }, h("h2", null, "Investments"), h("button", { type: "button", class: "link-btn", on: { click: () => holdingSheet(null) } }, "Add")));
-    if (!list.length) { card.append(h("p", { class: "empty" }, "Track gold, silver, crypto and stocks. Their value updates with live prices.")); return card; }
-    card.append(h("div", { class: "invest-top" },
-      h("strong", { class: "num" }, money(t.value)),
-      t.gain != null ? h("span", { class: "invest-gain num " + (t.gain >= 0 ? "pos" : "neg") }, `${t.gain >= 0 ? "+" : "−"}${money(Math.abs(t.gain))} (${t.gain >= 0 ? "+" : "−"}${Math.abs(t.gain / t.cost * 100).toFixed(1)}%) ${tr("since you bought")}`) : h("span", { class: "invest-gain muted" }, "Add what you paid to see your gain")));
-    for (const x of [...list].sort((p, q) => (holdMain(q) || 0) - (holdMain(p) || 0))) card.append(holdRow(x));
-    const ats = list.map(priceOf).filter(Boolean).map(p => p.at).sort();
-    card.append(h("p", { class: "hint group-note" }, ats.length ? `${tr("Live prices")} · ${tr("updated")} ${ago(ats[0])}` : navigator.onLine ? "Getting live prices…" : "Prices show when you're online."));
-    return card;
+    const by = {};
+    for (const x of list) { const v = holdMain(x); if (v != null && v > 0) by[x.type] = (by[x.type] || 0) + v; }
+    let dayUSD = 0, dayBase = 0;
+    for (const x of list) { const p = priceOf(x), v = holdUSD(x); if (p && p.chg != null && v) { dayUSD += v - v / (1 + p.chg / 100); dayBase += v; } }
+    return { ...t, by, day: dayBase ? convert(dayUSD, "USD", mainCur()) : null, dayPct: dayBase ? dayUSD / (dayBase - dayUSD) * 100 : null };
   }
-  function holdingSheet(x) {
+  const sgn = v => v >= 0 ? "+" : "−";
+  function pfRing(by, total, size = 132) {
+    const r = 54, c = 2 * Math.PI * r;
+    const NS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", "0 0 132 132"); svg.setAttribute("width", size); svg.setAttribute("height", size); svg.setAttribute("class", "pf-ring"); svg.setAttribute("aria-hidden", "true");
+    const bg = document.createElementNS(NS, "circle");
+    for (const [k, v] of [["cx", 66], ["cy", 66], ["r", r], ["fill", "none"], ["stroke", "rgba(255,255,255,.08)"], ["stroke-width", 12]]) bg.setAttribute(k, v);
+    svg.append(bg);
+    let off = 0;
+    for (const t of HOLD_TYPES) {
+      const v = by[t]; if (!v || !total) continue;
+      const len = v / total * c;
+      const seg = document.createElementNS(NS, "circle");
+      for (const [k, val] of [["cx", 66], ["cy", 66], ["r", r], ["fill", "none"], ["stroke", TYPE_COLOR[t]], ["stroke-width", 12], ["stroke-linecap", "butt"], ["stroke-dasharray", `${Math.max(0, len - 2)} ${c}`], ["stroke-dashoffset", String(-off)], ["transform", "rotate(-90 66 66)"]]) seg.setAttribute(k, val);
+      svg.append(seg);
+      off += len;
+    }
+    const n = holdings().length;
+    const t1 = document.createElementNS(NS, "text");
+    for (const [k, v] of [["x", 66], ["y", 66], ["text-anchor", "middle"], ["class", "pf-ring-n"]]) t1.setAttribute(k, v);
+    t1.textContent = String(n);
+    const t2 = document.createElementNS(NS, "text");
+    for (const [k, v] of [["x", 66], ["y", 86], ["text-anchor", "middle"], ["class", "pf-ring-l"]]) t2.setAttribute(k, v);
+    t2.textContent = tr(n === 1 ? "asset" : "assets");
+    svg.append(t1, t2);
+    return svg;
+  }
+  function portfolioCard() {
+    const list = holdings();
+    if (!list.length) {
+      if (store.get("pfTeaserOff", false)) return null;
+      return h("section", { class: "pf-card pf-empty", role: "button", tabindex: "0", on: { click: e => { if (!e.target.closest(".pf-x")) holdingSheet(null); } } },
+        h("span", { class: "pf-grid", "aria-hidden": "true" }),
+        h("button", { type: "button", class: "pf-x", "aria-label": "Hide", on: { click: () => { store.set("pfTeaserOff", true); render(); } } }, icon("close", "ico sm")),
+        h("span", { class: "pf-kicker" }, icon("gem", "ico sm"), "Portfolio"),
+        h("strong", { class: "pf-empty-title" }, "Track gold, crypto and stocks"),
+        h("span", { class: "pf-empty-sub" }, "Live prices, your gain since you bought, all in one place."),
+        h("span", { class: "pf-cta" }, icon("plus", "ico sm"), "Add your first investment"));
+    }
+    loadPrices(false);
+    const st = pfStats();
+    const total = st.value;
+    return h("section", { class: "pf-card", role: "button", tabindex: "0", "aria-label": "Open portfolio", on: { click: e => { if (!e.target.closest(".pf-add")) portfolioSheet(); }, keydown: e => { if (e.key === "Enter") portfolioSheet(); } } },
+      h("span", { class: "pf-grid", "aria-hidden": "true" }),
+      h("div", { class: "pf-head" }, h("span", { class: "pf-kicker" }, h("i", { class: "pf-live" }), "Portfolio · live"),
+        h("button", { type: "button", class: "pf-add", "aria-label": "Add an investment", on: { click: () => holdingSheet(null) } }, icon("plus", "ico sm"))),
+      h("div", { class: "pf-main" },
+        h("div", { class: "pf-nums" },
+          h("strong", { class: "pf-total num" }, money(total)),
+          st.gain != null ? h("span", { class: "pf-delta num " + (st.gain >= 0 ? "up" : "down") }, `${sgn(st.gain)}${money(Math.abs(st.gain), { whole: true })} · ${sgn(st.gain)}${Math.abs(st.gain / st.cost * 100).toFixed(1)}%`, h("small", null, tr("all time"))) : null,
+          st.day != null ? h("span", { class: "pf-delta small num " + (st.day >= 0 ? "up" : "down") }, `${sgn(st.day)}${money(Math.abs(st.day), { whole: true })} · ${sgn(st.dayPct)}${Math.abs(st.dayPct).toFixed(2)}%`, h("small", null, tr("today"))) : null),
+        pfRing(st.by, total, 104)),
+      h("div", { class: "pf-chips" }, HOLD_TYPES.filter(t => st.by[t]).map(t => h("span", { class: "pf-chip", style: { "--c": TYPE_COLOR[t] } }, h("i"), tr(HOLD_META[t][2]), h("b", { class: "num" }, `${Math.round(st.by[t] / total * 100)}%`)))));
+  }
+  function portfolioSheet() {
+    const body = h("div", { class: "pf-sheet" });
+    const draw = () => {
+      const list = holdings();
+      const st = pfStats();
+      const total = st.value;
+      const ats = list.map(priceOf).filter(Boolean).map(p => p.at).sort();
+      const kids = [
+        h("div", { class: "pf-hero" }, h("span", { class: "pf-grid", "aria-hidden": "true" }),
+          h("span", { class: "pf-kicker" }, h("i", { class: "pf-live" }), ats.length ? `${tr("Live")} · ${tr("updated")} ${ago(ats[0])}` : tr("Portfolio")),
+          h("div", { class: "pf-main col" },
+            h("div", { class: "pf-nums" },
+              h("strong", { class: "pf-total big num" }, money(total)),
+              st.gain != null ? h("span", { class: "pf-delta num " + (st.gain >= 0 ? "up" : "down") }, `${sgn(st.gain)}${money(Math.abs(st.gain))} · ${sgn(st.gain)}${Math.abs(st.gain / st.cost * 100).toFixed(1)}%`, h("small", null, tr("all time"))) : h("span", { class: "pf-hint" }, "Add what you paid to see your gain"),
+              st.day != null ? h("span", { class: "pf-delta small num " + (st.day >= 0 ? "up" : "down") }, `${sgn(st.day)}${money(Math.abs(st.day))} · ${sgn(st.dayPct)}${Math.abs(st.dayPct).toFixed(2)}%`, h("small", null, tr("today"))) : null),
+            total > 0 ? h("div", { class: "pf-split" }, pfRing(st.by, total, 124),
+              h("div", { class: "pf-legend" }, HOLD_TYPES.filter(t => st.by[t]).map(t => h("div", { class: "pf-leg", style: { "--c": TYPE_COLOR[t] } }, h("i"), h("span", null, tr(HOLD_META[t][2])), h("small", { class: "num" }, `${Math.round(st.by[t] / total * 100)}%`), h("b", { class: "num" }, money(st.by[t], { whole: true })))))) : null))
+      ];
+      if (!list.length) kids.push(h("p", { class: "empty" }, "Track gold, silver, crypto and stocks. Their value updates with live prices."));
+      for (const t of HOLD_TYPES) {
+        const items = list.filter(x => x.type === t).sort((p, q) => (holdMain(q) || 0) - (holdMain(p) || 0));
+        if (!items.length) continue;
+        kids.push(h("section", { class: "card flush pf-group" }, h("div", { class: "card-head" }, h("h2", null, HOLD_META[t][2]), h("span", { class: "card-sub num" }, money(st.by[t] || 0, { whole: true }))), items.map(holdRow)));
+      }
+      if (list.length) kids.push(h("p", { class: "hint center" }, "Tap an investment to change or remove it. Prices refresh every 10 minutes."));
+      body.replaceChildren(...kids);
+    };
+    draw();
+    PF.draw = draw;
+    openSheet("Portfolio", body, h("button", { type: "button", class: "btn pf-btn", on: { click: () => holdingSheet(null, true) } }, icon("plus", "ico sm"), "Add an investment"), { fill: true, headBtn: h("button", { type: "button", class: "icon-btn", "aria-label": "Refresh prices", on: { click: async () => { await loadPrices(true); draw(); toast("Prices updated."); } } }, icon("sync")) });
+    loadPrices(false).then(() => { if (body.isConnected) draw(); });
+  }
+  const PF = { draw: null };
+  function holdingSheet(x, stack) {
+    if (stack === undefined) stack = !!document.querySelector(".pf-sheet");
     const st = settings();
     const f = x ? { ...x, cost: x.cost ? String(x.cost) : "", value: x.value ? String(x.value) : "", qty: x.qty ? trimNum(x.qty) : "" } : { id: newId(), type: "gold", sym: "", name: "", qty: "", unit: "g", karat: 21, cost: "", costCur: mainCur(), value: "", valCur: mainCur() };
     if (!f.costCur) f.costCur = mainCur();
@@ -1871,7 +1956,7 @@
       if (f.type !== "other") kids.push(h("div", { class: "field" }, h("span", { class: "label" }, "What you paid in total (optional)"),
         h("div", { class: "row-inputs" }, h("input", { id: "h-cost", class: "input num", inputmode: "decimal", value: f.cost, placeholder: "0", on: { input: e => { f.cost = e.target.value; } } }), curSelect("h-costcur", f.costCur, k => { f.costCur = k; }))));
       kids.push(preview, err);
-      if (x) kids.push(h("button", { type: "button", class: "btn alt danger-text", on: { click: () => { saveSettings({ holdings: settings().holdings.filter(y => y.id !== x.id) }); closeSheet(); toast("Removed."); } } }, "Remove"));
+      if (x) kids.push(h("button", { type: "button", class: "btn alt danger-text", on: { click: () => { saveSettings({ holdings: settings().holdings.filter(y => y.id !== x.id) }); closeSheet(); if (PF.draw && document.querySelector(".pf-sheet")) setTimeout(PF.draw, 50); toast("Removed."); } } }, "Remove"));
       body.replaceChildren(...kids);
       paint();
     };
@@ -1886,17 +1971,15 @@
       saveSettings({ holdings: x ? st.holdings.map(y => y.id === item.id ? item : y) : [...list, item] });
       track("add", "invest_" + c.type);
       closeSheet();
+      if (PF.draw && document.querySelector(".pf-sheet")) setTimeout(PF.draw, 50);
       toast(x ? "Saved." : "Added to your investments.");
       loadPrices(false);
     };
     draw();
     askPrice();
-    openSheet(x ? holdTitle(x) : "Add an investment", body, h("button", { type: "button", class: "btn", on: { click: save } }, x ? "Save" : "Add"));
+    openSheet(x ? holdTitle(x) : "Add an investment", body, h("button", { type: "button", class: "btn", on: { click: save } }, x ? "Save" : "Add"), { stack });
   }
-  function investListSheet() {
-    const body = h("div", { class: "form" }, investCard(true));
-    openSheet("Investments", body, h("button", { type: "button", class: "btn", on: { click: () => { closeSheet(); setTimeout(() => holdingSheet(null), 330); } } }, "Add an investment"));
-  }
+
 
   function netWorthSeries(m, count) {
     const months = [];
@@ -2627,6 +2710,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.50.0", items: [
+      ["", "Portfolio redesign", "Gem button in the top bar opens a full-height Portfolio screen: deep-space hero with grid, sweep light, live pulse, total in a gradient, all-time and today's change, allocation ring with asset count, legend per type, grouped holdings, refresh button and an Add button. Home shows the same style as a card under the total balance (or a teaser when empty). Top bar tightened so 5 buttons fit from 320 px."]
+    ] },
     { v: "3.49.0", items: [
       ["", "Investments", "Holdings live inside the encrypted settings (up to 60): gold with karat and grams/ounces/kilos, silver, 20 top coins, any Yahoo ticker, or a manual value. New edge function prices (signed-in users only) pulls gold-api.com, CoinGecko and Yahoo Finance, cached 10 minutes in price_cache. Home card with total, gain since purchase and daily change; hero chip; + More and Settings → Money entry points."]
     ] },
@@ -2700,6 +2786,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.50.0", items: [
+      ["gem", "Your portfolio, front and center", "A new Portfolio card on Home shows what your gold, crypto and stocks are worth live, your gain and today's move. Tap the gem at the top to open it, add or edit."]
+    ] },
     { v: "3.49.0", items: [
       ["coin", "Gold, crypto and stocks", "Track gold (any karat), silver, crypto, stocks and ETFs with live prices, and see how much you've gained since you bought. Tap + → More → Gold, crypto or stocks."]
     ] },
@@ -3052,12 +3141,12 @@
       h("div", { class: "hero-hold" },
         [...holds].sort((p, q) => (q[0] === mainCur()) - (p[0] === mainCur()) || toMain(q[1], q[0]) - toMain(p[1], p[0])).map(([c, v]) => h("span", { class: "num", title: curInfo(c).name }, fmt(v, c, { compact: true }))),
         (() => { const t = owedTotals(); return t.owed > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: () => go("people") } }, `+${money(t.owed, { whole: true })} ${tr("owed to you")}`) : null; })(),
-        (() => { if (!holdings().length) return null; const v = holdTotals().value; return v > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: investListSheet } }, `${money(v, { whole: true })} ${tr("invested")}`) : null; })())));
+        (() => { if (!holdings().length) return null; const v = holdTotals().value; return v > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: portfolioSheet } }, `${money(v, { whole: true })} ${tr("invested")}`) : null; })())));
 
     const pay = paydayCard();
     if (pay) out.append(pay);
     else { const sug = salarySuggest(); if (sug) out.append(sug); }
-    const inv = investCard(false);
+    const inv = portfolioCard();
     if (inv) out.append(inv);
     const loans = loansCard();
     if (loans) out.append(loans);
@@ -3763,7 +3852,7 @@
       { id: "profile", t: "Profile", keys: ["Your name", "Signed in as"] },
       { id: "accounts", t: "Accounts", ic: "bank", c: "#3b74d0", keys: ["Accounts"], v: count(rows("accounts").filter(o => !o.archived).length), sec: "Money" },
       { id: "categories", t: "Categories", ic: "tag", c: "#c14a87", keys: ["Spending categories", "Income categories"], v: count(rows("categories").length), sec: "Money" },
-      { id: "invest", t: "Investments", ic: "coin", c: "#c99a1c", fn: investListSheet, v: holdings().length ? String(holdings().length) : "", sec: "Money" },
+      { id: "invest", t: "Investments", ic: "coin", c: "#c99a1c", fn: portfolioSheet, v: holdings().length ? String(holdings().length) : "", sec: "Money" },
       { id: "repeat", t: "Repeating and bills", ic: "repeat", c: "#7a5cd6", keys: ["Every month"], v: count(rows("rules").length), sec: "Money" },
       { id: "currency", t: "Currency and rates", ic: "coin", c: "#d4a23c", keys: ["Currency"], v: mainCur(), sec: "Money" },
       { id: "appearance", t: "Appearance", ic: "sun", c: "#2f74c9", keys: ["Appearance"], v: tr(theme === "light" ? "Light" : theme === "dark" ? "Dark" : "Automatic"), sec: "App" },

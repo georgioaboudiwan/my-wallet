@@ -1530,7 +1530,20 @@ Object.assign(window.WALLET_I18N.words, {
   "Track what they're worth with live prices": ["Suivez leur valeur en direct", "تابع قيمتها بالأسعار المباشرة"],
   "share": ["action", "سهم"],
   "shares": ["actions", "أسهم"],
-  "Value you entered": ["Valeur saisie", "القيمة التي أدخلتها"]
+  "Value you entered": ["Valeur saisie", "القيمة التي أدخلتها"],
+  "Portfolio": ["Portefeuille", "المحفظة"],
+  "Track gold, crypto and stocks": ["Suivez l'or, les cryptos et les actions", "تابع الذهب والعملات الرقمية والأسهم"],
+  "Live prices, your gain since you bought, all in one place.": ["Prix en direct et votre gain depuis l'achat, au même endroit.", "أسعار مباشرة وربحك منذ الشراء، في مكان واحد."],
+  "Add your first investment": ["Ajoutez votre premier investissement", "أضف أول استثمار لك"],
+  "Portfolio · live": ["Portefeuille · en direct", "المحفظة · مباشر"],
+  "all time": ["depuis le début", "منذ البداية"],
+  "Live": ["En direct", "مباشر"],
+  "Open portfolio": ["Ouvrir le portefeuille", "افتح المحفظة"],
+  "Tap an investment to change or remove it. Prices refresh every 10 minutes.": ["Touchez un investissement pour le modifier ou le retirer. Les prix se mettent à jour toutes les 10 minutes.", "اضغط على استثمار لتعديله أو إزالته. تتحدث الأسعار كل 10 دقائق."],
+  "Prices updated.": ["Prix mis à jour.", "تم تحديث الأسعار."],
+  "Refresh prices": ["Actualiser les prix", "حدّث الأسعار"],
+  "asset": ["actif", "أصل"],
+  "assets": ["actifs", "أصول"]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],

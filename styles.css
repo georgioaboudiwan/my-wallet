@@ -1668,3 +1668,56 @@ main.view.set-snap { transition: transform .25s var(--ease); }
 .invest-gain.pos, .row-end small.pos { color: var(--pos); }
 .invest-gain.neg, .row-end small.neg { color: var(--neg); }
 .muted { color: var(--muted); }
+.pf-card, .pf-hero { position: relative; overflow: hidden; isolation: isolate; border-radius: var(--r-lg); padding: 18px 18px 16px; color: #e9f3ff; background: radial-gradient(120% 140% at 0% 0%, #1d2f66 0%, #0c1430 42%, #070b17 100%); border: 1px solid rgb(120 200 255 / .22); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 18px 40px rgb(6 10 30 / .32), 0 0 36px rgb(76 201 240 / .10); }
+.pf-card { cursor: pointer; display: grid; gap: 12px; text-align: start; }
+.pf-card::after, .pf-hero::after { content: ""; position: absolute; inset: -40% -60%; z-index: -1; background: linear-gradient(105deg, transparent 42%, rgb(155 231 255 / .10) 50%, transparent 58%); transform: translateX(-60%); animation: pfSweep 7s ease-in-out infinite; pointer-events: none; }
+@keyframes pfSweep { 0%, 55% { transform: translateX(-60%); } 100% { transform: translateX(60%); } }
+.pf-grid { position: absolute; inset: 0; z-index: -1; pointer-events: none; background-image: linear-gradient(rgb(120 200 255 / .07) 1px, transparent 1px), linear-gradient(90deg, rgb(120 200 255 / .07) 1px, transparent 1px); background-size: 22px 22px; -webkit-mask-image: radial-gradient(120% 90% at 85% 15%, #000 0%, transparent 75%); mask-image: radial-gradient(120% 90% at 85% 15%, #000 0%, transparent 75%); }
+.pf-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pf-kicker { display: inline-flex; align-items: center; gap: 8px; font: 700 11.5px var(--ui); letter-spacing: .14em; text-transform: uppercase; color: #8fb7ff; }
+.pf-kicker .ico.sm { width: 15px; height: 15px; color: #f5c451; }
+.pf-live { width: 8px; height: 8px; border-radius: 50%; background: #5cf2b3; box-shadow: 0 0 0 0 rgb(92 242 179 / .6); animation: pfPulse 2.2s ease-out infinite; }
+@keyframes pfPulse { 0% { box-shadow: 0 0 0 0 rgb(92 242 179 / .55); } 100% { box-shadow: 0 0 0 10px rgb(92 242 179 / 0); } }
+.pf-add { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: #9be7ff; background: rgb(155 231 255 / .08); border: 1px solid rgb(155 231 255 / .35); box-shadow: 0 0 14px rgb(76 201 240 / .25); }
+.pf-add:active, .pf-x:active { transform: scale(.94); }
+.pf-main { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pf-nums { display: grid; gap: 6px; min-width: 0; }
+.pf-total { font: 800 34px/1.05 var(--nums); letter-spacing: -.02em; background: linear-gradient(92deg, #ffffff 0%, #bdf0ff 55%, #f5c451 100%); -webkit-background-clip: text; background-clip: text; color: transparent; white-space: nowrap; }
+.pf-total.big { font-size: clamp(30px, 10vw, 44px); }
+.pf-delta { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 2px 6px; font: 700 15px var(--nums); white-space: nowrap; }
+.pf-delta small { font: 600 11.5px var(--ui); letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
+.pf-delta.small { font-size: 13.5px; }
+.pf-delta.up { color: #5cf2b3; text-shadow: 0 0 12px rgb(92 242 179 / .35); }
+.pf-delta.down { color: #ff7b98; text-shadow: 0 0 12px rgb(255 107 138 / .3); }
+.pf-hint { font-size: 13.5px; color: #8fa8c8; }
+.pf-ring { flex: none; filter: drop-shadow(0 0 10px rgb(76 201 240 / .25)); }
+.pf-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pf-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 99px; background: rgb(255 255 255 / .06); border: 1px solid rgb(255 255 255 / .08); font: 600 12.5px var(--ui); color: #cfe2ff; }
+.pf-chip i, .pf-leg i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
+.pf-chip b { font: 700 12.5px var(--nums); color: #fff; }
+.pf-empty { gap: 8px; }
+.pf-empty-title { font-size: 20px; font-weight: 800; letter-spacing: -.01em; color: #fff; }
+.pf-empty-sub { font-size: 14px; color: #a9bfdc; }
+.pf-cta { justify-self: start; display: inline-flex; align-items: center; gap: 8px; margin-top: 4px; padding: 10px 16px; border-radius: 99px; font: 700 14.5px var(--ui); color: #071022; background: linear-gradient(92deg, #9be7ff, #f5c451); box-shadow: 0 0 20px rgb(155 231 255 / .35); }
+.pf-x { position: absolute; top: 12px; inset-inline-end: 12px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; border: 0; background: rgb(255 255 255 / .08); color: #a9bfdc; }
+.pf-sheet { display: grid; gap: 14px; }
+.pf-hero { display: grid; gap: 14px; padding: 20px; }
+.pf-legend { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.pf-leg { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2px 8px; padding: 8px 10px; border-radius: 12px; background: rgb(255 255 255 / .05); border: 1px solid rgb(255 255 255 / .07); font-size: 12.5px; color: #cfe2ff; }
+.pf-leg b { grid-column: 2 / 4; font: 700 14px var(--nums); color: #fff; }
+.pf-leg small { font: 700 12px var(--nums); color: #8fb7ff; }
+.pf-group .row-end small { display: block; }
+.pf-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: #071022; background: linear-gradient(92deg, #9be7ff, #f5c451); box-shadow: 0 8px 26px rgb(76 201 240 / .3); }
+.gem-btn .ico { color: #c99a1c; }
+@media (prefers-reduced-motion: reduce) { .pf-card::after, .pf-hero::after, .pf-live { animation: none; } }
+@media (max-width: 359px) { .pf-total { font-size: 28px; } .pf-ring { width: 84px; height: 84px; } }
+.pf-main.col { flex-direction: column; align-items: stretch; gap: 16px; }
+.pf-split { display: flex; align-items: center; gap: 14px; }
+.pf-ring-n { font: 800 30px var(--nums); fill: #fff; }
+.pf-ring-l { font: 700 10.5px var(--ui); letter-spacing: .12em; text-transform: uppercase; fill: #8fb7ff; }
+@media (max-width: 480px) {
+  .top h1 { font-size: clamp(24px, 7.4vw, 32px); }
+  .tool .icon-btn { width: 36px; }
+  .tool .icon-btn .ico { width: 21px; height: 21px; }
+}
+@media (max-width: 350px) { .tool .help-btn { display: none; } }
