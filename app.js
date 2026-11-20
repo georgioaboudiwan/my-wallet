@@ -51,7 +51,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.57.0";
+  const VERSION = "3.58.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2904,6 +2904,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.58.0", items: [
+      ["", "Add screen redesign", "Amount, account and date now sit on an emerald money card with guilloche and a light sweep. The amount is larger and tinted by type (rose for spent with a minus, mint for received with a plus, gold for moves, blue for loans). New live line shows the account balance, then the balance after the entry while typing (red if it goes below zero); hidden when editing or for loans. Categories are one horizontal swipeable row of pills sorted by use; More still opens the full grid. Note field is a pill. Number pad keys have no boxes, bigger digits and a soft press highlight. Save button is dashed until an amount is typed. Sheet scrollbars hidden everywhere. Everything fits on one screen on a normal iPhone."]
+    ] },
     { v: "3.57.0", items: [
       ["", "Morphing + and gold card revert", "Gold card put back to the 3.55 look (no hologram, no coin center, no brushed layer). The 3.56 What's new note was removed. + button is now a morphing blob: organic shape that changes every 6 seconds, rotating emerald and gold gradient with a glossy highlight, a blurred glow that morphs the other way behind it, a jelly squash and stretch on tap and the plus turns 90 degrees while pressed."]
     ] },
@@ -3001,6 +3004,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.58.0", items: [
+      ["plus", "A new way to add", "The add screen is redesigned: a big amount on a money card, your balance after the entry before you save, categories in one swipeable row and a cleaner number pad."]
+    ] },
     { v: "3.57.0", items: [
       ["plus", "A living + button", "The + button is now a soft liquid shape in emerald and gold that slowly moves and wobbles like jelly when you tap it."]
     ] },
@@ -6476,6 +6482,7 @@
       const cross = to && to.currency !== cur;
       const display = amountDisplay(cur, "");
       const preview = h("p", { class: "preview num" });
+      const afterEl = h("p", { class: "tx-after num" });
       const toInput = cross ? h("input", { id: "f-toamt", class: "input num", inputmode: "decimal", autocomplete: "off", value: f.toAmount, on: { input: e => { f.toAmount = e.target.value; f.toTouched = true; } } }) : null;
       const refresh = () => {
         display.set(f.amount);
@@ -6483,6 +6490,10 @@
         if (v && cross && !f.toTouched) { f.toAmount = String(convertFor(v, cur, to.currency)); toInput.value = f.toAmount; }
         const conv = !v || cur === mainCur() ? "" : `≈ ${money(toMain(v, cur), { show: true })}`;
         preview.textContent = conv || "\u00a0";
+        if (!x && f.kind !== "loan") {
+          const cb = bal.get(a.id) || 0, sign = f.kind === "income" ? 1 : -1;
+          afterEl.replaceChildren(...[h("span", null, tr(v ? "Balance after" : "Balance")), v ? h("b", { class: "nx" + (cb + sign * v < 0 ? " neg" : "") }, fmt(cb + sign * v, cur, { show: true })) : h("b", null, fmt(cb, cur, { show: true }))]);
+        } else afterEl.hidden = true;
         const verb = { expense: "Save", income: "Save", transfer: "Move", loan: "Save" }[f.kind];
         saveBtn.textContent = !v ? tr("Enter an amount") : `${tr(verb)} ${fmt(v, cur, { show: true })}`;
         saveBtn.className = "btn tx-save" + (!v ? " waiting" : "");
@@ -6541,7 +6552,7 @@
         if (!showAll && f.category && !shown.some(c => c.id === f.category)) shown = [...shown.slice(0, LIMIT - 1), cat(f.category)];
         pickArea = h("section", { class: "tx-pick" + (attn ? " attn" : "") },
           h("h3", null, f.kind === "expense" ? "What for?" : "From where?"),
-          h("div", { class: "bubbles" },
+          h("div", { class: "bubbles" + (showAll ? "" : " row") },
             shown.map(c => h("button", { type: "button", class: "bubble" + (c.id === f.category ? " on" : ""), style: { "--c": c.color }, "aria-pressed": String(c.id === f.category), on: { click: () => { f.category = c.id; attn = false; err.textContent = ""; draw(); } } },
               h("span", { class: "bubble-ico" }, catGlyph(c, "ico")), h("span", { class: "bubble-name" }, c.name))),
             cats.length > LIMIT + 1 ? h("button", { type: "button", class: "bubble more", on: { click: () => { showAll = !showAll; draw(); } } }, h("span", { class: "bubble-ico" }, icon(showAll ? "up" : "plus", "ico")), h("span", { class: "bubble-name" }, showAll ? "Less" : "More")) : null));
@@ -6584,8 +6595,7 @@
 
       const kids = [
         top, menu,
-        h("div", { class: "tx-amount" }, display, preview),
-        metas,
+        h("div", { class: "tx-hero" }, h("div", { class: "tx-amount" }, display, preview), afterEl, metas),
         panelEl ? h("div", { class: "panel list inline" }, panelEl) : null,
         pickArea,
         noteRow,
