@@ -1629,7 +1629,11 @@ Object.assign(window.WALLET_I18N.words, {
   "Where it came from": ["D'où ça vient", "من أين جاء"],
   "By category": ["Par catégorie", "حسب الفئة"],
   "Tap to see the details": ["Touchez pour voir le détail", "اضغط لترى التفاصيل"],
-  "In Insights, tap Spent, Came in or Left over to see the month's entries and where the money went or came from.": ["Dans les analyses, touchez Dépensé, Entré ou Reste pour voir les opérations du mois et où l'argent est allé ou d'où il vient.", "في التحليلات، اضغط على المصروف أو الداخل أو المتبقي لترى إدخالات الشهر وأين ذهب المال أو من أين جاء."]
+  "In Insights, tap Spent, Came in or Left over to see the month's entries and where the money went or came from.": ["Dans les analyses, touchez Dépensé, Entré ou Reste pour voir les opérations du mois et où l'argent est allé ou d'où il vient.", "في التحليلات، اضغط على المصروف أو الداخل أو المتبقي لترى إدخالات الشهر وأين ذهب المال أو من أين جاء."],
+  "Lent & paid for others": ["Prêté et payé pour d'autres", "قروض ودفعات عن الآخرين"],
+  "Borrowed & paid back to you": ["Emprunté et remboursé", "مقترض ومسترد"],
+  "Loans now count": ["Les prêts comptent maintenant", "القروض تُحتسب الآن"],
+  "Money you lend now counts in what you spent, and money you borrow or get back counts in what came in. They show as their own line so you can tell them apart.": ["L'argent que vous prêtez compte maintenant dans vos dépenses, et l'argent emprunté ou remboursé compte dans les entrées. Ils ont leur propre ligne pour les distinguer.", "المال الذي تقرضه يُحتسب الآن ضمن المصروف، والمال الذي تقترضه أو يُرد إليك يُحتسب ضمن الداخل. يظهران في سطر خاص لتميّزهما."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],

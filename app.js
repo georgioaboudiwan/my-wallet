@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.68.0";
+  const VERSION = "3.69.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -379,7 +379,8 @@
 
   const rows = t => [...S.data[t].values()];
   const acc = id => S.data.accounts.get(id);
-  const cat = id => S.data.categories.get(id);
+  const LOAN_CATS = { __lent: { id: "__lent", name: "Lent & paid for others", kind: "expense", color: "#4f86f0", virtual: true }, __borrowed: { id: "__borrowed", name: "Borrowed & paid back to you", kind: "income", color: "#14b8a6", virtual: true } };
+  const cat = id => S.data.categories.get(id) || LOAN_CATS[id];
   const CAT_ICON_KEYS = { groceries: "cart", home: "home", bills: "wifi", generator: "bolt", transport: "car", parking: "park", care: "cut", health: "heart", eating: "cup", shopping: "bag", fun: "star", subs: "repeat", gifts: "gift", debt: "bank", salary: "work", freelance: "laptop", giftsin: "gift", remit: "globe", otherin: "coin" };
   const CAT_ICON_WORDS = [[/parking|valet|garage/i, "park"], [/hair|barber|salon|beauty|nail|spa|personal care|groom/i, "cut"], [/grocer|food|super|market/i, "cart"], [/rent|home|house|apart/i, "home"], [/bill|internet|phone|mobile|wifi/i, "wifi"], [/generat|electric|power|ampere/i, "bolt"], [/fuel|petrol|car|transport|taxi|uber|bus/i, "car"], [/health|doctor|pharm|medic|hospital|gym/i, "heart"], [/eat|coffee|restaurant|lunch|dinner|cafe|drink/i, "cup"], [/shop|cloth|amazon/i, "bag"], [/fun|going out|movie|party|travel|trip/i, "star"], [/subscri|netflix|spotify|apple|icloud/i, "repeat"], [/remit|abroad|transfer from|family support/i, "globe"], [/gift|family/i, "gift"], [/loan|debt|bank|repay/i, "bank"], [/salary|work|job|wage/i, "work"], [/freelance|side|client/i, "laptop"]];
   const catIconName = c => {
@@ -904,6 +905,15 @@
         if (!s.biggest || u > txMain(s.biggest)) s.biggest = x;
       } else if (x.kind === "income") {
         s.income += u;
+      } else if (x.kind === "loan_out") {
+        s.spent += u;
+        s.count++;
+        s.loanOut = (s.loanOut || 0) + u;
+        s.byCat.set("__lent", (s.byCat.get("__lent") || 0) + u);
+        s.days.set(x.occurred_on, (s.days.get(x.occurred_on) || 0) + u);
+      } else if (x.kind === "loan_in") {
+        s.income += u;
+        s.loanIn = (s.loanIn || 0) + u;
       } else if (x.kind === "transfer") {
         const from = acc(x.account_id);
         const to = acc(x.to_account_id);
@@ -2959,6 +2969,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.69.0", items: [
+      ["", "Loans in month totals", "Month totals now include loans: loan_out (lent, paid back to someone, paid for a shared group) adds to Spent under a virtual category Lent & paid for others (blue); loan_in (borrowed, paid back to you, received from a group) adds to Came in under Borrowed & paid back to you (teal). Affects Insights tiles and month sheets, the receipt (tapping the loan line opens Split), Home Spent tiles, the plan tank and reports. Loans are not added to plan buckets or category budgets, and transfers are still not counted."]
+    ] },
     { v: "3.68.0", items: [
       ["", "Insights tile details", "Insights tiles Spent, Came in and Left over/Overspent are now buttons opening a month sheet: summary card with total and entry count, breakdown by category (spent) or by source (came in) with bars and shares, then every entry of that kind for the month (tap to edit). Left over shows a came in vs spent split (each half opens its own sheet) and all income and expense entries."]
     ] },
@@ -3095,6 +3108,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.69.0", items: [
+      ["people", "Loans now count", "Money you lend now counts in what you spent, and money you borrow or get back counts in what came in. They show as their own line so you can tell them apart."]
+    ] },
     { v: "3.68.0", items: [
       ["chart", "Tap to see the details", "In Insights, tap Spent, Came in or Left over to see the month's entries and where the money went or came from."]
     ] },
@@ -3680,7 +3696,7 @@
     const cats = [...s.byCat].filter(e => e[1] > 0).sort((p, q) => q[1] - p[1]);
     if (!cats.length) return null;
     const cnt = new Map();
-    for (const x of rows("transactions")) if (x.kind === "expense" && monthOf(x.occurred_on) === m) cnt.set(x.category_id, (cnt.get(x.category_id) || 0) + 1);
+    for (const x of rows("transactions")) if ((x.kind === "expense" || x.kind === "loan_out") && monthOf(x.occurred_on) === m) { const k = x.kind === "loan_out" ? "__lent" : x.category_id; cnt.set(k, (cnt.get(k) || 0) + 1); }
     const left = s.income - s.spent;
     const stamp = new Date();
     const no = String(Math.abs(Math.round(s.spent * 100)) % 1000000).padStart(6, "0");
@@ -3693,7 +3709,7 @@
           h("ul", { class: "rcpt-items" }, cats.map(([id, v], i) => {
             const c = cat(id), pct = v / s.spent * 100;
             return h("li", { style: { "--c": c ? c.color : "#5b7083", "--p": pct.toFixed(1) + "%", "--i": String(i) } },
-              h("button", { type: "button", on: { click: () => { S.filter = { q: c ? c.name : "", kind: "expense", account: null }; go("activity"); } } },
+              h("button", { type: "button", on: { click: () => { if (c && c.virtual) return go("people"); S.filter = { q: c ? c.name : "", kind: "expense", account: null }; go("activity"); } } },
                 h("span", { class: "rcpt-line" }, h("span", { class: "rcpt-name" }, c ? c.name : "Uncategorized"), h("i", { class: "rcpt-dots" }), h("b", { class: "num" }, money(v))),
                 h("span", { class: "rcpt-meta num" }, h("span", { class: "rcpt-bar" }), `${cnt.get(id) || 0} × · ${Math.round(pct)}%`)));
           })),
@@ -3988,10 +4004,11 @@
 
   function monthKindSheet(m, kind) {
     const s = monthStats(m);
-    const list = rows("transactions").filter(x => monthOf(x.occurred_on) === m && (kind === "both" ? x.kind === "expense" || x.kind === "income" : x.kind === kind)).sort(byRecent);
+    const kinds = kind === "expense" ? ["expense", "loan_out"] : kind === "income" ? ["income", "loan_in"] : ["expense", "loan_out", "income", "loan_in"];
+    const list = rows("transactions").filter(x => monthOf(x.occurred_on) === m && kinds.includes(x.kind)).sort(byRecent);
     const title = kind === "expense" ? `${tr("Spent in")} ${monthName(m)}` : kind === "income" ? `${tr("Came in")} · ${monthName(m)}` : `${monthName(m)} · ${tr("in and out")}`;
     const sums = new Map();
-    for (const x of list) { const k = (x.kind === "income" ? "i:" : "e:") + (x.category_id || ""); sums.set(k, (sums.get(k) || 0) + txMain(x)); }
+    for (const x of list) { const k = x.kind === "loan_out" ? "e:__lent" : x.kind === "loan_in" ? "i:__borrowed" : (x.kind === "income" ? "i:" : "e:") + (x.category_id || ""); sums.set(k, (sums.get(k) || 0) + txMain(x)); }
     const total = kind === "expense" ? s.spent : kind === "income" ? s.income : s.income - s.spent;
     const breakdown = [...sums].filter(([k]) => kind === "both" || k.startsWith(kind === "income" ? "i:" : "e:")).sort((p, q) => q[1] - p[1]);
     const bigK = kind === "both" ? null : (breakdown[0] || [0, 1])[1];
