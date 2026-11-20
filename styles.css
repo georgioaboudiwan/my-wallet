@@ -2302,3 +2302,4 @@ html.kb .sheet-foot { padding-bottom: 10px; }
 .row.tap > .icon-btn { pointer-events: auto; }
 .row.tap:active { background: var(--sunk); }
 .btn.alt.danger { color: var(--neg) !important; }
+.ro-note { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-radius: 16px; background: var(--sunk); color: var(--muted); font-size: 14px; }

@@ -106,3 +106,22 @@ $fn$;
 revoke all on function public.people_unlink_delete() from public, anon, authenticated;
 drop trigger if exists people_unlink_delete on public.people;
 create trigger people_unlink_delete after delete on public.people for each row execute function public.people_unlink_delete();
+
+alter table public.loan_links add column if not exists view_only boolean not null default false;
+alter table public.loan_links alter column view_only set default true;
+grant select (view_only) on public.loan_links to authenticated;
+drop policy if exists "shared entries add" on public.shared_entries;
+create policy "shared entries add" on public.shared_entries for insert to authenticated with check (
+  author = (select auth.uid()) and exists (select 1 from public.loan_links l where l.token = shared_entries.token and l.member = (select auth.uid()) and not l.view_only));
+create or replace function public.set_loan_view_only(p_token text, p_on boolean) returns boolean
+language plpgsql security definer set search_path = '' as $fn$
+declare me uuid := auth.uid();
+begin
+  if me is null then raise exception 'sign in first' using errcode = '42501'; end if;
+  if p_token !~ '^[A-Za-z0-9_-]{32,64}$' then raise exception 'bad link' using errcode = '22023'; end if;
+  update public.loan_links set view_only = coalesce(p_on, true) where token = p_token and owner = me;
+  return found;
+end
+$fn$;
+revoke all on function public.set_loan_view_only(text, boolean) from public, anon;
+grant execute on function public.set_loan_view_only(text, boolean) to authenticated;

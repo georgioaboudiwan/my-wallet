@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.70.0";
+  const VERSION = "3.71.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2981,6 +2981,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.71.0", items: [
+      ["", "View only shared loans", "Shared loans are view only by default: new column loan_links.view_only (default true for new links, existing links keep editing), insert policy on shared_entries now requires not view_only so members cannot add entries server side, and new RPC set_loan_view_only(token, on) for the owner. Owner sees whether the other person can only see or can also add, with a button to switch. Member side reads view_only, hides the give/get buttons, shows a view only note and excludes that person from the add screen loan list. Private link text explains it."]
+    ] },
     { v: "3.70.0", items: [
       ["", "Two-way loans, editable entries, simpler wording, Home order", "Loans reworked: each person keeps a net balance that can switch sides (someone who owed you can end up being owed, and back), shown everywhere by its real side (hero, lists, totals, chips, reminders, WhatsApp texts, shared page). Person screen: two buttons I gave NAME and NAME gave me with no maximum; the add screen loan choices use the same words; activity rows read You gave NAME or NAME gave you; history rows show You gave/You got with arrows. Tapping a history entry (not for linked shared people) opens Edit entry: switch gave/got, change amount, note and date, or delete; the matching account entry is updated or deleted too. Loans saved with Don't move money now also count in month Spent and Came in. Wording: Lend or borrow renamed Money with a person. Home: Money with others moved below the tiles and plan, and restyled as a neutral card with green and red accented totals so it no longer sits as a second green block under the balance card."]
     ] },
@@ -3126,6 +3129,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.71.0", items: [
+      ["link", "Share a loan, view only", "Send someone their private link. They see the balance and every entry in their own app, but only you can change it. You can let them add entries if you want."]
+    ] },
     { v: "3.70.0", items: [
       ["people", "Give and get, as often as you want", "With the same person you can now give and get money as many times as you like, and the app works out who owes who. Tap any entry in their history to change or delete it."]
     ] },
@@ -4835,9 +4841,11 @@
           try { const e = await openWith(key, r.senc); pending.push({ id: r.id, amount: Number(e.amount), note: e.note || null, date: e.date, created_at: r.created_at }); } catch { }
         }
         const from = typeof info.from === "string" ? info.from.trim().slice(0, 40) : "";
-        const sig = JSON.stringify([entries, pending, from]);
+        let viewOnly = prev ? !!prev.viewOnly : false;
+        try { const vo = await sb.from("loan_links").select("view_only").eq("token", token).maybeSingle(); if (!vo.error && vo.data) viewOnly = !!vo.data.view_only; } catch { }
+        const sig = JSON.stringify([entries, pending, from, viewOnly]);
         if (!prev || prev.sig !== sig) {
-          LINKED.set(p.id, { entries, pending, from, off: false, sig });
+          LINKED.set(p.id, { entries, pending, from, off: false, sig, viewOnly });
           changed = true;
         }
       } catch { }
@@ -4855,9 +4863,10 @@
     if (!owned.length) { LINKS.owned = new Map(); return; }
     LINKS.importing = true;
     try {
-      const { data: links, error } = await sb.from("loan_links").select("token, member").eq("owner", S.uid);
+      const { data: links, error } = await sb.from("loan_links").select("token, member, view_only").eq("owner", S.uid);
       if (error) return;
       LINKS.owned = new Map((links || []).map(l => [l.token, l.member]));
+      LINKS.view = new Map((links || []).map(l => [l.token, !!l.view_only]));
       const tokens = owned.map(p => p.share_token).filter(t => LINKS.owned.has(t));
       if (!tokens.length) return;
       const { data } = await sb.from("shared_entries").select("id, token, senc").in("token", tokens).is("consumed_at", null).limit(200);
@@ -6011,7 +6020,9 @@
           p.phone ? null : h("p", { class: "hint" }, "Add their WhatsApp number in Details to send updates.")));
       }
 
-      kids.push(h("div", { class: "actions" },
+      const roOnly = !!(linkOf(p) && (LINKED.get(p.id) || {}).viewOnly);
+      if (roOnly) kids.push(h("p", { class: "ro-note" }, icon("eye", "ico sm"), `${tr("View only. Only")} ${(LINKED.get(p.id) || {}).from || p.name} ${tr("can add or change entries.")}`));
+      else kids.push(h("div", { class: "actions" },
         h("button", { type: "button", class: "action", on: { click: () => openAmount("out") } }, h("span", { class: "action-ico out" }, icon("up")), `${tr("I gave")} ${p.name}`),
         h("button", { type: "button", class: "action", on: { click: () => openAmount("in") } }, h("span", { class: "action-ico" }, icon("down")), `${p.name} ${tr("gave me")}`)));
 
@@ -6026,13 +6037,22 @@
         share.append(
           h("div", { class: "row" }, h("span", { class: "dot " + (lk.off ? "bad" : "ok") }, icon(lk.off ? "warn" : "link", "ico sm")),
             h("span", { class: "row-main" }, h("span", { class: "row-title" }, lk.off ? "Sharing was turned off" : `Connected to ${p.name}'s account`),
-              h("span", { class: "row-sub wrap" }, lk.off ? `${p.name} turned off the link. You still see the last entries you got.` : `You both see the same history. What you add is sent to ${p.name}, and you're notified when they change something.`))),
+              h("span", { class: "row-sub wrap" }, lk.off ? `${p.name} turned off the link. You still see the last entries you got.` : lk.viewOnly ? `${tr("View only")}. ${tr("You see the balance and history, and only")} ${lk.from || p.name} ${tr("can change it.")}` : `You both see the same history. What you add is sent to ${p.name}, and you're notified when they change something.`))),
           h("button", { type: "button", class: "row-btn", on: { click: async () => { await loadLinked(); draw(); toast("Up to date."); } } }, "Check for changes"));
       } else if (connected) {
         share.append(
           h("div", { class: "row" }, h("span", { class: "dot ok" }, icon("link", "ico sm")),
             h("span", { class: "row-main" }, h("span", { class: "row-title" }, `Connected to ${p.name}'s account`),
-              h("span", { class: "row-sub wrap" }, `${p.name} sees this loan in their own app and can add entries. You both get notified when something changes.`))),
+              h("span", { class: "row-sub wrap" }, LINKS.view && LINKS.view.get(p.share_token) !== false ? `${p.name} ${tr("sees this loan in their own app but can't change it. Only you can.")}` : `${p.name} sees this loan in their own app and can add entries. You both get notified when something changes.`))),
+          h("button", { type: "button", class: "row-btn", on: { click: async () => {
+            const cur = !(LINKS.view && LINKS.view.get(p.share_token) === false);
+            const { error } = await sb.rpc("set_loan_view_only", { p_token: p.share_token, p_on: !cur });
+            if (error) return toast("Couldn't change it. Try again.", "error");
+            if (!LINKS.view) LINKS.view = new Map();
+            LINKS.view.set(p.share_token, !cur);
+            toast(!cur ? `${p.name} can only see it now.` : `${p.name} can add entries now.`);
+            draw();
+          } } }, LINKS.view && LINKS.view.get(p.share_token) === false ? `${tr("Make it view only for")} ${p.name}` : `${tr("Let")} ${p.name} ${tr("add entries too")}`),
           h("button", { type: "button", class: "row-btn danger", on: { click: () => {
             if (armed !== "disconnect") { armed = "disconnect"; draw(); return; }
             armed = null;
@@ -6041,7 +6061,7 @@
       } else if (p.share_token && p.skey) {
         const url = shareUrl(p);
         addKids(share, 
-          h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `${p.name} sees only their balance and history. No account needed. If ${p.name} uses BudgetSplit, they can open the link while signed in and add the loan to their app, so you both stay in sync.`),
+          h("p", { class: "row-sub", style: { padding: "0 16px 6px", whiteSpace: "normal" } }, `${p.name} ${tr("sees their balance and history, but can't change anything. No account needed. If they use BudgetSplit, opening the link while signed in adds it to their app, view only.")}`),
           h("input", { id: "f-plink", class: "input", readOnly: true, value: url, hidden: true, style: { margin: "0 16px", width: "calc(100% - 32px)" } }),
           h("button", { type: "button", class: "row-btn", on: { click: () => copyText(url, "f-plink") } }, "Copy link"),
           p.phone ? h("a", { class: "row-btn", style: { display: "block", textDecoration: "none" }, href: waUrl(p.phone, linkMessage(p, p.share_token)), target: "_blank", rel: "noopener noreferrer", on: { click: () => track("whatsapp", "link") } }, "Send link on WhatsApp") : null,
@@ -6903,7 +6923,7 @@
           shown.length ? null : h("p", { class: "hint center" }, "No category with that name."));
       } else if (isLoan) {
         const lb = loanBalances();
-        const people = rows("people").sort((p, q) => Math.abs(toMain(lb.get(q.id) || 0, q.currency)) - Math.abs(toMain(lb.get(p.id) || 0, p.currency)) || bySort(p, q));
+        const people = rows("people").filter(p => !(linkOf(p) && (LINKED.get(p.id) || {}).viewOnly)).sort((p, q) => Math.abs(toMain(lb.get(q.id) || 0, q.currency)) - Math.abs(toMain(lb.get(p.id) || 0, p.currency)) || bySort(p, q));
         const choice = (mode, label) => h("button", { type: "button", class: "tx-tab" + (f.lmode === mode ? " on" : ""), on: { click: () => { f.lmode = mode; draw(); } } }, label);
         pickArea = h("section", { class: "tx-pick" + (attn ? " attn" : "") },
           h("h3", null, "With who?"),

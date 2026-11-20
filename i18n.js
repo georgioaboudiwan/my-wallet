@@ -1654,7 +1654,19 @@ Object.assign(window.WALLET_I18N.words, {
   "someone": ["quelqu'un", "شخص"],
   "owes you": ["vous doit", "مدين لك"],
   "Give and get, as often as you want": ["Donnez et recevez, autant que vous voulez", "أعطِ وخذ كما تشاء"],
-  "With the same person you can now give and get money as many times as you like, and the app works out who owes who. Tap any entry in their history to change or delete it.": ["Avec la même personne, vous pouvez maintenant donner et recevoir de l'argent autant de fois que vous voulez, et l'app calcule qui doit quoi. Touchez une opération de l'historique pour la modifier ou la supprimer.", "مع الشخص نفسه يمكنك الآن أن تعطي وتأخذ المال كما تشاء، والتطبيق يحسب من يدين لمن. اضغط على أي إدخال في السجل لتعديله أو حذفه."]
+  "With the same person you can now give and get money as many times as you like, and the app works out who owes who. Tap any entry in their history to change or delete it.": ["Avec la même personne, vous pouvez maintenant donner et recevoir de l'argent autant de fois que vous voulez, et l'app calcule qui doit quoi. Touchez une opération de l'historique pour la modifier ou la supprimer.", "مع الشخص نفسه يمكنك الآن أن تعطي وتأخذ المال كما تشاء، والتطبيق يحسب من يدين لمن. اضغط على أي إدخال في السجل لتعديله أو حذفه."],
+  "View only": ["Lecture seule", "للعرض فقط"],
+  "You see the balance and history, and only": ["Vous voyez le solde et l'historique, et seul", "ترى الرصيد والسجل، ووحده"],
+  "can change it.": ["peut le modifier.", "يمكنه تعديله."],
+  "sees this loan in their own app but can't change it. Only you can.": ["voit ce prêt dans son app mais ne peut pas le modifier. Vous seul le pouvez.", "يرى هذا القرض في تطبيقه لكن لا يمكنه تعديله. أنت فقط تستطيع."],
+  "Make it view only for": ["Mettre en lecture seule pour", "اجعله للعرض فقط لـ"],
+  "Let": ["Laisser", "اسمح لـ"],
+  "add entries too": ["ajouter aussi des opérations", "بإضافة إدخالات أيضًا"],
+  "View only. Only": ["Lecture seule. Seul", "للعرض فقط. وحده"],
+  "can add or change entries.": ["peut ajouter ou modifier des opérations.", "يمكنه إضافة أو تعديل الإدخالات."],
+  "sees their balance and history, but can't change anything. No account needed. If they use BudgetSplit, opening the link while signed in adds it to their app, view only.": ["voit son solde et son historique, sans pouvoir rien modifier. Aucun compte requis. S'il utilise BudgetSplit, ouvrir le lien connecté l'ajoute à son app, en lecture seule.", "يرى رصيده وسجله دون أن يستطيع تعديل شيء. لا يحتاج حسابًا. إن كان يستخدم التطبيق، فتح الرابط وهو مسجل الدخول يضيفه إلى تطبيقه للعرض فقط."],
+  "Share a loan, view only": ["Partager un prêt en lecture seule", "شارك قرضًا للعرض فقط"],
+  "Send someone their private link. They see the balance and every entry in their own app, but only you can change it. You can let them add entries if you want.": ["Envoyez son lien privé à quelqu'un. Il voit le solde et chaque opération dans son app, mais vous seul pouvez le modifier. Vous pouvez le laisser ajouter des opérations si vous voulez.", "أرسل لشخص رابطه الخاص. يرى الرصيد وكل إدخال في تطبيقه، وأنت فقط تستطيع التعديل. يمكنك السماح له بالإضافة إن أردت."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
