@@ -51,7 +51,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.50.0";
+  const VERSION = "3.51.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2710,6 +2710,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.51.0", items: [
+      ["", "Unified futuristic design", "New cool palette for both themes (ice-white and deep navy-black), aurora background, deep-space surface shared by the total balance, Portfolio, Split banner and login, mint-to-ice gradient for every main button and the + button, one style for all suggestion cards (salary, split, bills, payday, your part), luminous card edges, neon focus rings and switches, gradient amounts in the add screen."]
+    ] },
     { v: "3.50.0", items: [
       ["", "Portfolio redesign", "Gem button in the top bar opens a full-height Portfolio screen: deep-space hero with grid, sweep light, live pulse, total in a gradient, all-time and today's change, allocation ring with asset count, legend per type, grouped holdings, refresh button and an Add button. Home shows the same style as a card under the total balance (or a teaser when empty). Top bar tightened so 5 buttons fit from 320 px."]
     ] },
@@ -2786,6 +2789,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.51.0", items: [
+      ["sun", "A whole new look", "BudgetSplit has a new futuristic design across every screen: deep-space cards, glowing buttons and one consistent style in light and dark mode."]
+    ] },
     { v: "3.50.0", items: [
       ["gem", "Your portfolio, front and center", "A new Portfolio card on Home shows what your gold, crypto and stocks are worth live, your gain and today's move. Tap the gem at the top to open it, add or edit."]
     ] },
@@ -3941,8 +3947,8 @@
     if (v === "system") { root.removeAttribute("data-theme"); root.style.colorScheme = ""; } else { root.setAttribute("data-theme", v); root.style.colorScheme = v; }
     document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.remove());
     const add = (content, media) => { const m = document.createElement("meta"); m.name = "theme-color"; m.content = content; if (media) m.media = media; document.head.append(m); };
-    if (v === "system") { add("#edf2ee", "(prefers-color-scheme: light)"); add("#070f0c", "(prefers-color-scheme: dark)"); }
-    else add(v === "dark" ? "#070f0c" : "#edf2ee");
+    if (v === "system") { add("#eef3f8", "(prefers-color-scheme: light)"); add("#05070f", "(prefers-color-scheme: dark)"); }
+    else add(v === "dark" ? "#05070f" : "#eef3f8");
   }
   function setTheme(v) {
     const before = themeIsDark(themePref());
