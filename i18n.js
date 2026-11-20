@@ -1609,7 +1609,10 @@ Object.assign(window.WALLET_I18N.words, {
   "Your month plan fills like liquid you can shake.": ["Votre plan du mois se remplit comme un liquide que vous pouvez secouer.", "تمتلئ خطة شهرك كسائل يمكنك هزّه."],
   "In Insights, turn the dial to go through your categories and see how much each one took this month.": ["Dans les analyses, tournez le cadran pour parcourir vos catégories et voir combien chacune a pris ce mois-ci.", "في التحليلات، أدر القرص لتتنقل بين فئاتك وترى كم أخذت كل منها هذا الشهر."],
   "See all your accounts": ["Voir tous vos comptes", "اعرض كل حساباتك"],
-  "Tap See all next to your accounts to see every card at once, and Show as cards to swipe again.": ["Touchez Tout voir à côté de vos comptes pour voir toutes les cartes d'un coup, et Afficher en cartes pour les faire défiler à nouveau.", "اضغط عرض الكل بجانب حساباتك لترى كل البطاقات معًا، واعرض كبطاقات لتتصفحها مجددًا."]
+  "Tap See all next to your accounts to see every card at once, and Show as cards to swipe again.": ["Touchez Tout voir à côté de vos comptes pour voir toutes les cartes d'un coup, et Afficher en cartes pour les faire défiler à nouveau.", "اضغط عرض الكل بجانب حساباتك لترى كل البطاقات معًا، واعرض كبطاقات لتتصفحها مجددًا."],
+  "Where your coins went": ["Où sont allées vos pièces", "أين ذهبت عملاتك"],
+  "Tap or slide across the stacks": ["Touchez ou glissez sur les piles", "اضغط أو مرّر على الأكوام"],
+  "Insights now shows your spending as stacks of gold coins, one stack per category. Slide across them or tap one to see the amount, and watch the coins drop again.": ["Les analyses montrent maintenant vos dépenses en piles de pièces d'or, une pile par catégorie. Glissez dessus ou touchez-en une pour voir le montant et regarder les pièces retomber.", "تعرض التحليلات الآن مصاريفك كأكوام من العملات الذهبية، كومة لكل فئة. مرّر عليها أو اضغط على واحدة لترى المبلغ وتشاهد العملات تسقط من جديد."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
