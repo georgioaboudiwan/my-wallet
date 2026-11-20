@@ -1553,7 +1553,11 @@ Object.assign(window.WALLET_I18N.words, {
   "Flip card": ["Retourner la carte", "اقلب البطاقة"],
   "/day": ["/jour", "/يوم"],
   "A living balance card": ["Une carte de solde vivante", "بطاقة رصيد حيّة"],
-  "Your card now shows how your balance moved in the last 30 days. Slide your finger on the line to see any day. Tap the card to flip it and see this month at a glance.": ["Votre carte montre maintenant l'évolution de votre solde sur les 30 derniers jours. Glissez le doigt sur la courbe pour voir n'importe quel jour. Touchez la carte pour la retourner et voir ce mois en un coup d'œil.", "تعرض بطاقتك الآن تغيّر رصيدك خلال آخر 30 يومًا. مرّر إصبعك على الخط لرؤية أي يوم. اضغط على البطاقة لقلبها ورؤية هذا الشهر بلمحة."]
+  "Your card now shows how your balance moved in the last 30 days. Slide your finger on the line to see any day. Tap the card to flip it and see this month at a glance.": ["Votre carte montre maintenant l'évolution de votre solde sur les 30 derniers jours. Glissez le doigt sur la courbe pour voir n'importe quel jour. Touchez la carte pour la retourner et voir ce mois en un coup d'œil.", "تعرض بطاقتك الآن تغيّر رصيدك خلال آخر 30 يومًا. مرّر إصبعك على الخط لرؤية أي يوم. اضغط على البطاقة لقلبها ورؤية هذا الشهر بلمحة."],
+  "Your wallet": ["Votre portefeuille", "محفظتك"],
+  "Your balance and your investments are now two cards in one wallet. Portfolio is a gold card: tap the card behind to bring it to the front.": ["Votre solde et vos investissements sont maintenant deux cartes dans un même portefeuille. Les investissements sont une carte dorée : touchez la carte derrière pour la mettre devant.", "أصبح رصيدك واستثماراتك بطاقتين في محفظة واحدة. المحفظة الاستثمارية بطاقة ذهبية: اضغط على البطاقة الخلفية لتظهر في الأمام."],
+  "Show portfolio": ["Afficher le portefeuille", "اعرض المحفظة"],
+  "Show total balance": ["Afficher le solde total", "اعرض الرصيد الإجمالي"]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
