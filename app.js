@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.66.1";
+  const VERSION = "3.67.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2061,7 +2061,7 @@
       for (const c of document.querySelectorAll("canvas.orb")) if (!c.__orb) orbInit(c); else orbMix(c.__orb);
       for (const r of document.querySelectorAll(".acc-rail")) if (!r.__rail) railInit(r); else r.__rail();
       for (const c of document.querySelectorAll("canvas.tank")) if (!c.__tank) tankInit(c); else c.__tank.read();
-      for (const c of document.querySelectorAll("canvas.coins-cv")) if (!c.__coins) coinsInit(c); else if (c.__coins.raw !== c.dataset.b) c.__coins.rebuild();
+      for (const r of document.querySelectorAll(".rcpt-card")) if (!r.__seen) { r.__seen = true; if (RM.matches || !("IntersectionObserver" in window)) { r.__done = true; r.classList.add("printing", "printed"); } else { const io = new IntersectionObserver(es => { if (es.some(en => en.isIntersecting)) { io.disconnect(); r.__done = true; r.classList.add("printing"); setTimeout(() => r.classList.add("printed"), 1700); } }, { threshold: 0.2 }); io.observe(r); } } else if (r.__done) r.classList.add("printing", "printed");
       for (const el of document.querySelectorAll(".wallet > .hero, .pf-card:not(.pf-empty), .pf-hero, .login-card")) if (!el.__tilt) tiltInit(el);
       const a = document.querySelector(".wallet > .hero .hero-total"); if (a) countUp(a, "home");
       const b = document.querySelector(".pf-card .pf-total"); if (b) countUp(b, "pf");
@@ -2959,6 +2959,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.67.0", items: [
+      ["", "Receipt in Insights, Arabic fixes", "Insights: coin stacks removed; the Where it went list is replaced by a printed receipt card (printer slot, paper slides out in steps when it scrolls into view, zigzag tear edge, monospace lines with dotted leaders, per category amount, number of entries and share bar, total spent, came in, left over or overspent, barcode). Tapping a line opens Activity filtered to that category; the empty month shows a plain message. Arabic: total balance label no longer sits under the card chip; people rows now translate Owes you / You owe and since. The 3.66 What's new entry for coins was removed."]
+    ] },
     { v: "3.66.1", items: [
       ["", "Accounts open as cards", "The accounts section always opens as swipeable cards. See all now lasts only until the app is closed or reloaded instead of being remembered on the device."]
     ] },
@@ -3089,8 +3092,8 @@
     ] }
   ];
   const CHANGES = [
-    { v: "3.66.0", items: [
-      ["coin", "Where your coins went", "Insights now shows your spending as stacks of gold coins, one stack per category. Slide across them or tap one to see the amount, and watch the coins drop again."]
+    { v: "3.67.0", items: [
+      ["note", "Your month as a receipt", "Insights prints your month like a shop receipt: every category with its amount and how many times you spent, then the total. Tap a line to see those entries."]
     ] },
     { v: "3.65.0", items: [
       ["card", "See all your accounts", "Tap See all next to your accounts to see every card at once."]
@@ -3667,92 +3670,34 @@
     card.style.touchAction = "pan-y";
     draw();
   }
-  function coinStacks(m, s) {
+  function spendReceipt(m, s) {
     const cats = [...s.byCat].filter(e => e[1] > 0).sort((p, q) => q[1] - p[1]);
     if (!cats.length) return null;
-    const top = cats.slice(0, 6), rest = cats.slice(6).reduce((t, e) => t + e[1], 0);
-    const data = top.map(([id, v]) => { const c = cat(id); return [tr(c ? c.name : "Uncategorized"), c ? c.color : "#5b7083", v, Math.round(v / s.spent * 100), money(v, { whole: true })]; });
-    if (rest > 0) data.push([tr("Everything else"), "#8a9a91", rest, Math.round(rest / s.spent * 100), money(rest, { whole: true })]);
-    return h("section", { class: "coin-card" },
-      h("div", { class: "bub-head" }, h("span", { class: "bub-kicker" }, "Where your coins went"), h("span", { class: "bub-hint" }, "Tap or slide across the stacks")),
-      h("canvas", { class: "coins-cv", "data-b": JSON.stringify(data), "aria-hidden": "true" }),
-      h("p", { class: "coin-tip num", "aria-live": "polite" }, h("i"), h("strong"), h("b"), h("small")));
-  }
-  function coinsInit(c) {
-    const H = 250, card = c.closest(".coin-card"), tip = card.querySelector(".coin-tip");
-    const o = { stacks: [], sel: 0, raw: null, t: 0 };
-    c.__coins = o;
-    const build = () => {
-      let data = [];
-      try { data = JSON.parse(c.dataset.b || "[]"); } catch { }
-      o.raw = c.dataset.b;
-      const max = Math.max(...data.map(d => d[2]), 1);
-      o.stacks = data.map((d, i) => { const n = Math.max(1, Math.round(d[2] / max * 14)); return { name: d[0], color: d[1], pct: d[3], label: d[4], coins: Array.from({ length: n }, (_, k) => ({ y: -40 - k * 26 - i * 40, vy: 0, done: RM.matches })) }; });
-      o.sel = 0;
-      paintTip();
-    };
-    const paintTip = () => {
-      const g = o.stacks[o.sel]; if (!g) return;
-      const [dot, nm, am, pc] = tip.children;
-      dot.style.background = g.color; nm.textContent = g.name; am.textContent = g.label; pc.textContent = `${g.pct}% ${tr("of spending")}`;
-    };
-    const drop = i => { const st = o.stacks[i]; if (!st || RM.matches) return; st.coins.forEach((cn, k) => { cn.y = -30 - k * 22; cn.vy = 0; cn.done = false; }); kick(); };
-    const geo = () => { const dpr = c.__dpr || 1, W = c.width / dpr, n = o.stacks.length || 1, cw = W / n, rx = Math.min(26, cw * 0.38), ry = rx * 0.34, floor = H - 44, th = Math.max(5, Math.min(rx * 0.5, (floor - ry * 2 - 14) / 14)); return { W, n, cw, rx, ry, th, floor }; };
-    const coin = (ctx, x, y, rx, ry, th, color, hi) => {
-      ctx.fillStyle = "#8a5a10";
-      ctx.beginPath(); ctx.ellipse(x, y + th, rx, ry, 0, 0, Math.PI); ctx.lineTo(x - rx, y); ctx.ellipse(x, y, rx, ry, 0, Math.PI, 0, true); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = color; ctx.globalAlpha = 0.85; ctx.fillRect(x - rx, y + th * 0.35, rx * 2, th * 0.3); ctx.globalAlpha = 1;
-      const g = ctx.createLinearGradient(x - rx, y - ry, x + rx, y + ry);
-      g.addColorStop(0, hi ? "#fff6d0" : "#ffe9a8"); g.addColorStop(0.45, "#f2c14e"); g.addColorStop(1, "#b8862a");
-      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 6.2832); ctx.fill();
-      ctx.strokeStyle = "rgba(140,95,20,.55)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(x, y, rx * 0.72, ry * 0.72, 0, 0, 6.2832); ctx.stroke();
-    };
-    const draw = () => {
-      if (sizeCanvas(c, H)) { }
-      const dpr = c.__dpr || 1, ctx = c.getContext("2d"), G = geo();
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, G.W, H);
-      o.stacks.forEach((st, i) => {
-        const x = G.cw * (i + 0.5), on = i === o.sel;
-        if (on) { const gl = ctx.createRadialGradient(x, G.floor - 40, 4, x, G.floor - 40, G.cw * 0.9); gl.addColorStop(0, "rgba(245,196,81,.22)"); gl.addColorStop(1, "rgba(245,196,81,0)"); ctx.fillStyle = gl; ctx.fillRect(x - G.cw, 0, G.cw * 2, H); }
-        ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(x, G.floor + G.th + 2, G.rx * 1.1, G.ry * 1.1, 0, 0, 6.2832); ctx.fill();
-        st.coins.forEach((cn, k) => { const restY = G.floor - k * G.th; const y = cn.done ? restY : Math.min(restY, cn.y); coin(ctx, x, y, G.rx, G.ry, G.th, st.color, on); });
-        ctx.fillStyle = on ? "#fff" : "rgba(217,236,223,.7)"; ctx.textAlign = "center"; ctx.textBaseline = "top";
-        ctx.font = `${on ? 800 : 700} 12px system-ui, sans-serif`;
-        ctx.fillText(st.pct + "%", x, G.floor + G.th + 10);
-        ctx.fillStyle = st.color; ctx.beginPath(); ctx.arc(x, G.floor + G.th + 30, on ? 4 : 3, 0, 6.2832); ctx.fill();
-      });
-    };
-    const step = dt => {
-      o.t += dt;
-      const G = geo();
-      let moving = false;
-      o.stacks.forEach(st => st.coins.forEach((cn, k) => {
-        if (cn.done) return;
-        const restY = G.floor - k * G.th;
-        cn.vy += 1800 * dt; cn.y += cn.vy * dt;
-        if (cn.y >= restY) { cn.y = restY; if (cn.vy > 140) cn.vy = -cn.vy * 0.28; else { cn.vy = 0; cn.done = true; } }
-        moving = true;
-      }));
-      draw();
-      return moving;
-    };
-    let raf = 0, last = 0;
-    const loop = now => { raf = 0; const dt = Math.min(0.04, (now - last) / 1000); last = now; if (!c.isConnected) return; if (step(dt)) raf = requestAnimationFrame(loop); };
-    const kick = () => { if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); } };
-    build();
-    o.rebuild = () => { build(); kick(); };
-    let started = false;
-    const start = () => { if (started) return; started = true; kick(); };
-    if ("IntersectionObserver" in window) { const io = new IntersectionObserver(es => { if (es.some(en => en.isIntersecting)) { io.disconnect(); start(); } }, { threshold: 0.35 }); io.observe(c); } else start();
-    const pick = e => { const r = c.getBoundingClientRect(), i = Math.max(0, Math.min(o.stacks.length - 1, Math.floor((e.clientX - r.left) / (r.width / (o.stacks.length || 1))))); if (i !== o.sel) { o.sel = i; paintTip(); draw(); if (navigator.vibrate) try { navigator.vibrate(3); } catch { } } return i; };
-    let down = null;
-    c.addEventListener("pointerdown", e => { down = { x: e.clientX, moved: 0 }; pick(e); });
-    c.addEventListener("pointermove", e => { if (!down) return; down.moved += Math.abs(e.clientX - down.x); down.x = e.clientX; pick(e); });
-    c.addEventListener("pointerup", e => { if (down && down.moved < 8) drop(pick(e)); down = null; });
-    c.addEventListener("pointercancel", () => { down = null; });
-    c.addEventListener("pointerleave", () => { down = null; });
-    c.style.touchAction = "pan-y";
-    draw();
+    const cnt = new Map();
+    for (const x of rows("transactions")) if (x.kind === "expense" && monthOf(x.occurred_on) === m) cnt.set(x.category_id, (cnt.get(x.category_id) || 0) + 1);
+    const left = s.income - s.spent;
+    const stamp = new Date();
+    const no = String(Math.abs(Math.round(s.spent * 100)) % 1000000).padStart(6, "0");
+    return h("section", { class: "rcpt-card" },
+      h("div", { class: "rcpt-slot", "aria-hidden": "true" }),
+      h("div", { class: "rcpt-clip" },
+        h("div", { class: "rcpt" },
+          h("div", { class: "rcpt-head" }, h("strong", null, ...brandMark()), h("span", null, `${tr("Receipt")} · ${monthName(m)}`), h("small", { class: "num" }, `#${no} · ${dfmt({ day: "numeric", month: "short" }).format(stamp)} ${String(stamp.getHours()).padStart(2, "0")}:${String(stamp.getMinutes()).padStart(2, "0")}`)),
+          h("div", { class: "rcpt-rule" }),
+          h("ul", { class: "rcpt-items" }, cats.map(([id, v], i) => {
+            const c = cat(id), pct = v / s.spent * 100;
+            return h("li", { style: { "--c": c ? c.color : "#5b7083", "--p": pct.toFixed(1) + "%", "--i": String(i) } },
+              h("button", { type: "button", on: { click: () => { S.filter = { q: c ? c.name : "", kind: "expense", account: null }; go("activity"); } } },
+                h("span", { class: "rcpt-line" }, h("span", { class: "rcpt-name" }, c ? c.name : "Uncategorized"), h("i", { class: "rcpt-dots" }), h("b", { class: "num" }, money(v))),
+                h("span", { class: "rcpt-meta num" }, h("span", { class: "rcpt-bar" }), `${cnt.get(id) || 0} × · ${Math.round(pct)}%`)));
+          })),
+          h("div", { class: "rcpt-rule" }),
+          h("div", { class: "rcpt-total" }, h("span", null, "Total spent"), h("b", { class: "num" }, money(s.spent))),
+          h("div", { class: "rcpt-sub" }, h("span", null, "Came in"), h("span", { class: "num" }, money(s.income))),
+          h("div", { class: "rcpt-sub" }, h("span", null, left >= 0 ? "Left over" : "Overspent"), h("span", { class: "num" + (left < 0 ? " neg" : "") }, money(Math.abs(left)))),
+          h("div", { class: "rcpt-rule" }),
+          h("div", { class: "rcpt-code", "aria-hidden": "true" }),
+          h("p", { class: "rcpt-thanks" }, "Thank you for tracking your money"))));
   }
 
   function viewHome() {
@@ -4056,21 +4001,9 @@
       h("div", { class: "tile" }, h("small", null, "Came in"), h("strong", null, money(s.income, { whole: true }))),
       h("div", { class: "tile " + (left >= 0 ? "good" : "bad") }, h("small", null, left >= 0 ? "Left over" : "Overspent"), h("strong", null, money(Math.abs(left), { whole: true })))));
     if (s.count) out.append(h("button", { type: "button", class: "btn alt", on: { click: () => recapSheet(m) } }, `${monthName(m)} summary`));
-    const coinsEl = coinStacks(m, s);
-    if (coinsEl) out.append(coinsEl);
+    const rc = spendReceipt(m, s);
+    out.append(rc || h("section", { class: "card" }, h("p", { class: "empty" }, `No spending in ${monthName(m)}.`)));
 
-    const where = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Where it went")));
-    const cats = [...s.byCat].sort((a, b) => b[1] - a[1]);
-    const maxCat = cats.length ? cats[0][1] : 1;
-    if (!cats.length) where.append(h("p", { class: "empty" }, `No spending in ${monthName(m)}.`));
-    for (const [id, v] of cats) {
-      const c = cat(id);
-      const color = c ? c.color : "#5b7083";
-      where.append(h("button", { type: "button", class: "cat-row", on: { click: () => { S.filter = { q: c ? c.name : "", kind: "expense", account: null }; go("activity"); } } },
-        h("div", { class: "cat-line" }, h("span", { class: "swatch", style: { background: color } }), h("span", { class: "name" }, c ? c.name : "Uncategorized"), h("span", { class: "val" }, money(v, { whole: true })), h("span", { class: "pct" }, Math.round(v / s.spent * 100) + "%")),
-        h("div", { class: "bar" }, h("span", { style: { width: (v / maxCat * 100) + "%", background: color } }))));
-    }
-    out.append(where);
 
     const months = [5, 4, 3, 2, 1, 0].map(k => shiftMonth(m, -k));
     const stats = months.map(mm => [mm, monthStats(mm)]);
@@ -5176,7 +5109,7 @@
           h("button", { type: "button", class: "loan-hit", "aria-label": p.name, on: { click: () => personSheet(p) } }),
           h("span", { class: "dot", style: { background: COLORS[(p.sort || 0) % COLORS.length] } }, p.name.charAt(0).toUpperCase()),
           h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name),
-            h("span", { class: "row-sub" + (due && due.late ? " late" : "") }, [mine ? "Owes you" : "You owe", due ? due.text : since ? `since ${dayLabel(since).toLowerCase()}` : null].filter(Boolean).join(" · "))),
+            h("span", { class: "row-sub" + (due && due.late ? " late" : "") }, document.createTextNode([tr(mine ? "Owes you" : "You owe"), due ? tr(due.text) : since ? `${tr("since")} ${LANG === "en" ? dayLabel(since).toLowerCase() : dayLabel(since)}` : null].filter(Boolean).join(" · ")))),
           h("span", { class: "row-end " + (mine ? "pos" : "neg") }, fmt(v, p.currency, { whole: true })),
           mine ? h("a", { class: "chip remind-chip", href: p.phone ? waUrl(p.phone, remindText(p, v)) : `https://wa.me/?text=${encodeURIComponent(remindText(p, v))}`, target: "_blank", rel: "noopener noreferrer", on: { click: () => track("whatsapp", "remind") } }, "Remind") : null);
       })() })),

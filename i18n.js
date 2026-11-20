@@ -1613,7 +1613,13 @@ Object.assign(window.WALLET_I18N.words, {
   "Where your coins went": ["Où sont allées vos pièces", "أين ذهبت عملاتك"],
   "Tap or slide across the stacks": ["Touchez ou glissez sur les piles", "اضغط أو مرّر على الأكوام"],
   "Insights now shows your spending as stacks of gold coins, one stack per category. Slide across them or tap one to see the amount, and watch the coins drop again.": ["Les analyses montrent maintenant vos dépenses en piles de pièces d'or, une pile par catégorie. Glissez dessus ou touchez-en une pour voir le montant et regarder les pièces retomber.", "تعرض التحليلات الآن مصاريفك كأكوام من العملات الذهبية، كومة لكل فئة. مرّر عليها أو اضغط على واحدة لترى المبلغ وتشاهد العملات تسقط من جديد."],
-  "Tap See all next to your accounts to see every card at once.": ["Touchez Tout voir à côté de vos comptes pour voir toutes les cartes d'un coup.", "اضغط عرض الكل بجانب حساباتك لترى كل البطاقات معًا."]
+  "Tap See all next to your accounts to see every card at once.": ["Touchez Tout voir à côté de vos comptes pour voir toutes les cartes d'un coup.", "اضغط عرض الكل بجانب حساباتك لترى كل البطاقات معًا."],
+  "since": ["depuis", "منذ"],
+  "Receipt": ["Reçu", "إيصال"],
+  "Total spent": ["Total dépensé", "إجمالي المصروف"],
+  "Thank you for tracking your money": ["Merci de suivre votre argent", "شكرًا لمتابعتك أموالك"],
+  "Your month as a receipt": ["Votre mois en reçu", "شهرك كإيصال"],
+  "Insights prints your month like a shop receipt: every category with its amount and how many times you spent, then the total. Tap a line to see those entries.": ["Les analyses impriment votre mois comme un ticket de caisse : chaque catégorie avec son montant et le nombre de dépenses, puis le total. Touchez une ligne pour voir ces opérations.", "تطبع التحليلات شهرك كإيصال متجر: كل فئة مع مبلغها وعدد مرات الصرف، ثم المجموع. اضغط على سطر لترى تلك الإدخالات."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
