@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.59.0";
+  const VERSION = "3.60.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2913,6 +2913,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.60.0", items: [
+      ["", "Add screen fit fixes", "While the note field has focus, the number pad, balance line, account and date chips and the Every month chip hide and the amount shrinks to a slim bar, so the phone keyboard never covers anything; the note scrolls to the middle. Tapping the amount bar closes the keyboard. Number pad is no longer sticky, so it can not cover the note or categories. On short screens (iPhone SE size) the layout tightens so every field is fully visible without scrolling."]
+    ] },
     { v: "3.59.0", items: [
       ["", "New category", "\"Haircut & personal care\" (wants, purple, scissors icon) added for new users and, once, for existing users after Health unless they already have a similar category (hair, barber, salon, beauty, personal care). No note required by default. Custom categories with those words also get the scissors icon."]
     ] },
