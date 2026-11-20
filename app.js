@@ -26,6 +26,9 @@
     { id: "wants", name: "Wants", pct: 30, color: "#c14a87", save: false },
     { id: "savings", name: "Savings", pct: 20, color: "#b8892a", save: true }
   ];
+  const HOLD_TYPES = ["gold", "silver", "crypto", "stock", "other"];
+  const CRYPTOS = [["bitcoin", "BTC", "Bitcoin"], ["ethereum", "ETH", "Ethereum"], ["tether", "USDT", "Tether"], ["binancecoin", "BNB", "BNB"], ["solana", "SOL", "Solana"], ["ripple", "XRP", "XRP"], ["usd-coin", "USDC", "USD Coin"], ["dogecoin", "DOGE", "Dogecoin"], ["cardano", "ADA", "Cardano"], ["tron", "TRX", "TRON"], ["the-open-network", "TON", "Toncoin"], ["avalanche-2", "AVAX", "Avalanche"], ["polkadot", "DOT", "Polkadot"], ["chainlink", "LINK", "Chainlink"], ["litecoin", "LTC", "Litecoin"], ["shiba-inu", "SHIB", "Shiba Inu"], ["bitcoin-cash", "BCH", "Bitcoin Cash"], ["stellar", "XLM", "Stellar"], ["monero", "XMR", "Monero"], ["pepe", "PEPE", "Pepe"]];
+  const HOLD_META = { gold: ["coin", "#c99a1c", "Gold"], silver: ["coin", "#8a97a6", "Silver"], crypto: ["chip", "#e8892b", "Crypto"], stock: ["chart", "#3b74d0", "Stock or ETF"], other: ["piggy", "#7a5cd6", "Other"] };
   const KIND_LABEL = { cash: "Cash", bank: "Bank", card: "Card", wallet: "E-wallet", savings: "Savings" };
   const KIND_ICON = { cash: "cash", bank: "bank", card: "card", wallet: "phone", savings: "piggy" };
   const DEFAULT_CATS = [
@@ -48,7 +51,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.48.0";
+  const VERSION = "3.49.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -399,6 +402,12 @@
       noteRequired: d.noteRequired !== false,
       manualRates: Array.isArray(d.manualRates) ? d.manualRates.filter(c => CUR_RE.test(c)) : [],
       ratesAt: DATE_RE.test(d.ratesAt || "") ? d.ratesAt : "",
+      holdings: Array.isArray(d.holdings) ? d.holdings.filter(x => x && typeof x.id === "string" && HOLD_TYPES.includes(x.type)).slice(0, 60).map(x => ({
+        id: x.id.slice(0, 40), type: x.type, sym: String(x.sym || "").replace(/[^A-Za-z0-9.^=_-]/g, "").slice(0, 40), name: String(x.name || "").slice(0, 40),
+        qty: Number(x.qty) > 0 ? Number(x.qty) : 0, unit: ["g", "oz", "kg"].includes(x.unit) ? x.unit : "g", karat: [24, 22, 21, 18, 14].includes(Number(x.karat)) ? Number(x.karat) : 24,
+        cost: Number(x.cost) > 0 ? Number(x.cost) : null, costCur: CUR_RE.test(x.costCur || "") ? x.costCur : null,
+        value: Number(x.value) > 0 ? Number(x.value) : null, valCur: CUR_RE.test(x.valCur || "") ? x.valCur : null
+      })) : [],
       goals: Array.isArray(d.goals) ? d.goals.filter(g => g && typeof g.id === "string" && Number(g.target) > 0).slice(0, 12).map((g, i) => ({ id: g.id.slice(0, 40), name: String(g.name || "Goal").slice(0, 40), target: Number(g.target), saved: Math.max(0, Number(g.saved) || 0), account: typeof g.account === "string" ? g.account.slice(0, 64) : "", by: /^\d{4}-\d{2}$/.test(g.by || "") ? g.by : "", color: /^#[0-9a-f]{6}$/i.test(g.color) ? g.color : COLORS[i % COLORS.length] })) : [],
       buckets: Array.isArray(d.buckets) && d.buckets.length
         ? d.buckets.filter(b => b && BUCKET_ID.test(b.id)).slice(0, 8).map((b, i) => ({ id: b.id, name: String(b.name || "Group").slice(0, 24), pct: Math.max(0, Math.min(100, Math.round(Number(b.pct) || 0))), color: /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : BUCKET_COLORS[i % BUCKET_COLORS.length], save: !!b.save }))
@@ -1748,6 +1757,147 @@
       h("button", { type: "button", class: "btn alt", on: { click: () => { seen(); recapSheet(pm); } } }, "See the summary"));
   }
 
+  const PRICE_TTL = 10 * 60 * 1000;
+  let priceLoading = false;
+  const holdings = () => settings().holdings;
+  const holdKey = x => x.type === "gold" || x.type === "silver" ? `metal:${x.type}` : x.type === "crypto" ? `crypto:${x.sym}` : x.type === "stock" ? `stock:${String(x.sym).toUpperCase()}` : null;
+  const priceOf = x => { const k = holdKey(x); return k ? (store.get("prices", {})[k] || null) : null; };
+  const OZ = 31.1034768;
+  function holdUSD(x) {
+    if (x.type === "other") return x.value ? convert(x.value, x.valCur || mainCur(), "USD") : null;
+    const p = priceOf(x);
+    if (!p || !(p.usd >= 0)) return null;
+    if (x.type === "gold" || x.type === "silver") {
+      const grams = x.unit === "oz" ? x.qty * OZ : x.unit === "kg" ? x.qty * 1000 : x.qty;
+      return grams / OZ * p.usd * (x.type === "gold" ? x.karat / 24 : 1);
+    }
+    return x.qty * p.usd;
+  }
+  const holdMain = x => { const v = holdUSD(x); return v == null ? null : convert(v, "USD", mainCur()); };
+  const costMain = x => x.cost ? convert(x.cost, x.costCur || mainCur(), mainCur()) : null;
+  function holdTotals() {
+    let value = 0, cost = 0, costed = 0, missing = 0;
+    for (const x of holdings()) {
+      const v = holdMain(x);
+      if (v == null) { missing++; continue; }
+      value += v;
+      const c = costMain(x);
+      if (c != null) { cost += c; costed += v; }
+    }
+    return { value, cost, costed, missing, gain: cost ? costed - cost : null };
+  }
+  async function loadPrices(force, extra) {
+    const keys = [...new Set([...holdings().map(holdKey), ...(extra || [])].filter(Boolean))];
+    if (!keys.length || priceLoading || !S.session || !navigator.onLine) return;
+    const cache = store.get("prices", {});
+    const stale = keys.filter(k => !cache[k] || Date.now() - new Date(cache[k].at).getTime() > PRICE_TTL);
+    if (!force && !stale.length) return;
+    priceLoading = true;
+    try {
+      const { data, error } = await sb.functions.invoke("prices", { body: { keys: force ? keys : stale } });
+      if (!error && data && data.prices) {
+        const next = { ...store.get("prices", {}) };
+        for (const [k, v] of Object.entries(data.prices)) if (v && Number(v.usd) >= 0) next[k] = { usd: Number(v.usd), chg: Number.isFinite(Number(v.chg)) ? Number(v.chg) : null, at: v.at || new Date().toISOString() };
+        store.set("prices", next);
+        render();
+      }
+    } catch { } finally { priceLoading = false; }
+  }
+  const holdIcon = x => { const [ic, c] = HOLD_META[x.type]; return h("span", { class: "dot", style: { background: x.type === "crypto" ? "#e8892b" : c } }, x.type === "crypto" ? h("span", { class: "hold-tick" }, (CRYPTOS.find(k => k[0] === x.sym) || [, "?"])[1].slice(0, 4)) : x.type === "stock" ? h("span", { class: "hold-tick" }, String(x.sym).toUpperCase().slice(0, 4)) : icon(ic, "ico sm")); };
+  const holdTitle = x => x.name || (x.type === "crypto" ? (CRYPTOS.find(k => k[0] === x.sym) || [, , x.sym])[2] : x.type === "stock" ? String(x.sym).toUpperCase() : tr(HOLD_META[x.type][2]));
+  const trimNum = n => String(+Number(n).toFixed(8));
+  const holdSub = x => x.type === "gold" ? `${trimNum(x.qty)} ${x.unit} · ${x.karat}K` : x.type === "silver" ? `${trimNum(x.qty)} ${x.unit}` : x.type === "crypto" ? `${trimNum(x.qty)} ${(CRYPTOS.find(k => k[0] === x.sym) || [, x.sym])[1]}` : x.type === "stock" ? `${trimNum(x.qty)} ${tr(x.qty === 1 ? "share" : "shares")}` : tr("Value you entered");
+  function holdRow(x) {
+    const v = holdMain(x), c = costMain(x), p = priceOf(x);
+    const gain = v != null && c ? v - c : null;
+    return h("button", { type: "button", class: "row", on: { click: () => holdingSheet(x) } }, holdIcon(x),
+      h("span", { class: "row-main" }, h("span", { class: "row-title" }, holdTitle(x)), h("span", { class: "row-sub" }, holdSub(x))),
+      h("span", { class: "row-end num" }, v == null ? h("span", { class: "muted" }, "…") : money(v),
+        gain != null ? h("small", { class: gain >= 0 ? "pos" : "neg" }, `${gain >= 0 ? "+" : "−"}${money(Math.abs(gain), { whole: true })} · ${gain >= 0 ? "+" : "−"}${Math.abs(gain / c * 100).toFixed(1)}%`)
+          : p && p.chg != null ? h("small", { class: p.chg >= 0 ? "pos" : "neg" }, `${p.chg >= 0 ? "+" : "−"}${Math.abs(p.chg).toFixed(1)}% ${tr("today")}`) : null));
+  }
+  function investCard(always) {
+    const list = holdings();
+    if (!list.length && !always) return null;
+    loadPrices(false);
+    const t = holdTotals();
+    const card = h("section", { class: "card flush invest" },
+      h("div", { class: "card-head" }, h("h2", null, "Investments"), h("button", { type: "button", class: "link-btn", on: { click: () => holdingSheet(null) } }, "Add")));
+    if (!list.length) { card.append(h("p", { class: "empty" }, "Track gold, silver, crypto and stocks. Their value updates with live prices.")); return card; }
+    card.append(h("div", { class: "invest-top" },
+      h("strong", { class: "num" }, money(t.value)),
+      t.gain != null ? h("span", { class: "invest-gain num " + (t.gain >= 0 ? "pos" : "neg") }, `${t.gain >= 0 ? "+" : "−"}${money(Math.abs(t.gain))} (${t.gain >= 0 ? "+" : "−"}${Math.abs(t.gain / t.cost * 100).toFixed(1)}%) ${tr("since you bought")}`) : h("span", { class: "invest-gain muted" }, "Add what you paid to see your gain")));
+    for (const x of [...list].sort((p, q) => (holdMain(q) || 0) - (holdMain(p) || 0))) card.append(holdRow(x));
+    const ats = list.map(priceOf).filter(Boolean).map(p => p.at).sort();
+    card.append(h("p", { class: "hint group-note" }, ats.length ? `${tr("Live prices")} · ${tr("updated")} ${ago(ats[0])}` : navigator.onLine ? "Getting live prices…" : "Prices show when you're online."));
+    return card;
+  }
+  function holdingSheet(x) {
+    const st = settings();
+    const f = x ? { ...x, cost: x.cost ? String(x.cost) : "", value: x.value ? String(x.value) : "", qty: x.qty ? trimNum(x.qty) : "" } : { id: newId(), type: "gold", sym: "", name: "", qty: "", unit: "g", karat: 21, cost: "", costCur: mainCur(), value: "", valCur: mainCur() };
+    if (!f.costCur) f.costCur = mainCur();
+    if (!f.valCur) f.valCur = mainCur();
+    const body = h("form", { class: "form", on: { submit: e => { e.preventDefault(); save(); } } });
+    const err = h("p", { class: "form-err", role: "alert" });
+    const preview = h("p", { class: "sal-preview" });
+    const current = () => ({ ...f, qty: parseAmt(f.qty) || 0, cost: parseAmt(f.cost) || null, value: parseAmt(f.value) || null, sym: f.type === "stock" ? f.sym.toUpperCase().trim() : f.sym });
+    const paint = () => {
+      const c = current();
+      const v = holdMain(c);
+      preview.hidden = !(c.qty > 0 || c.type === "other");
+      preview.replaceChildren(icon("coin", "ico sm"), h("span", null, v != null ? `${tr("Worth now")}: ${money(v)}` : c.type === "other" ? tr("Enter its value") : navigator.onLine ? tr("Getting the price…") : tr("Prices show when you're online.")));
+    };
+    let priceT = 0;
+    const askPrice = () => { clearTimeout(priceT); const k = holdKey(current()); if (k && current().sym !== "" || k && (f.type === "gold" || f.type === "silver")) priceT = setTimeout(() => loadPrices(false, [k]).then(paint), 450); paint(); };
+    const draw = () => {
+      const kids = [
+        h("div", { class: "hold-types" }, HOLD_TYPES.map(t => h("button", { type: "button", class: "hold-type" + (f.type === t ? " on" : ""), "aria-pressed": String(f.type === t), on: { click: () => { if (x) return; f.type = t; f.sym = t === "crypto" ? "bitcoin" : ""; draw(); askPrice(); } }, disabled: !!x && f.type !== t },
+          h("span", { class: "dot", style: { background: HOLD_META[t][1] } }, icon(HOLD_META[t][0], "ico sm")), h("span", null, HOLD_META[t][2]))))
+      ];
+      if (f.type === "crypto") kids.push(h("label", { class: "field" }, h("span", null, "Coin"),
+        h("select", { id: "h-coin", class: "input", on: { change: e => { f.sym = e.target.value; askPrice(); } } }, CRYPTOS.map(([id, t, n]) => h("option", { value: id, selected: f.sym === id }, `${n} · ${t}`)))));
+      if (f.type === "stock") kids.push(h("label", { class: "field" }, h("span", null, "Ticker"),
+        h("input", { id: "h-sym", class: "input", value: f.sym, placeholder: "AAPL, TSLA, VOO…", autocapitalize: "characters", autocomplete: "off", spellcheck: "false", maxlength: "15", on: { input: e => { f.sym = e.target.value.replace(/[^A-Za-z0-9.^=_-]/g, ""); askPrice(); } } }),
+        h("small", { class: "hint" }, "The symbol you see in your broker app. For other markets add the suffix, like SAP.DE or 2222.SR.")));
+      if (f.type === "other") kids.push(
+        h("label", { class: "field" }, h("span", null, "Name"), h("input", { id: "h-name", class: "input", value: f.name, placeholder: "Land, a business share, a watch…", maxlength: "40", on: { input: e => { f.name = e.target.value; } } })),
+        h("div", { class: "field" }, h("span", { class: "label" }, "What it's worth now"), h("div", { class: "row-inputs" }, h("input", { id: "h-val", class: "input num", inputmode: "decimal", value: f.value, placeholder: "0", on: { input: e => { f.value = e.target.value; paint(); } } }), curSelect("h-valcur", f.valCur, k => { f.valCur = k; paint(); }))));
+      else kids.push(h("div", { class: "field" }, h("span", { class: "label" }, f.type === "stock" ? "How many shares" : f.type === "crypto" ? "How many coins" : "How much"),
+        h("div", { class: "row-inputs" }, h("input", { id: "h-qty", class: "input num", inputmode: "decimal", value: f.qty, placeholder: "0", on: { input: e => { f.qty = e.target.value; paint(); } } }),
+          f.type === "gold" || f.type === "silver" ? h("select", { id: "h-unit", class: "input mini-select", on: { change: e => { f.unit = e.target.value; paint(); } } }, [["g", "grams"], ["oz", "ounces"], ["kg", "kilos"]].map(([u, l]) => h("option", { value: u, selected: f.unit === u }, tr(l)))) : null)));
+      if (f.type === "gold") kids.push(h("div", { class: "field" }, h("span", { class: "label" }, "Purity"),
+        h("div", { class: "seg-row" }, [24, 22, 21, 18, 14].map(k => h("button", { type: "button", class: "chip-btn" + (f.karat === k ? " on" : ""), on: { click: () => { f.karat = k; draw(); } } }, `${k}K`)))),
+        h("label", { class: "field" }, h("span", null, "Name (optional)"), h("input", { id: "h-gname", class: "input", value: f.name, placeholder: "Gold lira, bracelet, bar…", maxlength: "40", on: { input: e => { f.name = e.target.value; } } })));
+      if (f.type !== "other") kids.push(h("div", { class: "field" }, h("span", { class: "label" }, "What you paid in total (optional)"),
+        h("div", { class: "row-inputs" }, h("input", { id: "h-cost", class: "input num", inputmode: "decimal", value: f.cost, placeholder: "0", on: { input: e => { f.cost = e.target.value; } } }), curSelect("h-costcur", f.costCur, k => { f.costCur = k; }))));
+      kids.push(preview, err);
+      if (x) kids.push(h("button", { type: "button", class: "btn alt danger-text", on: { click: () => { saveSettings({ holdings: settings().holdings.filter(y => y.id !== x.id) }); closeSheet(); toast("Removed."); } } }, "Remove"));
+      body.replaceChildren(...kids);
+      paint();
+    };
+    const save = () => {
+      const c = current();
+      if (c.type === "stock" && !/^[A-Z0-9.^=_-]{1,15}$/.test(c.sym)) return fail(err, "Enter the ticker, like AAPL.");
+      if (c.type === "other" ? !c.value : !(c.qty > 0)) return fail(err, c.type === "other" ? "Enter what it's worth." : "Enter how much you have.");
+      if (c.type === "other" && !c.name.trim()) return fail(err, "Give it a name.");
+      const item = { id: c.id, type: c.type, sym: c.type === "crypto" || c.type === "stock" ? c.sym : "", name: c.name.trim(), qty: c.type === "other" ? 0 : c.qty, unit: c.unit, karat: c.karat, cost: c.cost, costCur: c.costCur, value: c.type === "other" ? c.value : null, valCur: c.type === "other" ? c.valCur : null };
+      const list = st.holdings.filter(y => y.id !== item.id);
+      if (!x && list.length >= 60) return fail(err, "You can track up to 60 investments.");
+      saveSettings({ holdings: x ? st.holdings.map(y => y.id === item.id ? item : y) : [...list, item] });
+      track("add", "invest_" + c.type);
+      closeSheet();
+      toast(x ? "Saved." : "Added to your investments.");
+      loadPrices(false);
+    };
+    draw();
+    askPrice();
+    openSheet(x ? holdTitle(x) : "Add an investment", body, h("button", { type: "button", class: "btn", on: { click: save } }, x ? "Save" : "Add"));
+  }
+  function investListSheet() {
+    const body = h("div", { class: "form" }, investCard(true));
+    openSheet("Investments", body, h("button", { type: "button", class: "btn", on: { click: () => { closeSheet(); setTimeout(() => holdingSheet(null), 330); } } }, "Add an investment"));
+  }
+
   function netWorthSeries(m, count) {
     const months = [];
     for (let k = count - 1; k >= 0; k--) months.push(shiftMonth(m, -k));
@@ -2477,6 +2627,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.49.0", items: [
+      ["", "Investments", "Holdings live inside the encrypted settings (up to 60): gold with karat and grams/ounces/kilos, silver, 20 top coins, any Yahoo ticker, or a manual value. New edge function prices (signed-in users only) pulls gold-api.com, CoinGecko and Yahoo Finance, cached 10 minutes in price_cache. Home card with total, gain since purchase and daily change; hero chip; + More and Settings → Money entry points."]
+    ] },
     { v: "3.48.0", items: [
       ["", "New logo", "B mark (white bar, white and gold half-coins) on the green gradient for the Home Screen icon, Android adaptive icon, browser tab, login, side bar, notifications and emails. The header reads Budget in ink and Split in the brand color."]
     ] },
@@ -2547,6 +2700,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.49.0", items: [
+      ["coin", "Gold, crypto and stocks", "Track gold (any karat), silver, crypto, stocks and ETFs with live prices, and see how much you've gained since you bought. Tap + → More → Gold, crypto or stocks."]
+    ] },
     { v: "3.48.0", items: [
       ["star", "A fresh new look", "BudgetSplit has a new logo: a B made of a bar and a split coin. To see the new icon on your Home Screen, remove the app and add it again."]
     ] },
@@ -2895,11 +3051,14 @@
       h("p", { class: "hero-total num" }, money(total)),
       h("div", { class: "hero-hold" },
         [...holds].sort((p, q) => (q[0] === mainCur()) - (p[0] === mainCur()) || toMain(q[1], q[0]) - toMain(p[1], p[0])).map(([c, v]) => h("span", { class: "num", title: curInfo(c).name }, fmt(v, c, { compact: true }))),
-        (() => { const t = owedTotals(); return t.owed > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: () => go("people") } }, `+${money(t.owed, { whole: true })} ${tr("owed to you")}`) : null; })())));
+        (() => { const t = owedTotals(); return t.owed > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: () => go("people") } }, `+${money(t.owed, { whole: true })} ${tr("owed to you")}`) : null; })(),
+        (() => { if (!holdings().length) return null; const v = holdTotals().value; return v > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: investListSheet } }, `${money(v, { whole: true })} ${tr("invested")}`) : null; })())));
 
     const pay = paydayCard();
     if (pay) out.append(pay);
     else { const sug = salarySuggest(); if (sug) out.append(sug); }
+    const inv = investCard(false);
+    if (inv) out.append(inv);
     const loans = loansCard();
     if (loans) out.append(loans);
     if (!rows("people").length && !GROUPS.list.size && !store.get("splitTeaserOff", false)) {
@@ -3604,6 +3763,7 @@
       { id: "profile", t: "Profile", keys: ["Your name", "Signed in as"] },
       { id: "accounts", t: "Accounts", ic: "bank", c: "#3b74d0", keys: ["Accounts"], v: count(rows("accounts").filter(o => !o.archived).length), sec: "Money" },
       { id: "categories", t: "Categories", ic: "tag", c: "#c14a87", keys: ["Spending categories", "Income categories"], v: count(rows("categories").length), sec: "Money" },
+      { id: "invest", t: "Investments", ic: "coin", c: "#c99a1c", fn: investListSheet, v: holdings().length ? String(holdings().length) : "", sec: "Money" },
       { id: "repeat", t: "Repeating and bills", ic: "repeat", c: "#7a5cd6", keys: ["Every month"], v: count(rows("rules").length), sec: "Money" },
       { id: "currency", t: "Currency and rates", ic: "coin", c: "#d4a23c", keys: ["Currency"], v: mainCur(), sec: "Money" },
       { id: "appearance", t: "Appearance", ic: "sun", c: "#2f74c9", keys: ["Appearance"], v: tr(theme === "light" ? "Light" : theme === "dark" ? "Dark" : "Automatic"), sec: "App" },
@@ -5903,7 +6063,8 @@
         menuItem("swap", "Moved between my accounts", "Like cash to the bank, or to savings", () => setKind("transfer"), accounts.length < 2),
         menuItem("coin", "Lent or borrowed", "Money with a friend or family member", () => setKind("loan")),
         menuItem("people", "Split a bill with friends", "Dinner, rent, a trip…", () => { closeSheet(); go("people"); setTimeout(newGroupSheet, 350); }),
-        menuItem("bell", "A bill to pay every month", "Generator, internet, rent… with a reminder", () => { closeSheet(); setTimeout(() => billSheet(null), 350); })) : null;
+        menuItem("bell", "A bill to pay every month", "Generator, internet, rent… with a reminder", () => { closeSheet(); setTimeout(() => billSheet(null), 350); }),
+        menuItem("coin", "Gold, crypto or stocks", "Track what they're worth with live prices", () => { closeSheet(); setTimeout(() => holdingSheet(null), 350); })) : null;
 
       const chip = (k, lead, text) => h("button", { type: "button", class: "tx-chip" + (panel === k ? " on" : ""), "aria-expanded": String(panel === k), on: { click: () => open(k) } }, lead, h("span", null, text), icon("down", "ico sm"));
       const metas = h("div", { class: "tx-metas" },
