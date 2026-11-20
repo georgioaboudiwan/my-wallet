@@ -2289,3 +2289,16 @@ html.kb .sheet-foot { padding-bottom: 10px; }
 .rcpt-name { flex: 0 1 auto; min-width: 0; }
 .rcpt-line .loan-tag, .rcpt-line b { flex: none; }
 .rcpt-line.is-loan .rcpt-name { max-width: none; }
+.loans-card { background: var(--card) !important; border: 1px solid var(--line) !important; box-shadow: var(--shadow) !important; }
+.loans-sum > div { position: relative; overflow: hidden; padding: 12px 14px 12px 16px; border-radius: 16px; }
+.loans-sum > .pos { background: color-mix(in srgb, var(--pos) 11%, var(--card)); }
+.loans-sum > .neg { background: color-mix(in srgb, var(--neg) 10%, var(--card)); }
+.loans-sum > div::before { content: ""; position: absolute; inset: 10px auto 10px 0; width: 4px; border-radius: 0 4px 4px 0; background: currentColor; }
+.loans-sum > .pos::before { background: var(--pos); }
+.loans-sum > .neg::before { background: var(--neg); }
+[dir="rtl"] .loans-sum > div::before { inset: 10px 0 10px auto; border-radius: 4px 0 0 4px; }
+.row.tap { position: relative; }
+.row.tap > :not(.loan-hit) { position: relative; z-index: 1; pointer-events: none; }
+.row.tap > .icon-btn { pointer-events: auto; }
+.row.tap:active { background: var(--sunk); }
+.btn.alt.danger { color: var(--neg) !important; }

@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.69.1";
+  const VERSION = "3.70.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -887,11 +887,24 @@
     return b;
   }
 
+  function loanOnlyTx(m) {
+    const linked = new Set();
+    for (const x of rows("transactions")) if (String(x.id).startsWith("ln-")) linked.add(String(x.id).slice(3));
+    const out = [];
+    for (const e of rows("loan_entries")) {
+      if (monthOf(e.occurred_on) !== m || linked.has(String(e.id))) continue;
+      const p = S.data.people.get(e.person_id); if (!p) continue;
+      const a = Number(e.amount) || 0; if (!a) continue;
+      const lent = owesMe(p) ? a > 0 : a < 0;
+      out.push({ id: "ln-" + e.id, kind: lent ? "loan_out" : "loan_in", amount: Math.abs(a), currency: p.currency, rate: rateOf(p.currency), account_id: null, to_account_id: null, category_id: null, note: e.note || null, occurred_on: e.occurred_on, created_at: e.created_at || "", virtual: true });
+    }
+    return out;
+  }
   function monthStats(m) {
     const k = ver + ":" + m;
     if (memo.has(k)) return memo.get(k);
     const s = { spent: 0, income: 0, byCat: new Map(), buckets: Object.fromEntries(planGroups().map(g => [g.id, 0])), days: new Map(), biggest: null, count: 0 };
-    for (const x of rows("transactions")) {
+    for (const x of [...rows("transactions"), ...loanOnlyTx(m)]) {
       if (monthOf(x.occurred_on) !== m) continue;
       const u = txMain(x);
       if (x.kind === "expense") {
@@ -1347,12 +1360,11 @@
   const isLoanTx = x => x.kind === "loan_out" || x.kind === "loan_in";
   const loanOf = x => { const lid = String(x.id).replace(/^ln-/, ""); const e = S.data.loan_entries.get(lid) || (lid.startsWith("se-") ? virtualEntry(lid) : null); const p = e && S.data.people.get(e.person_id); return { e, p }; };
   function loanTitle(x) {
-    const { e, p } = loanOf(x);
-    const name = p ? p.name : "someone";
-    const back = e ? Number(e.amount) < 0 : false;
-    if (x.kind === "loan_out") return back ? `Paid back ${name}` : `Lent to ${name}`;
-    return back ? `${name} paid you back` : `Borrowed from ${name}`;
+    const { p } = loanOf(x);
+    const name = p ? p.name : tr("someone");
+    return x.kind === "loan_out" ? `${tr("You gave")} ${name}` : `${name} ${tr("gave you")}`;
   }
+
 
   function loanAccount(p) {
     const list = rows("accounts").filter(a => !a.archived).sort(bySort);
@@ -2969,6 +2981,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.70.0", items: [
+      ["", "Two-way loans, editable entries, simpler wording, Home order", "Loans reworked: each person keeps a net balance that can switch sides (someone who owed you can end up being owed, and back), shown everywhere by its real side (hero, lists, totals, chips, reminders, WhatsApp texts, shared page). Person screen: two buttons I gave NAME and NAME gave me with no maximum; the add screen loan choices use the same words; activity rows read You gave NAME or NAME gave you; history rows show You gave/You got with arrows. Tapping a history entry (not for linked shared people) opens Edit entry: switch gave/got, change amount, note and date, or delete; the matching account entry is updated or deleted too. Loans saved with Don't move money now also count in month Spent and Came in. Wording: Lend or borrow renamed Money with a person. Home: Money with others moved below the tiles and plan, and restyled as a neutral card with green and red accented totals so it no longer sits as a second green block under the balance card."]
+    ] },
     { v: "3.69.1", items: [
       ["", "Loans flagged", "Loan amounts are marked: a blue LOAN tag on the loan lines in month sheets, on the receipt and on every loan entry row, and the Insights Spent and Came in tiles say incl. $X loans. Fixed the receipt getting wider than the paper when a line has a tag."]
     ] },
@@ -3111,6 +3126,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.70.0", items: [
+      ["people", "Give and get, as often as you want", "With the same person you can now give and get money as many times as you like, and the app works out who owes who. Tap any entry in their history to change or delete it."]
+    ] },
     { v: "3.69.0", items: [
       ["people", "Loans now count", "Money you lend now counts in what you spent, and money you borrow or get back counts in what came in. They are flagged as Loan everywhere so you can tell them apart."]
     ] },
@@ -3699,7 +3717,7 @@
     const cats = [...s.byCat].filter(e => e[1] > 0).sort((p, q) => q[1] - p[1]);
     if (!cats.length) return null;
     const cnt = new Map();
-    for (const x of rows("transactions")) if ((x.kind === "expense" || x.kind === "loan_out") && monthOf(x.occurred_on) === m) { const k = x.kind === "loan_out" ? "__lent" : x.category_id; cnt.set(k, (cnt.get(k) || 0) + 1); }
+    for (const x of [...rows("transactions"), ...loanOnlyTx(m)]) if ((x.kind === "expense" || x.kind === "loan_out") && monthOf(x.occurred_on) === m) { const k = x.kind === "loan_out" ? "__lent" : x.category_id; cnt.set(k, (cnt.get(k) || 0) + 1); }
     const left = s.income - s.spent;
     const stamp = new Date();
     const no = String(Math.abs(Math.round(s.spent * 100)) % 1000000).padStart(6, "0");
@@ -3764,8 +3782,6 @@
     if (pay) out.append(pay);
     else { const sug = salarySuggest(); if (sug) out.append(sug); }
     if (!hasPf) { const inv = portfolioCard(); if (inv) out.append(inv); }
-    const loans = loansCard();
-    if (loans) out.append(loans);
     if (!rows("people").length && !GROUPS.list.size && !store.get("splitTeaserOff", false)) {
       out.append(h("section", { class: "split-teaser" },
         h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("splitTeaserOff", true); render(); } } }, icon("close", "ico sm")),
@@ -3799,6 +3815,9 @@
           h("small", { class: "tank-days" }, `${safe ? safe.daysLeft : 0} ${tr("days left")}`)),
         h("span", { class: "tank-hint" }, "Shake it")));
     }
+
+    const loans = loansCard();
+    if (loans) out.append(loans);
 
     const usage = new Map();
     const cutoff = ymd(new Date(Date.now() - 90 * 864e5));
@@ -3902,15 +3921,15 @@
     const people = rows("people");
     if (people.length || GROUPS.list.size) {
       let { owed, owe } = groupTotals();
-      for (const p of people) { const v = toMain(lb.get(p.id) || 0, p.currency); if (owesMe(p)) owed += v; else owe += v; }
+      for (const p of people) { const v = netMine(p, toMain(lb.get(p.id) || 0, p.currency)); if (v > 0) owed += v; else owe -= v; }
       const card = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Split & loans"), h("button", { type: "button", class: "link-btn", on: { click: () => go("people") } }, "See all")));
       card.append(h("p", { class: "row-note" }, [owed ? `Owed to you ${money(owed, { whole: true })}` : null, owe ? `You owe ${money(owe, { whole: true })}` : null].filter(Boolean).join(" · ") || "All settled"));
       for (const p of people.slice().sort((x, y) => toMain(lb.get(y.id) || 0, y.currency) - toMain(lb.get(x.id) || 0, x.currency)).slice(0, 3)) {
         const v = lb.get(p.id) || 0;
         card.append(h("button", { type: "button", class: "row", on: { click: () => personSheet(p) } },
           h("span", { class: "dot", style: { background: COLORS[(p.sort || 0) % COLORS.length] } }, p.name.charAt(0).toUpperCase()),
-          h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" + (v > 0 && dueInfo(p) && dueInfo(p).late ? " late" : "") }, [statusText(p, v), v > 0 && dueInfo(p) ? dueInfo(p).text : null].filter(Boolean).join(" · "))),
-          h("span", { class: "row-end" + (v > 0 && owesMe(p) ? " pos" : v > 0 ? " neg" : "") }, fmt(v, p.currency))));
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" + (theyOwe(p, v) && dueInfo(p) && dueInfo(p).late ? " late" : "") }, [statusText(p, v), theyOwe(p, v) && dueInfo(p) ? dueInfo(p).text : null].filter(Boolean).join(" · "))),
+          h("span", { class: "row-end" + (netMine(p, v) > 0.004 ? " pos" : netMine(p, v) < -0.004 ? " neg" : "") }, fmt(Math.abs(v), p.currency))));
       }
       out.append(card);
     }
@@ -4008,7 +4027,7 @@
   function monthKindSheet(m, kind) {
     const s = monthStats(m);
     const kinds = kind === "expense" ? ["expense", "loan_out"] : kind === "income" ? ["income", "loan_in"] : ["expense", "loan_out", "income", "loan_in"];
-    const list = rows("transactions").filter(x => monthOf(x.occurred_on) === m && kinds.includes(x.kind)).sort(byRecent);
+    const list = [...rows("transactions"), ...loanOnlyTx(m)].filter(x => monthOf(x.occurred_on) === m && kinds.includes(x.kind)).sort(byRecent);
     const title = kind === "expense" ? `${tr("Spent in")} ${monthName(m)}` : kind === "income" ? `${tr("Came in")} · ${monthName(m)}` : `${monthName(m)} · ${tr("in and out")}`;
     const sums = new Map();
     for (const x of list) { const k = x.kind === "loan_out" ? "e:__lent" : x.kind === "loan_in" ? "i:__borrowed" : (x.kind === "income" ? "i:" : "e:") + (x.category_id || ""); sums.set(k, (sums.get(k) || 0) + txMain(x)); }
@@ -4910,19 +4929,22 @@
   const waUrl = (phone, text) => `https://wa.me/${phone.slice(1)}?text=${encodeURIComponent(text)}`;
   const waButton = (phone, text, label, cls = "") => h("a", { class: "btn " + cls, href: waUrl(phone, text), target: "_blank", rel: "noopener noreferrer", on: { click: () => track("whatsapp") } }, icon("chat"), label);
   const owesMe = p => p.direction === "owes_me";
-  const statusText = (p, v) => v === 0 ? "Settled" : owesMe(p) ? "Owes you" : "You owe";
+  const netMine = (p, v) => owesMe(p) ? v : -v;
+  const theyOwe = (p, v) => netMine(p, v) > 0;
+  const statusText = (p, v) => Math.abs(v) < 0.005 ? "Settled" : theyOwe(p, v) ? "Owes you" : "You owe";
 
   const loanMessage = (p, delta, balance, note) => {
     const m = v => fmt(v, p.currency, { show: true });
     const why = note ? ` (${note})` : "";
-    const after = balance === 0 ? "We're all settled now." : owesMe(p) ? `You now owe me ${m(balance)}.` : `I now owe you ${m(balance)}.`;
-    if (owesMe(p)) return delta > 0 ? `Hi ${p.name}, I've added ${m(delta)} to what you owe me${why}. ${after}` : `Hi ${p.name}, I got your ${m(-delta)}${why}, thanks. ${after}`;
-    return delta > 0 ? `Hi ${p.name}, I've added ${m(delta)} to what I owe you${why}. ${after}` : `Hi ${p.name}, I've paid you back ${m(-delta)}${why}. ${after}`;
+    const after = Math.abs(balance) < 0.005 ? "We're all settled now." : theyOwe(p, balance) ? `You now owe me ${m(Math.abs(balance))}.` : `I now owe you ${m(Math.abs(balance))}.`;
+    const d = netMine(p, delta);
+    return d > 0 ? `Hi ${p.name}, I gave you ${m(d)}${why}. ${after}` : `Hi ${p.name}, I got ${m(-d)} from you${why}, thanks. ${after}`;
   };
   const balanceMessage = (p, balance) => {
     const m = fmt(balance, p.currency, { show: true });
-    if (balance === 0) return `Hi ${p.name}, we're all settled. Nothing owed either way.`;
-    return owesMe(p) ? `Hi ${p.name}, just so you know, you owe me ${m} so far.` : `Hi ${p.name}, just so you know, I owe you ${m} so far.`;
+    if (Math.abs(balance) < 0.005) return `Hi ${p.name}, we're all settled. Nothing owed either way.`;
+    const mm = fmt(Math.abs(balance), p.currency, { show: true });
+    return theyOwe(p, balance) ? `Hi ${p.name}, just so you know, you owe me ${mm} so far.` : `Hi ${p.name}, just so you know, I owe you ${mm} so far.`;
   };
   const linkMessage = (p, token) => `Hi ${p.name}, here's a private page with your balance and history. It updates whenever something changes: ${shareUrl(p)}`;
 
@@ -5134,7 +5156,7 @@
   function owedTotals() {
     const bal = loanBalances();
     let { owed, owe } = groupTotals();
-    for (const p of rows("people")) { const v = toMain(bal.get(p.id) || 0, p.currency); if (owesMe(p)) owed += v; else owe += v; }
+    for (const p of rows("people")) { const v = netMine(p, toMain(bal.get(p.id) || 0, p.currency)); if (v > 0) owed += v; else owe -= v; }
     return { owed, owe };
   }
 
@@ -5152,14 +5174,14 @@
     const lastDate = p => rows("loan_entries").filter(e => e.person_id === p.id).map(e => e.occurred_on).sort().pop();
     const items = [
       ...people.map(({ p, v }) => ({ w: Math.abs(toMain(v, p.currency)), el: (() => {
-        const due = dueInfo(p), mine = owesMe(p);
+        const mine = theyOwe(p, v), due = mine ? dueInfo(p) : null;
         const since = lastDate(p);
         return h("div", { class: "loan-row" },
           h("button", { type: "button", class: "loan-hit", "aria-label": p.name, on: { click: () => personSheet(p) } }),
           h("span", { class: "dot", style: { background: COLORS[(p.sort || 0) % COLORS.length] } }, p.name.charAt(0).toUpperCase()),
           h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name),
             h("span", { class: "row-sub" + (due && due.late ? " late" : "") }, document.createTextNode([tr(mine ? "Owes you" : "You owe"), due ? tr(due.text) : since ? `${tr("since")} ${LANG === "en" ? dayLabel(since).toLowerCase() : dayLabel(since)}` : null].filter(Boolean).join(" · ")))),
-          h("span", { class: "row-end " + (mine ? "pos" : "neg") }, fmt(v, p.currency, { whole: true })),
+          h("span", { class: "row-end " + (mine ? "pos" : "neg") }, fmt(Math.abs(v), p.currency, { whole: true })),
           mine ? h("a", { class: "chip remind-chip", href: p.phone ? waUrl(p.phone, remindText(p, v)) : `https://wa.me/?text=${encodeURIComponent(remindText(p, v))}`, target: "_blank", rel: "noopener noreferrer", on: { click: () => track("whatsapp", "remind") } }, "Remind") : null);
       })() })),
       ...groups.map(({ g, v }) => ({ w: Math.abs(toMain(v, g.meta.currency)), el: h("div", { class: "loan-row" },
@@ -5181,7 +5203,7 @@
       h("span", { class: "split-opt-ico" }, icon(ic)), h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), h("span", { class: "row-sub wrap" }, sub)), icon("chev", "ico sm"));
     openSheet("Split", h("div", { class: "form" },
       opt("people", "Split a bill or a trip", "Rent, dinner, a trip… Add everyone, then each expense is split and the app tells who owes whom.", () => { go("people"); newGroupSheet(); }),
-      opt("up", "Lend or borrow money", "Keep track of money you lent to someone or borrowed, and get it back on time.", () => { go("people"); personSheet(null); }),
+      opt("up", "Money with a person", "Money you gave someone or got from someone. See who owes who at a glance.", () => { go("people"); personSheet(null); }),
       h("button", { type: "button", class: "btn alt", on: { click: () => { closeSheet(); go("people"); } } }, "Open Split")));
   }
 
@@ -5197,7 +5219,7 @@
         step("3", "See who owes whom", "Settle up with one payment each.")) : null,
       h("div", { class: "split-ctas" },
         h("button", { type: "button", class: "btn", on: { click: newGroupSheet } }, icon("people", "ico sm"), "Split a bill"),
-        h("button", { type: "button", class: "btn alt", on: { click: () => personSheet(null) } }, icon("up", "ico sm"), "Lend or borrow")));
+        h("button", { type: "button", class: "btn alt", on: { click: () => personSheet(null) } }, icon("up", "ico sm"), "Money with a person")));
   }
 
   function groupsCard() {
@@ -5867,8 +5889,8 @@
     const people = rows("people").sort(bySort);
     let { owed, owe } = groupTotals();
     for (const p of people) {
-      const v = toMain(bal.get(p.id) || 0, p.currency);
-      if (owesMe(p)) owed += v; else owe += v;
+      const v = netMine(p, toMain(bal.get(p.id) || 0, p.currency));
+      if (v > 0) owed += v; else owe -= v;
     }
     const out = h("div", { class: "stack" });
     out.append(h("div", { class: "tiles two" },
@@ -5882,13 +5904,50 @@
       const v = bal.get(p.id) || 0;
       list.append(h("button", { type: "button", class: "row", on: { click: () => personSheet(p) } },
         h("span", { class: "dot", style: { background: COLORS[(p.sort || 0) % COLORS.length] } }, p.name.charAt(0).toUpperCase()),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" + (v > 0 && dueInfo(p) && dueInfo(p).late ? " late" : "") }, [statusText(p, v), v > 0 && dueInfo(p) ? dueInfo(p).text : null, linkOf(p) || (p.share_token && LINKS.owned.has(p.share_token)) ? "Shared" : p.share_token ? "Has their page" : null].filter(Boolean).join(" · "))),
-        h("span", { class: "row-end" + (v > 0 && owesMe(p) ? " pos" : v > 0 ? " neg" : "") }, fmt(v, p.currency))));
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" + (theyOwe(p, v) && dueInfo(p) && dueInfo(p).late ? " late" : "") }, [statusText(p, v), theyOwe(p, v) && dueInfo(p) ? dueInfo(p).text : null, linkOf(p) || (p.share_token && LINKS.owned.has(p.share_token)) ? "Shared" : p.share_token ? "Has their page" : null].filter(Boolean).join(" · "))),
+        h("span", { class: "row-end" + (netMine(p, v) > 0.004 ? " pos" : netMine(p, v) < -0.004 ? " neg" : "") }, fmt(Math.abs(v), p.currency))));
     }
     if (!people.length) list.append(h("p", { class: "empty" }, "No one yet. Add the people you lend money to or borrow from."));
     list.append(h("button", { type: "button", class: "row-btn", on: { click: () => personSheet(null) } }, "Add person"));
     out.append(list, h("p", { class: "hint" }, "Each person can get a private link that shows only their own balance and history. They don't need an account."));
     return out;
+  }
+
+  function loanEntrySheet(p, e) {
+    const cur = p.currency;
+    const linked = S.data.transactions.get(`ln-${e.id}`);
+    const f = { amount: String(Math.abs(Number(e.amount))), gave: netMine(p, Number(e.amount)) > 0, note: e.note || "", date: e.occurred_on };
+    const body = h("form", { class: "form", id: "le-form", novalidate: true });
+    const err = h("p", { class: "form-err", role: "alert" });
+    let armed = false;
+    const draw = () => body.replaceChildren(
+      h("div", { class: "tx-type" },
+        h("button", { type: "button", class: "tx-tab" + (f.gave ? " on" : ""), on: { click: () => { f.gave = true; draw(); } } }, `${tr("I gave")} ${p.name}`),
+        h("button", { type: "button", class: "tx-tab" + (!f.gave ? " on" : ""), on: { click: () => { f.gave = false; draw(); } } }, `${p.name} ${tr("gave me")}`)),
+      h("label", { class: "field" }, h("span", null, `${tr("Amount")} (${curSymbol(cur)})`), h("input", { id: "le-amt", class: "input num", inputmode: "decimal", autocomplete: "off", value: f.amount, on: { input: ev => { f.amount = ev.target.value; } } })),
+      h("label", { class: "field" }, h("span", null, "Note"), h("input", { id: "le-note", class: "input", maxlength: "200", autocomplete: "off", value: f.note, on: { input: ev => { f.note = ev.target.value; } } })),
+      h("label", { class: "field" }, h("span", null, "Date"), h("input", { id: "le-date", class: "input", type: "date", value: f.date, on: { change: ev => { f.date = ev.target.value; } } })),
+      linked ? h("p", { class: "hint" }, `${tr("Also updates the entry in")} ${(acc(linked.account_id) || {}).name || tr("your account")}.`) : null,
+      err,
+      h("button", { type: "button", class: "btn danger alt", on: { click: () => {
+        if (!armed) { armed = true; draw(); return; }
+        removeRow("loan_entries", e); if (linked) removeRow("transactions", linked);
+        closeSheet(); toast("Entry deleted."); personSheet(S.data.people.get(p.id) || p);
+      } } }, armed ? "Tap again to delete" : "Delete this entry"));
+    body.addEventListener("submit", ev => {
+      ev.preventDefault();
+      const v = parseAmt(f.amount);
+      if (!v) return fail(err, "Enter an amount.", document.getElementById("le-amt"));
+      if (!DATE_RE.test(f.date)) return fail(err, "Pick a date.");
+      const amount = roundCur(v, cur) * (f.gave ? 1 : -1) * (owesMe(p) ? 1 : -1);
+      const note = f.note.trim().slice(0, 200) || null;
+      const items = [{ t: "loan_entries", r: { ...e, amount, note, occurred_on: f.date } }];
+      if (linked) items.push({ t: "transactions", r: { ...linked, kind: f.gave ? "loan_out" : "loan_in", amount: roundCur(convert(v, cur, linked.currency), linked.currency), note, occurred_on: f.date } });
+      putMany(items);
+      closeSheet(); toast("Entry updated."); personSheet(S.data.people.get(p.id) || p);
+    });
+    draw();
+    openSheet("Edit entry", body, h("button", { type: "submit", class: "btn", form: "le-form" }, "Save changes"), { stack: true });
   }
 
   function personSheet(p, notice) {
@@ -5899,33 +5958,35 @@
     const openAmount = mode => {
       const balance = loanBalances().get(p.id) || 0;
       const cur = p.currency;
-      const back = mode === "back";
-      const moneyOut = owesMe(p) ? !back : back;
+      const moneyOut = mode === "out";
+      const net = netMine(p, balance);
+      const sign = (moneyOut ? 1 : -1) * (owesMe(p) ? 1 : -1);
       amountSheet({
-        title: back ? (owesMe(p) ? `${p.name} paid you back` : `You paid ${p.name} back`) : (owesMe(p) ? `You lent ${p.name} more` : `You borrowed more from ${p.name}`),
-        cur, max: back ? balance : null,
+        title: moneyOut ? `${tr("I gave")} ${p.name}` : `${p.name} ${tr("gave me")}`,
+        cur, max: null,
         quick: isBig(cur) ? [1e6, 5e6, 10e6] : [50, 100, 500, 1000],
-        verbFor: v => !v ? "Enter an amount" : back ? `Record ${fmt(v, cur, { show: true })} paid back` : `Add ${fmt(v, cur, { show: true })}`,
+        verbFor: v => !v ? "Enter an amount" : `Save ${fmt(v, cur, { show: true })}`,
         accountPick: { label: moneyOut ? "Take the money from" : "Put the money into", initial: loanAccount(p) },
         previewFor: (v, accId) => {
           const a = accId && acc(accId);
           const moved = a ? ` · ${a.name} ${moneyOut ? "−" : "+"}${fmt(roundCur(convert(v, cur, a.currency), a.currency), a.currency, { show: true })}` : "";
-          return `New balance: ${fmt(balance + (back ? -v : v), cur, { show: true })}${moved}`;
+          const nb = net + (moneyOut ? v : -v);
+          return `${Math.abs(nb) < 0.005 ? tr("All settled") : nb > 0 ? `${p.name} ${tr("owes you")} ${fmt(nb, cur, { show: true })}` : `${tr("You owe")} ${p.name} ${fmt(-nb, cur, { show: true })}`}${moved}`;
         },
         onSave: (v, note, accId) => {
-          const amount = roundCur(v, cur) * (back ? -1 : 1);
+          const amount = roundCur(v, cur) * sign;
           const id = linkOf(p) ? sharedId() : newId();
           const now = new Date().toISOString();
           const entry = { id, person_id: p.id, amount, note, occurred_on: today(), created_at: now };
           const items = [];
           const a = accId && acc(accId);
           if (a) {
-            items.push({ t: "transactions", r: { id: `ln-${id}`, kind: moneyOut ? "loan_out" : "loan_in", amount: roundCur(convert(v, cur, a.currency), a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: null, note, occurred_on: today(), rule_id: null, receipt: null, created_at: now } });
+            items.push({ t: "transactions", r: { id: `ln-${id}`, kind: moneyOut ? "loan_out" : "loan_in", amount: roundCur(convert(v, cur, a.currency), a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: null, note: note || null, occurred_on: today(), rule_id: null, receipt: null, created_at: now } });
             store.set("loanAcc:" + p.id, a.id);
           }
           saveLoan(p, entry, items);
-          const next = balance + amount;
-          personSheet(S.data.people.get(p.id) || p, { title: next === 0 ? "Saved. All settled." : `Saved. Balance is now ${fmt(next, cur, { show: true })}.`, message: loanMessage(p, amount, next, note) });
+          const next = balance + amount, nn = netMine(p, next);
+          personSheet(S.data.people.get(p.id) || p, { title: Math.abs(next) < 0.005 ? "Saved. All settled." : nn > 0 ? `Saved. ${p.name} owes you ${fmt(nn, cur, { show: true })}.` : `Saved. You owe ${p.name} ${fmt(-nn, cur, { show: true })}.`, message: loanMessage(p, amount, next, note) });
         }
       });
     };
@@ -5935,11 +5996,12 @@
       const cur = p.currency;
       const history = loanRows().filter(e => e.person_id === p.id).sort(byRecent);
       const kids = [];
-      kids.push(h("div", { class: "hero person-hero" + (balance === 0 ? " settled" : owesMe(p) ? "" : " owe") },
-        h("p", { class: "hero-label" }, balance === 0 ? "All settled" : owesMe(p) ? `${p.name} owes you` : `You owe ${p.name}`),
-        h("p", { class: "hero-total num" }, fmt(balance, cur, { show: true })),
+      const net = netMine(p, balance), settled = Math.abs(balance) < 0.005;
+      kids.push(h("div", { class: "hero person-hero" + (settled ? " settled" : net > 0 ? "" : " owe") },
+        h("p", { class: "hero-label" }, settled ? "All settled" : net > 0 ? `${p.name} owes you` : `You owe ${p.name}`),
+        h("p", { class: "hero-total num" }, fmt(Math.abs(balance), cur, { show: true })),
         history.length ? h("p", { class: "hero-sub" }, `Last change ${dayLabel(history[0].occurred_on).toLowerCase()}`) : null,
-        balance > 0 && dueInfo(p) ? h("p", { class: "hero-sub due" + (dueInfo(p).late ? " late" : "") }, dueInfo(p).text) : null));
+        net > 0 && dueInfo(p) ? h("p", { class: "hero-sub due" + (dueInfo(p).late ? " late" : "") }, dueInfo(p).text) : null));
 
       if (notice) {
         kids.push(h("div", { class: "notice" }, h("p", null, icon("check", "ico sm"), notice.title),
@@ -5950,11 +6012,11 @@
       }
 
       kids.push(h("div", { class: "actions" },
-        h("button", { type: "button", class: "action", on: { click: () => openAmount("more") } }, h("span", { class: "action-ico" }, icon("plus")), owesMe(p) ? "Lent more" : "Borrowed more"),
-        h("button", { type: "button", class: "action", disabled: balance <= 0, on: { click: () => openAmount("back") } }, h("span", { class: "action-ico out" }, icon("minus")), owesMe(p) ? "Paid me back" : "I paid back")));
+        h("button", { type: "button", class: "action", on: { click: () => openAmount("out") } }, h("span", { class: "action-ico out" }, icon("up")), `${tr("I gave")} ${p.name}`),
+        h("button", { type: "button", class: "action", on: { click: () => openAmount("in") } }, h("span", { class: "action-ico" }, icon("down")), `${p.name} ${tr("gave me")}`)));
 
       if (p.phone) kids.push(waButton(p.phone, balanceMessage(p, balance), "Send balance on WhatsApp", "alt wa-alt"));
-      if (p.phone && balance > 0 && owesMe(p) && dueInfo(p)) kids.push(waButton(p.phone, `Hi ${p.name}, a friendly reminder that ${fmt(balance, cur, { show: true })} ${dueInfo(p).late ? "was due on" : "is due on"} ${dayLabel(dueOf(p)).toLowerCase()}. Thank you.`, "Send a payment reminder", "alt wa-alt"));
+      if (p.phone && net > 0 && dueInfo(p)) kids.push(waButton(p.phone, `Hi ${p.name}, a friendly reminder that ${fmt(Math.abs(balance), cur, { show: true })} ${dueInfo(p).late ? "was due on" : "is due on"} ${dayLabel(dueOf(p)).toLowerCase()}. Thank you.`, "Send a payment reminder", "alt wa-alt"));
 
       const link = linkOf(p);
       const lk = link ? LINKED.get(p.id) || {} : null;
@@ -6011,14 +6073,17 @@
       const hist = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, `History (${history.length})`)));
       for (const e of history) {
         const v = Number(e.amount);
-        const label0 = owesMe(p) ? (v > 0 ? "Lent" : "Paid back") : (v > 0 ? "Borrowed" : "Paid back");
+        const gave = netMine(p, v) > 0;
+        const label0 = gave ? "You gave" : "You got";
         const linkedTx = S.data.transactions.get(`ln-${e.id}`);
         const linkedAcc = linkedTx && acc(linkedTx.account_id);
         const label = linkedAcc ? `${label0} · ${linkedAcc.name}` : label0;
         const when = e.remote === "pending" ? `${dayLabel(e.occurred_on)} · sending to ${p.name}` : dayLabel(e.occurred_on);
-        hist.append(h("div", { class: "row" + (e.remote === "pending" ? " pending" : "") },
+        const editable = !e.remote && !linkOf(p) && S.data.loan_entries.has(e.id);
+        hist.append(h("div", { class: "row" + (e.remote === "pending" ? " pending" : "") + (editable ? " tap" : "") },
+          editable ? h("button", { type: "button", class: "loan-hit", "aria-label": "Edit entry", on: { click: () => loanEntrySheet(p, e) } }) : null,
           h("span", { class: "row-main" }, h("span", { class: "row-title" }, e.note || label), h("span", { class: "row-sub" }, e.note ? `${label} · ${when}` : when)),
-          h("span", { class: "row-end" + (v < 0 ? " neg" : " pos") }, (v > 0 ? "+" : "−") + fmt(Math.abs(v), cur)),
+          h("span", { class: "row-end" + (gave ? " neg" : " pos") }, (gave ? "↑ " : "↓ ") + fmt(Math.abs(v), cur)),
           e.remote ? h("span", { class: "row-lock", "aria-hidden": "true" }) : h("button", { type: "button", class: "icon-btn", "aria-label": armed === e.id ? "Confirm delete" : "Delete entry", style: armed === e.id ? { color: "var(--neg)" } : null,
             on: { click: () => { if (armed !== e.id) { armed = e.id; draw(); return; } armed = null; removeRow("loan_entries", e); const linked = S.data.transactions.get(`ln-${e.id}`); if (linked) removeRow("transactions", linked); toast(linked ? "Entry deleted, and the account was corrected." : "Entry deleted."); draw(); } } }, icon(armed === e.id ? "warn" : "close"))));
       }
@@ -6121,12 +6186,14 @@
     const cur = CUR_RE.test(String(data.currency)) ? data.currency : "USD";
     const balance = Number(data.balance) || 0;
     const from = typeof data.from === "string" && data.from.trim() ? data.from.trim().slice(0, 40) : "";
-    const label = balance === 0 ? "You're all settled" : data.direction === "owes_me" ? (from ? `You owe ${from}` : "You owe") : (from ? `${from} owes you` : "You're owed");
+    const viewerOwes = (data.direction === "owes_me") === (balance > 0);
+    const label = balance === 0 ? "You're all settled" : viewerOwes ? (from ? `You owe ${from}` : "You owe") : (from ? `${from} owes you` : "You're owed");
     const history = Array.isArray(data.history) ? data.history : [];
     const list = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "History")));
     for (const e of history) {
       const v = Number(e.amount) || 0;
-      const kind = data.direction === "owes_me" ? (v > 0 ? "Borrowed" : "Paid back") : (v > 0 ? "Lent" : "Paid back");
+      const ownerGave = (data.direction === "owes_me") === (v > 0);
+      const kind = ownerGave ? "You got" : "You gave";
       list.append(h("div", { class: "row" },
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, typeof e.note === "string" && e.note ? e.note : kind), h("span", { class: "row-sub" }, `${kind} · ${DATE_RE.test(String(e.date)) ? dayLabel(e.date) : ""}`)),
         h("span", { class: "row-end" + (v < 0 ? " neg" : " pos") }, (v > 0 ? "+" : "−") + fmt(Math.abs(v), cur, { show: true }))));
@@ -6136,7 +6203,7 @@
     box.replaceChildren(
       h("section", { class: "hero" },
         h("p", { class: "hero-label" }, `Hi ${String(data.name || "").slice(0, 40)}`),
-        h("p", { class: "hero-total num" }, fmt(balance, cur, { show: true })),
+        h("p", { class: "hero-total num" }, fmt(Math.abs(balance), cur, { show: true })),
         h("p", { class: "hero-sub" }, label)),
       list,
       h("p", { class: "hint", style: { textAlign: "center" } }, "Only people with this link can see this page."));
@@ -6705,7 +6772,7 @@
       draw();
     } } });
     f.person = null;
-    f.lmode = "more";
+    f.lmode = "out";
     if (!x && preset) Object.assign(f, preset);
     if (x && curDec(x.currency) === 0) f.amount = String(Math.round(Number(x.amount)));
     const usage = new Map();
@@ -6743,8 +6810,9 @@
       if (f.person && !S.data.people.get(f.person)) f.person = null;
     };
     const loanPerson = () => f.kind === "loan" && f.person ? S.data.people.get(f.person) : null;
-    const loanOut = () => { const p = loanPerson(); return p ? (owesMe(p) ? f.lmode === "more" : f.lmode === "back") : f.lmode === "more"; };
-    const loanLabel = p => !p ? (f.lmode === "more" ? "Lent or borrowed" : "Paid back") : owesMe(p) ? (f.lmode === "more" ? `I lent ${p.name}` : `${p.name} paid me back`) : (f.lmode === "more" ? `I borrowed from ${p.name}` : `I paid ${p.name} back`);
+    const loanOut = () => f.lmode !== "in";
+    const loanNet = p => netMine(p, loanBalances().get(p.id) || 0);
+    const loanLabel = p => !p ? (f.lmode === "in" ? "Money I got" : "Money I gave") : f.lmode === "in" ? `${p.name} ${tr("gave me")}` : `${tr("I gave")} ${p.name}`;
     const convertFor = (amount, from, to) => roundCur(convert(amount, from, to), to);
 
     const setKind = k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; f.category = null; typeMenu = false; panel = "none"; attn = false; step = "amt"; draw(); };
@@ -6811,7 +6879,7 @@
       const menuItem = (ic, title, sub, fn, disabled) => h("button", { type: "button", class: "tx-menu-item", disabled: !!disabled, on: { click: fn } }, h("span", { class: "tx-menu-ico" }, icon(ic, "ico sm")), h("span", null, h("strong", null, title), h("small", null, sub)));
       const menu = typeMenu ? h("div", { class: "tx-menu" },
         menuItem("swap", "Moved between my accounts", "Like cash to the bank, or to savings", () => setKind("transfer"), accounts.length < 2),
-        menuItem("coin", "Lent or borrowed", "Money with a friend or family member", () => setKind("loan")),
+        menuItem("coin", "Money with a person", "You gave someone money, or they gave you", () => setKind("loan")),
         menuItem("people", "Split a bill with friends", "Dinner, rent, a trip…", () => { closeSheet(); go("people"); setTimeout(newGroupSheet, 350); }),
         menuItem("bell", "A bill to pay every month", "Generator, internet, rent… with a reminder", () => { closeSheet(); setTimeout(() => billSheet(null), 350); }),
         menuItem("coin", "Gold, crypto or stocks", "Track what they're worth with live prices", () => { closeSheet(); setTimeout(() => holdingSheet(null), 350); })) : null;
@@ -6845,14 +6913,14 @@
             h("button", { type: "button", class: "bubble more" + (f.adding ? " on" : ""), on: { click: () => { f.adding = !f.adding; draw(); } } }, h("span", { class: "bubble-ico" }, icon("plus", "ico")), h("span", { class: "bubble-name" }, "Someone new"))),
           f.adding ? h("div", { class: "new-person" },
             h("input", { id: "f-newp", class: "input", maxlength: "40", autocomplete: "off", placeholder: "Their name", value: f.newName || "", on: { input: e => { f.newName = e.target.value; } } }),
-            h("div", { class: "two" }, [["owes_me", "I lent them"], ["i_owe", "I borrowed from them"]].map(([dir, label]) => h("button", { type: "button", class: "btn alt sm", on: { click: () => {
+            h("div", { class: "two" }, [["owes_me", "I gave them"], ["i_owe", "They gave me"]].map(([dir, label]) => h("button", { type: "button", class: "btn alt sm", on: { click: () => {
               const name = String(f.newName || "").trim().replace(/\s+/g, " ").slice(0, 40);
               if (!name) return fail(err, "Type the person's name first.", document.getElementById("f-newp"));
               const p = { id: newId(), name, direction: dir, currency: a.currency, phone: null, share_token: null, sort: Math.max(-1, ...rows("people").map(r => r.sort || 0)) + 1 };
               put("people", p);
-              f.person = p.id; f.lmode = "more"; f.newName = ""; f.adding = false; attn = false; draw();
+              f.person = p.id; f.lmode = dir === "owes_me" ? "out" : "in"; f.newName = ""; f.adding = false; attn = false; draw();
             } } }, label)))) : null,
-          lp ? h("div", { class: "tx-type small" }, ...(owesMe(lp) ? [choice("more", `I lent ${lp.name}`), choice("back", `${lp.name} paid me back`)] : [choice("more", `I borrowed from ${lp.name}`), choice("back", `I paid ${lp.name} back`)])) : null);
+          lp ? h("div", { class: "tx-type small" }, choice("out", `${tr("I gave")} ${lp.name}`), choice("in", `${lp.name} ${tr("gave me")}`)) : null);
       }
 
       const camBtn = f.kind !== "transfer" && !isLoan
@@ -6936,16 +7004,16 @@
         if (!p) return;
         const owed = loanBalances().get(p.id) || 0;
         const loanAmt = roundCur(convert(amount, a.currency, p.currency), p.currency);
-        if (f.lmode === "back" && loanAmt > owed + 1e-9) { fail(err, owed > 0 ? `That's more than the ${fmt(owed, p.currency, { show: true })} balance.` : `Nothing is owed between you and ${p.name} right now.`); return; }
+        const delta = loanAmt * (loanOut() ? 1 : -1) * (owesMe(p) ? 1 : -1);
         const id = linkOf(p) ? sharedId() : newId(), now = new Date().toISOString(), note = f.note.trim().slice(0, 200) || null;
         const out = loanOut();
-        saveLoan(p, { id, person_id: p.id, amount: f.lmode === "back" ? -loanAmt : loanAmt, note, occurred_on: f.date, created_at: now }, [
+        saveLoan(p, { id, person_id: p.id, amount: delta, note, occurred_on: f.date, created_at: now }, [
           { t: "transactions", r: { id: `ln-${id}`, kind: out ? "loan_out" : "loan_in", amount: roundCur(amount, a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: null, note, occurred_on: f.date, rule_id: null, receipt: null, created_at: now } }]);
         store.set("lastAcc:loan", a.id);
         store.set("loanAcc:" + p.id, a.id);
         closeSheet();
-        const next = owed + (f.lmode === "back" ? -loanAmt : loanAmt);
-        toast(next === 0 ? `Saved. You and ${p.name} are settled.` : `Saved. ${owesMe(p) ? `${p.name} owes you` : `You owe ${p.name}`} ${fmt(next, p.currency, { show: true })}.`);
+        const next = owed + delta, nn = netMine(p, next);
+        toast(Math.abs(next) < 0.005 ? `Saved. You and ${p.name} are settled.` : `Saved. ${nn > 0 ? `${p.name} owes you` : `You owe ${p.name}`} ${fmt(Math.abs(nn), p.currency, { show: true })}.`);
         return;
       }
       let toAmount = null;

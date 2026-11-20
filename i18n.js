@@ -1635,7 +1635,26 @@ Object.assign(window.WALLET_I18N.words, {
   "Loans now count": ["Les prêts comptent maintenant", "القروض تُحتسب الآن"],
   "Money you lend now counts in what you spent, and money you borrow or get back counts in what came in. They are flagged as Loan everywhere so you can tell them apart.": ["L'argent que vous prêtez compte maintenant dans vos dépenses, et l'argent emprunté ou remboursé compte dans les entrées. Ils ont leur propre ligne pour les distinguer.", "المال الذي تقرضه يُحتسب الآن ضمن المصروف، والمال الذي تقترضه أو يُرد إليك يُحتسب ضمن الداخل. يظهران في سطر خاص لتميّزهما."],
   "incl.": ["dont", "منها"],
-  "loans": ["prêts", "قروض"]
+  "loans": ["prêts", "قروض"],
+  "I gave": ["J'ai donné à", "أعطيت"],
+  "gave me": ["m'a donné", "أعطاني"],
+  "You gave": ["Vous avez donné", "أعطيت"],
+  "You got": ["Vous avez reçu", "استلمت"],
+  "gave you": ["vous a donné", "أعطاك"],
+  "Money with a person": ["Argent avec une personne", "مال مع شخص"],
+  "Money you gave someone or got from someone. See who owes who at a glance.": ["L'argent que vous avez donné à quelqu'un ou reçu de quelqu'un. Voyez qui doit quoi en un coup d'œil.", "المال الذي أعطيته لشخص أو أخذته منه. اعرف من يدين لمن بلمحة."],
+  "You gave someone money, or they gave you": ["Vous avez donné de l'argent à quelqu'un, ou on vous en a donné", "أعطيت شخصًا مالًا أو أعطاك"],
+  "I gave them": ["Je lui ai donné", "أعطيته"],
+  "They gave me": ["Il m'a donné", "أعطاني"],
+  "Money I got": ["Argent reçu", "مال استلمته"],
+  "Money I gave": ["Argent donné", "مال أعطيته"],
+  "Also updates the entry in": ["Met aussi à jour l'opération dans", "يحدّث أيضًا الإدخال في"],
+  "your account": ["votre compte", "حسابك"],
+  "Delete this entry": ["Supprimer cette opération", "احذف هذا الإدخال"],
+  "someone": ["quelqu'un", "شخص"],
+  "owes you": ["vous doit", "مدين لك"],
+  "Give and get, as often as you want": ["Donnez et recevez, autant que vous voulez", "أعطِ وخذ كما تشاء"],
+  "With the same person you can now give and get money as many times as you like, and the app works out who owes who. Tap any entry in their history to change or delete it.": ["Avec la même personne, vous pouvez maintenant donner et recevoir de l'argent autant de fois que vous voulez, et l'app calcule qui doit quoi. Touchez une opération de l'historique pour la modifier ou la supprimer.", "مع الشخص نفسه يمكنك الآن أن تعطي وتأخذ المال كما تشاء، والتطبيق يحسب من يدين لمن. اضغط على أي إدخال في السجل لتعديله أو حذفه."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
