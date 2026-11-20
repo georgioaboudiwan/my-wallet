@@ -1566,8 +1566,8 @@ Object.assign(window.WALLET_I18N.words, {
   "Balance after": ["Solde après", "الرصيد بعد"],
   "A new way to add": ["Une nouvelle façon d'ajouter", "طريقة جديدة للإضافة"],
   "The add screen is redesigned: a big amount on a money card, your balance after the entry before you save, categories in one swipeable row and a cleaner number pad.": ["L'écran d'ajout est repensé : un grand montant sur une carte, votre solde après l'opération avant d'enregistrer, les catégories sur une ligne à faire défiler et un pavé numérique plus épuré.", "أُعيد تصميم شاشة الإضافة: مبلغ كبير على بطاقة، ورصيدك بعد العملية قبل الحفظ، والفئات في صف واحد يمكن سحبه، ولوحة أرقام أنظف."],
-  "Haircut & personal care": ["Coiffeur et soins", "حلاقة وعناية شخصية"],
-  "A new category for the barber, salon, nails and other personal care.": ["Une nouvelle catégorie pour le coiffeur, le salon, les ongles et les autres soins.", "فئة جديدة للحلاق والصالون والأظافر وغيرها من العناية الشخصية."],
+  "Personal care": ["Soins personnels", "العناية الشخصية"],
+  "A new category for haircuts, the salon, nails and other personal care.": ["Une nouvelle catégorie pour le coiffeur, le salon, les ongles et les autres soins.", "فئة جديدة للحلاقة والصالون والأظافر وغيرها من العناية الشخصية."],
   "Quicker notes": ["Notes plus rapides", "ملاحظات أسرع"],
   "When you write a note, the notes you use most for that category show up. Tap one to fill it in.": ["Quand vous écrivez une note, celles que vous utilisez le plus pour cette catégorie apparaissent. Touchez-en une pour la remplir.", "عند كتابة ملاحظة، تظهر الملاحظات التي تستخدمها أكثر لهذه الفئة. اضغط على واحدة لتعبئتها."]
 });

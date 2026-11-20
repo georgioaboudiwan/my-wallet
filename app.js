@@ -39,7 +39,7 @@
     ["transport", "Fuel & transport", "expense", "needs", "#d9622b"],
     ["parking", "Parking", "expense", "needs", "#4f7cac"],
     ["health", "Health", "expense", "needs", "#d6455d"],
-    ["care", "Haircut & personal care", "expense", "wants", "#8e5bb5"],
+    ["care", "Personal care", "expense", "wants", "#8e5bb5"],
     ["eating", "Eating out & coffee", "expense", "wants", "#c2508f"],
     ["shopping", "Shopping", "expense", "wants", "#1f9bb0"],
     ["fun", "Going out & fun", "expense", "wants", "#8a9a2b"],
@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.61.0";
+  const VERSION = "3.61.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -609,13 +609,19 @@
   function ensureDefaults() {
     if (settings().seeded) {
       const ss = storedSettings();
-      if (ss.v326 && ss.v346 && ss.v358) return;
+      if (!ss.v362) {
+        const c = S.data.categories.get(`${S.uid}:cat:care`);
+        const fix = c && c.name === "Haircut & personal care" ? [{ t: "categories", r: { ...c, name: "Personal care" } }] : [];
+        TRACK.mute = true; putMany([...fix, { t: "settings", r: { id: settingsId(), data: { ...storedSettings(), v362: true } } }]); TRACK.mute = false;
+      }
+      const ss2 = storedSettings();
+      if (ss2.v326 && ss2.v346 && ss2.v358) return;
       const items = [];
       if (!ss.v358) {
         const cid = `${S.uid}:cat:care`;
         if (!S.data.categories.has(cid) && !rows("categories").some(c => c.kind === "expense" && /hair|barber|salon|beauty|personal care/i.test(c.name))) {
           const after = S.data.categories.get(`${S.uid}:cat:health`);
-          items.push({ t: "categories", r: { id: cid, name: "Haircut & personal care", kind: "expense", bucket: "wants", color: "#8e5bb5", budget: null, sort: after ? Math.round(Number(after.sort) || 0) : rows("categories").length } });
+          items.push({ t: "categories", r: { id: cid, name: "Personal care", kind: "expense", bucket: "wants", color: "#8e5bb5", budget: null, sort: after ? Math.round(Number(after.sort) || 0) : rows("categories").length } });
         }
       }
       if (!ss.v346) {
@@ -625,8 +631,8 @@
           items.push({ t: "categories", r: { id: pid, name: "Parking", kind: "expense", bucket: "needs", color: "#4f7cac", budget: null, sort: after ? Math.round(Number(after.sort) || 0) : rows("categories").length } });
         }
       }
-      if (ss.v326) { items.push({ t: "settings", r: { id: settingsId(), data: { ...ss, v346: true, v358: true } } }); TRACK.mute = true; putMany(items); TRACK.mute = false; return; }
-      items.push({ t: "settings", r: { id: settingsId(), data: { ...ss, remit: true, whish: true, v326: true, v346: true, v358: true } } });
+      if (ss.v326) { items.push({ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), v346: true, v358: true } } }); TRACK.mute = true; putMany(items); TRACK.mute = false; return; }
+      items.push({ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), remit: true, whish: true, v326: true, v346: true, v358: true } } });
       const id = `${S.uid}:cat:remit`;
       const cur = S.data.categories.get(id);
       if (cur) items.unshift({ t: "categories", r: { ...cur, sort: Math.round(Number(cur.sort) || 0) } });
@@ -2920,6 +2926,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.61.1", items: [
+      ["", "Category renamed", "\"Haircut & personal care\" renamed to \"Personal care\" for new users, and once for existing users whose category still has the old name (a name they changed themselves is kept). The 3.59 What's new note now says Personal care."]
+    ] },
     { v: "3.61.0", items: [
       ["", "Note typing and keyboard fit", "Note typing on iPhone: the open sheet now resizes to the visible area above the keyboard (visualViewport height and offset), so the header stays in place, there is no empty gap and the Save button sits right above the keyboard. Removed the scroll-into-view jump; the sheet scrolls to the top instead. While typing, the note field glows and up to 8 most used notes for the chosen category (or the entry type if none is chosen) from the last 90 days show as tappable chips; tapping keeps the keyboard open. The same keyboard fit applies to every sheet with a text field."]
     ] },
@@ -3033,7 +3042,7 @@
       ["note", "Quicker notes", "When you write a note, the notes you use most for that category show up. Tap one to fill it in."]
     ] },
     { v: "3.59.0", items: [
-      ["tag", "Haircut & personal care", "A new category for the barber, salon, nails and other personal care."]
+      ["tag", "Personal care", "A new category for haircuts, the salon, nails and other personal care."]
     ] },
     { v: "3.58.0", items: [
       ["plus", "A new way to add", "The add screen is redesigned: a big amount on a money card, your balance after the entry before you save, categories in one swipeable row and a cleaner number pad."]
