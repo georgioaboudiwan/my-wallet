@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.64.0";
+  const VERSION = "3.65.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2061,7 +2061,7 @@
       for (const c of document.querySelectorAll("canvas.orb")) if (!c.__orb) orbInit(c); else orbMix(c.__orb);
       for (const r of document.querySelectorAll(".acc-rail")) if (!r.__rail) railInit(r); else r.__rail();
       for (const c of document.querySelectorAll("canvas.tank")) if (!c.__tank) tankInit(c); else c.__tank.read();
-      for (const c of document.querySelectorAll("canvas.bubbles-cv")) if (!c.__bub) bubblesInit(c); else if (c.__bub.raw !== c.dataset.b) c.__bub.rebuild();
+      for (const c of document.querySelectorAll("canvas.dial-cv")) if (!c.__dial) dialInit(c); else if (c.__dial.raw !== c.dataset.b) c.__dial.rebuild();
       for (const el of document.querySelectorAll(".wallet > .hero, .pf-card:not(.pf-empty), .pf-hero, .login-card")) if (!el.__tilt) tiltInit(el);
       const a = document.querySelector(".wallet > .hero .hero-total"); if (a) countUp(a, "home");
       const b = document.querySelector(".pf-card .pf-total"); if (b) countUp(b, "pf");
@@ -2959,6 +2959,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.65.0", items: [
+      ["", "Spending dial and accounts grid", "Insights: spending bubbles replaced by a vault-style spending dial (canvas): category segments sized by spending (top 9 plus Everything else), gold tick ring and pointer, drag to turn with inertia, snaps to the segment under the pointer, tap a segment to spin to it; the center shows the category, amount and share. Accounts: See all / Show as cards toggle (remembered per device) switches the carousel to a 2-column grid (3 on wide screens)."]
+    ] },
     { v: "3.64.0", items: [
       ["", "Accounts cards, liquid plan, spending bubbles", "Accounts section rebuilt: header with count and total, a distribution bar of positive balances by account kind, then a horizontal snap carousel of bank-card shaped account cards (kind materials: emerald cash, blue bank with chip, titanium card with chip, coral e-wallet, gold savings; balance, converted value, name and currency tag; side cards shrink, tilt and fade as you swipe), ending with a dashed Add account card. Home month plan card is now a liquid tank (canvas waves at the percent used, green, amber at 80%, red when over) that sloshes when you drag across it; a drag no longer opens the plan. Money planet removed from Home and Insights; Insights gets spending bubbles: up to 12 categories as physics circles sized by amount, draggable and flickable, tap one to show name, amount and share. Animations pause off screen and in the background."]
     ] },
@@ -3080,9 +3083,13 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.65.0", items: [
+      ["chart", "Spending dial", "In Insights, turn the dial to go through your categories and see how much each one took this month."],
+      ["card", "See all your accounts", "Tap See all next to your accounts to see every card at once, and Show as cards to swipe again."]
+    ] },
     { v: "3.64.0", items: [
       ["card", "Your accounts, as real cards", "Swipe through your accounts like cards in a wallet, with a bar showing where your money sits."],
-      ["chart", "Play with your money", "Your month plan fills like liquid you can shake, and Insights shows your spending as bubbles you can drag and flick. Tap one to see the amount."]
+      ["chart", "Play with your money", "Your month plan fills like liquid you can shake."]
     ] },
     { v: "3.63.0", items: [
       ["coin", "What you paid, what it's worth", "The Portfolio now shows how much you paid next to what your investments are worth today, for each one and in total."]
@@ -3652,71 +3659,102 @@
     card.style.touchAction = "pan-y";
     draw();
   }
-  function spendBubbles(m, s) {
-    const cats = [...s.byCat].filter(e => e[1] > 0).sort((p, q) => q[1] - p[1]).slice(0, 12);
+  function spendDial(m, s) {
+    const cats = [...s.byCat].filter(e => e[1] > 0).sort((p, q) => q[1] - p[1]);
     if (!cats.length) return null;
-    const data = cats.map(([id, v]) => { const c = cat(id); return [tr(c ? c.name : "Uncategorized"), c ? c.color : "#5b7083", Math.round(v * 100) / 100, Math.round(v / s.spent * 100), money(v, { whole: true })]; });
-    return h("section", { class: "bub-card" },
-      h("div", { class: "bub-head" }, h("span", { class: "bub-kicker" }, "Spending bubbles"), h("span", { class: "bub-hint" }, "Drag and flick the bubbles")),
-      h("canvas", { class: "bubbles-cv", "data-b": JSON.stringify(data), "aria-hidden": "true" }),
-      h("p", { class: "bub-tip num", "aria-live": "polite" }, tr("Tap a bubble")));
+    const top = cats.slice(0, 9), rest = cats.slice(9).reduce((t, e) => t + e[1], 0);
+    const data = top.map(([id, v]) => { const c = cat(id); return [tr(c ? c.name : "Uncategorized"), c ? c.color : "#5b7083", v, Math.round(v / s.spent * 100), money(v, { whole: true })]; });
+    if (rest > 0) data.push([tr("Everything else"), "#8a9a91", rest, Math.round(rest / s.spent * 100), money(rest, { whole: true })]);
+    return h("section", { class: "dial-card" },
+      h("div", { class: "bub-head" }, h("span", { class: "bub-kicker" }, "Spending dial"), h("span", { class: "bub-hint" }, "Turn the dial")),
+      h("div", { class: "dial-wrap" },
+        h("canvas", { class: "dial-cv", "data-b": JSON.stringify(data), "aria-hidden": "true" }),
+        h("div", { class: "dial-center", "aria-live": "polite" }, h("i", { class: "dial-dot" }), h("strong", { class: "dial-name" }), h("b", { class: "dial-amt num" }), h("small", { class: "dial-pct num" }))));
   }
-  function bubblesInit(c) {
-    const H = 280, card = c.closest(".bub-card"), tip = card.querySelector(".bub-tip");
-    let data = [];
-    try { data = JSON.parse(c.dataset.b || "[]"); } catch { }
-    const o = { list: [], drag: null, sel: -1, raw: c.dataset.b };
-    c.__bub = o;
+  function dialInit(c) {
+    const card = c.closest(".dial-card"), name = card.querySelector(".dial-name"), amt = card.querySelector(".dial-amt"), pct = card.querySelector(".dial-pct"), dot = card.querySelector(".dial-dot");
+    const o = { rot: 0, vel: 0, drag: null, sel: -1, raw: null, segs: [], snap: null };
+    c.__dial = o;
     const build = () => {
-      sizeCanvas(c, H);
-      const dpr = c.__dpr || 1, W = c.width / dpr, max = Math.max(...data.map(d => d[2]));
-      const R = Math.min(W, H) * 0.3, area = data.reduce((t, d) => t + Math.PI * Math.pow(Math.sqrt(d[2] / max) * R, 2), 0), f = Math.min(1, Math.sqrt(W * H * 0.5 / area));
-      o.W = W; o.H = H;
-      o.list = data.map((d, i) => { const r = Math.max(14, Math.sqrt(d[2] / max) * R * f); const old = o.list[i]; return { name: d[0], color: d[1], pct: d[3], label: d[4], r, x: old ? old.x : W / 2 + (Math.random() - 0.5) * W * 0.6, y: old ? old.y : H / 2 + (Math.random() - 0.5) * H * 0.6, vx: 0, vy: 0 }; });
+      let data = [];
+      try { data = JSON.parse(c.dataset.b || "[]"); } catch { }
+      o.raw = c.dataset.b;
+      const tot = data.reduce((t, d) => t + d[2], 0) || 1;
+      let a = 0;
+      o.segs = data.map(d => { const span = d[2] / tot * Math.PI * 2; const sg = { name: d[0], color: d[1], pct: d[3], label: d[4], a0: a, a1: a + span, mid: a + span / 2 }; a += span; return sg; });
+      o.sel = -1;
+      if (o.segs.length) o.rot = -o.segs[0].mid;
     };
     build();
-    o.rebuild = () => { try { data = JSON.parse(c.dataset.b || "[]"); } catch { data = []; } o.raw = c.dataset.b; build(); };
-    const step = dt => {
-      if (sizeCanvas(c, H)) build();
-      const { W } = o, L = o.list, k = Math.min(1, dt * 60);
-      for (const b of L) {
-        if (b === o.drag?.b) continue;
-        b.vx += (W / 2 - b.x) * 0.0016 * k; b.vy += (H / 2 - b.y) * 0.0016 * k;
-        b.vx *= Math.pow(0.94, k); b.vy *= Math.pow(0.94, k);
-        b.x += b.vx * k; b.y += b.vy * k;
-      }
-      for (let it = 0; it < 3; it++) for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {
-        const a = L[i], b = L[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01, min = a.r + b.r + 3;
-        if (d < min) { const push = (min - d) / 2, nx = dx / d, ny = dy / d; const wa = a === o.drag?.b ? 0 : 1, wb = b === o.drag?.b ? 0 : 1, tw = wa + wb || 1; a.x -= nx * push * 2 * wa / tw; a.y -= ny * push * 2 * wa / tw; b.x += nx * push * 2 * wb / tw; b.y += ny * push * 2 * wb / tw; const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny; if (rv < 0) { a.vx += nx * rv * 0.5 * wa; a.vy += ny * rv * 0.5 * wa; b.vx -= nx * rv * 0.5 * wb; b.vy -= ny * rv * 0.5 * wb; } }
-      }
-      for (const b of L) { if (b.x < b.r) { b.x = b.r; b.vx = Math.abs(b.vx) * 0.6; } if (b.x > W - b.r) { b.x = W - b.r; b.vx = -Math.abs(b.vx) * 0.6; } if (b.y < b.r) { b.y = b.r; b.vy = Math.abs(b.vy) * 0.6; } if (b.y > H - b.r) { b.y = H - b.r; b.vy = -Math.abs(b.vy) * 0.6; } }
-      draw();
+    o.rebuild = build;
+    const norm = x => { x %= Math.PI * 2; return x < 0 ? x + Math.PI * 2 : x; };
+    const under = () => { const at = norm(-o.rot); return o.segs.findIndex(g => at >= g.a0 && at < g.a1); };
+    const show = i => {
+      if (i === o.sel || i < 0) return;
+      o.sel = i;
+      const g = o.segs[i];
+      name.textContent = g.name; amt.textContent = g.label; pct.textContent = `${g.pct}% ${tr("of spending")}`; dot.style.background = g.color;
+      if (navigator.vibrate && o.drag) try { navigator.vibrate(4); } catch { }
     };
     const draw = () => {
-      const ctx = c.getContext("2d"), dpr = c.__dpr || 1;
+      const w = c.clientWidth || 300;
+      if (sizeCanvas(c, w)) { }
+      const dpr = c.__dpr || 1, ctx = c.getContext("2d"), W = c.width / dpr, cx = W / 2, cy = W / 2, R = W / 2 - 14;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, o.W, H);
-      o.list.forEach((b, i) => {
-        const g = ctx.createRadialGradient(b.x - b.r * 0.35, b.y - b.r * 0.4, b.r * 0.1, b.x, b.y, b.r);
-        g.addColorStop(0, "rgba(255,255,255,.32)"); g.addColorStop(0.35, b.color); g.addColorStop(1, b.color + "cc");
-        ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.2832); ctx.fillStyle = g; ctx.fill();
-        if (i === o.sel) { ctx.lineWidth = 3; ctx.strokeStyle = "#fff"; ctx.stroke(); }
-        if (b.r >= 26) {
-          ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-          ctx.font = `800 ${Math.min(20, b.r * 0.42)}px system-ui, sans-serif`;
-          ctx.fillText(b.pct + "%", b.x, b.y - (b.r > 29 ? 7 : 0));
-          if (b.r > 29) { ctx.font = `600 ${Math.max(9.5, Math.min(12, b.r * 0.26))}px system-ui, sans-serif`; let n = b.name; while (n.length > 3 && ctx.measureText(n).width > b.r * 1.6) n = n.slice(0, -2); ctx.fillText(n === b.name ? n : n + "…", b.x, b.y + 12); }
-        }
+      ctx.clearRect(0, 0, W, W);
+      for (let t = 0; t < 72; t++) {
+        const ang = t / 72 * Math.PI * 2 + o.rot, long = t % 6 === 0, r1 = R + 6, r2 = R + (long ? 13 : 9);
+        ctx.strokeStyle = long ? "rgba(233,207,138,.9)" : "rgba(233,207,138,.4)"; ctx.lineWidth = long ? 2 : 1;
+        ctx.beginPath(); ctx.moveTo(cx + Math.cos(ang) * r1, cy + Math.sin(ang) * r1); ctx.lineTo(cx + Math.cos(ang) * r2, cy + Math.sin(ang) * r2); ctx.stroke();
+      }
+      const th = Math.max(22, R * 0.2), gap = o.segs.length > 1 ? 0.025 : 0;
+      o.segs.forEach((g, i) => {
+        const on = i === o.sel, rr = R - th / 2 - (on ? 0 : 4);
+        ctx.beginPath();
+        ctx.arc(cx, cy, rr, g.a0 + o.rot - Math.PI / 2 + gap, g.a1 + o.rot - Math.PI / 2 - gap);
+        ctx.strokeStyle = g.color; ctx.lineWidth = on ? th + 8 : th; ctx.lineCap = "butt";
+        ctx.globalAlpha = on ? 1 : 0.55; ctx.stroke(); ctx.globalAlpha = 1;
       });
+      const ir = R - th - 14;
+      const gr = ctx.createRadialGradient(cx - ir * 0.3, cy - ir * 0.4, ir * 0.1, cx, cy, ir);
+      gr.addColorStop(0, "#17604a"); gr.addColorStop(0.6, "#0a2f25"); gr.addColorStop(1, "#030c09");
+      ctx.beginPath(); ctx.arc(cx, cy, ir, 0, 6.2832); ctx.fillStyle = gr; ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = "rgba(245,196,81,.35)"; ctx.stroke();
+      for (let k = 0; k < 24; k++) { const ang = k / 24 * Math.PI * 2 + o.rot * 0.5; ctx.strokeStyle = "rgba(245,196,81,.12)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx + Math.cos(ang) * (ir - 8), cy + Math.sin(ang) * (ir - 8)); ctx.lineTo(cx + Math.cos(ang) * (ir - 2), cy + Math.sin(ang) * (ir - 2)); ctx.stroke(); }
+      ctx.fillStyle = "#f5c451"; ctx.beginPath(); ctx.moveTo(cx - 9, 3); ctx.lineTo(cx + 9, 3); ctx.lineTo(cx, 17); ctx.closePath(); ctx.fill();
+    };
+    const step = dt => {
+      if (!o.drag) {
+        if (Math.abs(o.vel) > 0.05) { o.rot += o.vel * dt; o.vel *= Math.pow(0.08, dt); o.snap = null; }
+        else {
+          o.vel = 0;
+          const i = under();
+          if (i >= 0) { const target = -o.segs[i].mid; let d = norm(target - o.rot); if (d > Math.PI) d -= Math.PI * 2; o.rot += d * Math.min(1, dt * 9); }
+        }
+      }
+      show(under());
+      draw();
     };
     const kick = animLoop(c, step);
-    const pos = e => { const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-    const hit = (x, y) => { for (let i = o.list.length - 1; i >= 0; i--) { const b = o.list[i]; if (Math.hypot(x - b.x, y - b.y) <= b.r) return i; } return -1; };
-    c.addEventListener("pointerdown", e => { const [x, y] = pos(e); const i = hit(x, y); if (i < 0) return; o.drag = { b: o.list[i], i, x, y, t: performance.now(), moved: 0 }; try { c.setPointerCapture(e.pointerId); } catch { } kick(); });
-    c.addEventListener("pointermove", e => { const d = o.drag; if (!d) return; const [x, y] = pos(e); const now = performance.now(), dt = Math.max(8, now - d.t); d.b.vx = (x - d.x) / dt * 16; d.b.vy = (y - d.y) / dt * 16; d.moved += Math.hypot(x - d.x, y - d.y); d.b.x = x; d.b.y = y; d.x = x; d.y = y; d.t = now; });
-    const up = () => { const d = o.drag; if (!d) return; o.drag = null; if (d.moved < 6) { o.sel = o.sel === d.i ? -1 : d.i; const b = o.list[d.i]; tip.textContent = o.sel < 0 ? tr("Tap a bubble") : `${b.name} · ${b.label} · ${b.pct}%`; tip.style.setProperty("--c", b.color); tip.classList.toggle("on", o.sel >= 0); } kick(); };
-    c.addEventListener("pointerup", up); c.addEventListener("pointercancel", up);
-    c.style.touchAction = "pan-y";
+    const ang = e => { const r = c.getBoundingClientRect(); return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)); };
+    c.addEventListener("pointerdown", e => { o.drag = { a: ang(e), t: performance.now(), moved: 0, x: e.clientX, y: e.clientY }; o.vel = 0; try { c.setPointerCapture(e.pointerId); } catch { } kick(); });
+    c.addEventListener("pointermove", e => {
+      const d = o.drag; if (!d) return;
+      const a = ang(e); let da = a - d.a; if (da > Math.PI) da -= Math.PI * 2; if (da < -Math.PI) da += Math.PI * 2;
+      const now = performance.now(), dt = Math.max(8, now - d.t) / 1000;
+      o.rot += da; o.vel = da / dt; d.a = a; d.t = now; d.moved += Math.abs(da);
+    });
+    const up = e => {
+      const d = o.drag; if (!d) return; o.drag = null;
+      if (d.moved < 0.05 && e && e.clientX != null) {
+        const r = c.getBoundingClientRect(), x = e.clientX - (r.left + r.width / 2), y = e.clientY - (r.top + r.height / 2);
+        if (Math.hypot(x, y) > r.width * 0.25) { const at = norm(Math.atan2(y, x) + Math.PI / 2 - o.rot); const i = o.segs.findIndex(g => at >= g.a0 && at < g.a1); if (i >= 0) { let dd = norm(-o.segs[i].mid - o.rot); if (dd > Math.PI) dd -= Math.PI * 2; o.vel = dd * 3.2; } }
+      }
+      kick();
+    };
+    c.addEventListener("pointerup", up); c.addEventListener("pointercancel", () => { o.drag = null; kick(); });
+    c.style.touchAction = "none";
+    draw(); show(under());
   }
 
   function viewHome() {
@@ -3867,9 +3905,11 @@
     const accCard = h("section", { class: "card col-a accs-card" },
       h("div", { class: "accs-head" },
         h("div", null, h("h2", null, "Your accounts"), h("small", null, `${accounts.length} ${tr(accounts.length === 1 ? "account" : "accounts")}`)),
-        h("strong", { class: "accs-total num" + (accTotal < 0 ? " neg" : "") }, money(accTotal, { whole: true }))),
+        h("div", { class: "accs-right" },
+          h("strong", { class: "accs-total num" + (accTotal < 0 ? " neg" : "") }, money(accTotal, { whole: true })),
+          h("button", { type: "button", class: "link-btn accs-toggle", on: { click: () => { store.set("accGrid", !store.get("accGrid", false)); render(); } } }, icon(store.get("accGrid", false) ? "card" : "plan", "ico sm"), store.get("accGrid", false) ? "Show as cards" : "See all"))),
       accPosTot > 0 ? h("div", { class: "acc-dist", "aria-hidden": "true" }, accounts.map((a, i) => accPos[i] > 0 ? h("span", { class: "k-" + (KIND_ICON[a.kind] ? a.kind : "cash"), style: { flex: String(accPos[i] / accPosTot) } }) : null)) : null,
-      h("div", { class: "acc-rail" },
+      h("div", { class: "acc-rail" + (store.get("accGrid", false) ? " grid" : "") },
         accounts.map(a => {
           const v = bal.get(a.id) || 0, k = KIND_ICON[a.kind] ? a.kind : "cash";
           return h("button", { type: "button", class: "acard k-" + k, "aria-label": `${a.name}, ${KIND_LABEL[a.kind] || ""}, ${fmt(v, a.currency)}`, on: { click: () => { S.filter = { q: "", kind: "all", account: a.id }; go("activity"); } } },
@@ -4018,8 +4058,8 @@
       h("div", { class: "tile" }, h("small", null, "Came in"), h("strong", null, money(s.income, { whole: true }))),
       h("div", { class: "tile " + (left >= 0 ? "good" : "bad") }, h("small", null, left >= 0 ? "Left over" : "Overspent"), h("strong", null, money(Math.abs(left), { whole: true })))));
     if (s.count) out.append(h("button", { type: "button", class: "btn alt", on: { click: () => recapSheet(m) } }, `${monthName(m)} summary`));
-    const bub = spendBubbles(m, s);
-    if (bub) out.append(bub);
+    const dial = spendDial(m, s);
+    if (dial) out.append(dial);
 
     const where = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Where it went")));
     const cats = [...s.byCat].sort((a, b) => b[1] - a[1]);

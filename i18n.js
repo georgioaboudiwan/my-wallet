@@ -1600,7 +1600,16 @@ Object.assign(window.WALLET_I18N.words, {
   "Your accounts, as real cards": ["Vos comptes, comme de vraies cartes", "حساباتك كبطاقات حقيقية"],
   "Swipe through your accounts like cards in a wallet, with a bar showing where your money sits.": ["Faites défiler vos comptes comme des cartes dans un portefeuille, avec une barre qui montre où est votre argent.", "تصفّح حساباتك كالبطاقات في محفظة، مع شريط يُظهر أين توجد أموالك."],
   "Play with your money": ["Jouez avec votre argent", "العب بأموالك"],
-  "Your month plan fills like liquid you can shake, and Insights shows your spending as bubbles you can drag and flick. Tap one to see the amount.": ["Votre plan du mois se remplit comme un liquide que vous pouvez secouer, et les analyses montrent vos dépenses en bulles à faire glisser et lancer. Touchez-en une pour voir le montant.", "تمتلئ خطة شهرك كسائل يمكنك هزّه، وتعرض التحليلات مصاريفك كفقاعات يمكنك سحبها ورميها. اضغط على واحدة لرؤية المبلغ."]
+  "Your month plan fills like liquid you can shake, and Insights shows your spending as bubbles you can drag and flick. Tap one to see the amount.": ["Votre plan du mois se remplit comme un liquide que vous pouvez secouer, et les analyses montrent vos dépenses en bulles à faire glisser et lancer. Touchez-en une pour voir le montant.", "تمتلئ خطة شهرك كسائل يمكنك هزّه، وتعرض التحليلات مصاريفك كفقاعات يمكنك سحبها ورميها. اضغط على واحدة لرؤية المبلغ."],
+  "Spending dial": ["Cadran des dépenses", "قرص المصاريف"],
+  "Turn the dial": ["Tournez le cadran", "أدر القرص"],
+  "of spending": ["des dépenses", "من المصاريف"],
+  "Everything else": ["Tout le reste", "كل الباقي"],
+  "Show as cards": ["Afficher en cartes", "اعرض كبطاقات"],
+  "Your month plan fills like liquid you can shake.": ["Votre plan du mois se remplit comme un liquide que vous pouvez secouer.", "تمتلئ خطة شهرك كسائل يمكنك هزّه."],
+  "In Insights, turn the dial to go through your categories and see how much each one took this month.": ["Dans les analyses, tournez le cadran pour parcourir vos catégories et voir combien chacune a pris ce mois-ci.", "في التحليلات، أدر القرص لتتنقل بين فئاتك وترى كم أخذت كل منها هذا الشهر."],
+  "See all your accounts": ["Voir tous vos comptes", "اعرض كل حساباتك"],
+  "Tap See all next to your accounts to see every card at once, and Show as cards to swipe again.": ["Touchez Tout voir à côté de vos comptes pour voir toutes les cartes d'un coup, et Afficher en cartes pour les faire défiler à nouveau.", "اضغط عرض الكل بجانب حساباتك لترى كل البطاقات معًا، واعرض كبطاقات لتتصفحها مجددًا."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
