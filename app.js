@@ -6602,7 +6602,9 @@
         : null;
       const noteRow = h("label", { class: "tx-note" + (needNote && !f.note.trim() ? " need" : "") }, icon("note", "ico sm"),
         h("input", { id: "f-note", class: "note-input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: noteHint, value: f.note, "aria-label": "Note",
-          on: { input: e => { f.note = e.target.value; if (f.note.trim()) err.textContent = ""; e.target.parentNode.classList.toggle("need", needNote && !f.note.trim()); }, keydown: e => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } } } }),
+          on: { input: e => { f.note = e.target.value; if (f.note.trim()) err.textContent = ""; e.target.parentNode.classList.toggle("need", needNote && !f.note.trim()); }, keydown: e => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } },
+            focus: e => { clearTimeout(body.__noteT); body.classList.add("noting"); const n = e.target; setTimeout(() => n.scrollIntoView({ block: "center", behavior: "smooth" }), 280); },
+            blur: () => { clearTimeout(body.__noteT); body.__noteT = setTimeout(() => body.classList.remove("noting"), 120); } } }),
         camBtn, scanInput, receiptInput);
       const repeatChip = !x && !adj && (f.kind === "expense" || f.kind === "income")
         ? h("button", { type: "button", class: "tx-mini" + (f.repeat ? " on" : ""), "aria-pressed": String(f.repeat), on: { click: () => { f.repeat = !f.repeat; f.repeatTouched = true; draw(); } } }, icon("repeat", "ico sm"), "Every month")
@@ -6610,7 +6612,7 @@
 
       const kids = [
         top, menu,
-        h("div", { class: "tx-hero" }, h("div", { class: "tx-amount" }, display, preview), afterEl, metas),
+        h("div", { class: "tx-hero", on: { click: () => { if (body.classList.contains("noting") && document.activeElement) document.activeElement.blur(); } } }, h("div", { class: "tx-amount" }, display, preview), afterEl, metas),
         panelEl ? h("div", { class: "panel list inline" }, panelEl) : null,
         pickArea,
         noteRow,

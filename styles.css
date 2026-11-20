@@ -2008,3 +2008,14 @@ body {
 .txn .tx-hero { padding: 12px 12px 12px; gap: 6px; }
 .tx-hero .amount-display { min-height: 64px; }
 .tx-hero .preview:empty, .tx-hero .preview { min-height: 0; }
+.txn .tx-pad { position: static; margin: 0 -6px; padding: 4px 6px 0; box-shadow: none; background: none; }
+.txn .tx-hero .tx-after, .txn .tx-hero .tx-metas, .txn .tx-hero .preview { transition: opacity .2s; }
+.txn.noting .tx-pad, .txn.noting .tx-hero .tx-after, .txn.noting .tx-hero .tx-metas, .txn.noting .tx-hero .preview, .txn.noting .tx-extras { display: none; }
+.txn.noting .tx-hero { padding: 8px 14px; border-radius: 22px; }
+.txn.noting .tx-hero .amount-display { min-height: 0; padding: 0; }
+.txn.noting .tx-hero .amount-display .val { font-size: 30px; }
+.txn.noting .tx-hero .amount-display .cur { font-size: 18px; }
+.txn.noting .tx-hero .amount-display .val::after { display: none; }
+@media (max-height: 700px) { .txn { gap: 10px; } .txn .tx-hero .tx-after { display: none; } .txn .tx-pad .key { height: 40px; font-size: 22px; } .tx-hero .amount-display { min-height: 50px; } .tx-hero .amount-display .val { font-size: 40px; } }
+@media (max-height: 700px) { .txn .tx-pick h3 { display: none; } .txn .tx-pad .keypad { gap: 4px 10px; } .txn .tx-pad .key { height: 38px; } .txn .tx-hero { padding: 8px 10px; gap: 4px; } .txn .tx-type .tx-tab { min-height: 34px; } .txn .tx-note .note-input { min-height: 38px; } .txn .tx-cam { width: 36px; height: 36px; } .txn .tx-mini { padding: 5px 10px; } }
+.txn.noting > .tx-pad { display: none !important; }
