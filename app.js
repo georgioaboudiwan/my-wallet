@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.67.0";
+  const VERSION = "3.68.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2959,6 +2959,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.68.0", items: [
+      ["", "Insights tile details", "Insights tiles Spent, Came in and Left over/Overspent are now buttons opening a month sheet: summary card with total and entry count, breakdown by category (spent) or by source (came in) with bars and shares, then every entry of that kind for the month (tap to edit). Left over shows a came in vs spent split (each half opens its own sheet) and all income and expense entries."]
+    ] },
     { v: "3.67.0", items: [
       ["", "Receipt in Insights, Arabic fixes", "Insights: coin stacks removed; the Where it went list is replaced by a printed receipt card (printer slot, paper slides out in steps when it scrolls into view, zigzag tear edge, monospace lines with dotted leaders, per category amount, number of entries and share bar, total spent, came in, left over or overspent, barcode). Tapping a line opens Activity filtered to that category; the empty month shows a plain message. Arabic: total balance label no longer sits under the card chip; people rows now translate Owes you / You owe and since. The 3.66 What's new entry for coins was removed."]
     ] },
@@ -3092,6 +3095,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.68.0", items: [
+      ["chart", "Tap to see the details", "In Insights, tap Spent, Came in or Left over to see the month's entries and where the money went or came from."]
+    ] },
     { v: "3.67.0", items: [
       ["note", "Your month as a receipt", "Insights prints your month like a shop receipt: every category with its amount and how many times you spent, then the total. Tap a line to see those entries."]
     ] },
@@ -3980,6 +3986,29 @@
       h("button", { type: "button", class: "icon-btn", "aria-label": "Next month", disabled: m >= last, on: { click: () => { S.month = shiftMonth(m, 1); render(); } } }, icon("fwd")));
   }
 
+  function monthKindSheet(m, kind) {
+    const s = monthStats(m);
+    const list = rows("transactions").filter(x => monthOf(x.occurred_on) === m && (kind === "both" ? x.kind === "expense" || x.kind === "income" : x.kind === kind)).sort(byRecent);
+    const title = kind === "expense" ? `${tr("Spent in")} ${monthName(m)}` : kind === "income" ? `${tr("Came in")} · ${monthName(m)}` : `${monthName(m)} · ${tr("in and out")}`;
+    const sums = new Map();
+    for (const x of list) { const k = (x.kind === "income" ? "i:" : "e:") + (x.category_id || ""); sums.set(k, (sums.get(k) || 0) + txMain(x)); }
+    const total = kind === "expense" ? s.spent : kind === "income" ? s.income : s.income - s.spent;
+    const breakdown = [...sums].filter(([k]) => kind === "both" || k.startsWith(kind === "income" ? "i:" : "e:")).sort((p, q) => q[1] - p[1]);
+    const bigK = kind === "both" ? null : (breakdown[0] || [0, 1])[1];
+    const body = h("div", { class: "mk-sheet" },
+      h("div", { class: "mk-hero k-" + kind },
+        h("small", null, kind === "both" ? (total >= 0 ? "Left over" : "Overspent") : kind === "income" ? "Came in" : "Spent"),
+        h("strong", { class: "num" }, money(Math.abs(total))),
+        h("span", null, kind === "both" ? `${money(s.income, { whole: true })} ${tr("in")} · ${money(s.spent, { whole: true })} ${tr("out")}` : `${list.length} ${tr(list.length === 1 ? "entry" : "entries")}`)),
+      kind === "both" ? h("div", { class: "mk-split" },
+        h("button", { type: "button", class: "mk-half in", on: { click: () => monthKindSheet(m, "income") } }, h("small", null, "Came in"), h("b", { class: "num" }, money(s.income, { whole: true })), h("i", { style: { width: (s.income + s.spent ? s.income / Math.max(s.income, s.spent) * 100 : 0) + "%" } })),
+        h("button", { type: "button", class: "mk-half out", on: { click: () => monthKindSheet(m, "expense") } }, h("small", null, "Spent"), h("b", { class: "num" }, money(s.spent, { whole: true })), h("i", { style: { width: (s.income + s.spent ? s.spent / Math.max(s.income, s.spent) * 100 : 0) + "%" } }))) : null,
+      kind !== "both" && breakdown.length ? h("section", { class: "card flush mk-cats" }, h("div", { class: "card-head" }, h("h2", null, kind === "income" ? "Where it came from" : "By category")),
+        breakdown.map(([k, v]) => { const c = cat(k.slice(2)); const color = c ? c.color : "#5b7083"; return h("div", { class: "mk-cat" }, h("span", { class: "mk-cat-top" }, h("i", { style: { background: color } }), h("span", null, c ? c.name : kind === "income" ? "Other income" : "Uncategorized"), h("b", { class: "num" }, money(v, { whole: true })), h("small", { class: "num" }, `${Math.round(v / (total || 1) * 100)}%`)), h("span", { class: "bar" }, h("span", { style: { width: (v / bigK * 100) + "%", background: color } }))); })) : null,
+      list.length ? h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Entries")), list.map(txnRow)) : h("p", { class: "empty" }, kind === "income" ? `Nothing came in during ${monthName(m)}.` : `No spending in ${monthName(m)}.`));
+    openSheet(title, body, null, { fill: true });
+  }
+
   function viewInsights() {
     const m = S.month || thisMonth();
     const s = monthStats(m);
@@ -3997,9 +4026,9 @@
       changeText = pct === 0 ? `Same as ${monthName(prevM)}` : `${Math.abs(pct)}% ${pct > 0 ? "more" : "less"} than ${monthName(prevM)}`;
     }
     out.append(h("div", { class: "tiles" },
-      h("div", { class: "tile" }, h("small", null, "Spent"), h("strong", null, money(s.spent, { whole: true })), changeText ? h("span", null, changeText) : null),
-      h("div", { class: "tile" }, h("small", null, "Came in"), h("strong", null, money(s.income, { whole: true }))),
-      h("div", { class: "tile " + (left >= 0 ? "good" : "bad") }, h("small", null, left >= 0 ? "Left over" : "Overspent"), h("strong", null, money(Math.abs(left), { whole: true })))));
+      h("button", { type: "button", class: "tile tap", on: { click: () => monthKindSheet(m, "expense") } }, h("small", null, "Spent"), h("strong", null, money(s.spent, { whole: true })), changeText ? h("span", null, changeText) : null, icon("fwd", "ico sm tile-go")),
+      h("button", { type: "button", class: "tile tap", on: { click: () => monthKindSheet(m, "income") } }, h("small", null, "Came in"), h("strong", null, money(s.income, { whole: true })), icon("fwd", "ico sm tile-go")),
+      h("button", { type: "button", class: "tile tap " + (left >= 0 ? "good" : "bad"), on: { click: () => monthKindSheet(m, "both") } }, h("small", null, left >= 0 ? "Left over" : "Overspent"), h("strong", null, money(Math.abs(left), { whole: true })), icon("fwd", "ico sm tile-go"))));
     if (s.count) out.append(h("button", { type: "button", class: "btn alt", on: { click: () => recapSheet(m) } }, `${monthName(m)} summary`));
     const rc = spendReceipt(m, s);
     out.append(rc || h("section", { class: "card" }, h("p", { class: "empty" }, `No spending in ${monthName(m)}.`)));

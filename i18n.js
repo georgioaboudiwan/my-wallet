@@ -1619,7 +1619,17 @@ Object.assign(window.WALLET_I18N.words, {
   "Total spent": ["Total dépensé", "إجمالي المصروف"],
   "Thank you for tracking your money": ["Merci de suivre votre argent", "شكرًا لمتابعتك أموالك"],
   "Your month as a receipt": ["Votre mois en reçu", "شهرك كإيصال"],
-  "Insights prints your month like a shop receipt: every category with its amount and how many times you spent, then the total. Tap a line to see those entries.": ["Les analyses impriment votre mois comme un ticket de caisse : chaque catégorie avec son montant et le nombre de dépenses, puis le total. Touchez une ligne pour voir ces opérations.", "تطبع التحليلات شهرك كإيصال متجر: كل فئة مع مبلغها وعدد مرات الصرف، ثم المجموع. اضغط على سطر لترى تلك الإدخالات."]
+  "Insights prints your month like a shop receipt: every category with its amount and how many times you spent, then the total. Tap a line to see those entries.": ["Les analyses impriment votre mois comme un ticket de caisse : chaque catégorie avec son montant et le nombre de dépenses, puis le total. Touchez une ligne pour voir ces opérations.", "تطبع التحليلات شهرك كإيصال متجر: كل فئة مع مبلغها وعدد مرات الصرف، ثم المجموع. اضغط على سطر لترى تلك الإدخالات."],
+  "Spent in": ["Dépensé en", "المصروف في"],
+  "in and out": ["entrées et sorties", "الداخل والخارج"],
+  "in": ["entrées", "داخل"],
+  "out": ["sorties", "خارج"],
+  "entry": ["opération", "إدخال"],
+  "entries": ["opérations", "إدخالات"],
+  "Where it came from": ["D'où ça vient", "من أين جاء"],
+  "By category": ["Par catégorie", "حسب الفئة"],
+  "Tap to see the details": ["Touchez pour voir le détail", "اضغط لترى التفاصيل"],
+  "In Insights, tap Spent, Came in or Left over to see the month's entries and where the money went or came from.": ["Dans les analyses, touchez Dépensé, Entré ou Reste pour voir les opérations du mois et où l'argent est allé ou d'où il vient.", "في التحليلات، اضغط على المصروف أو الداخل أو المتبقي لترى إدخالات الشهر وأين ذهب المال أو من أين جاء."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
