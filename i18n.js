@@ -1565,7 +1565,9 @@ Object.assign(window.WALLET_I18N.words, {
   "Balance": ["Solde", "الرصيد"],
   "Balance after": ["Solde après", "الرصيد بعد"],
   "A new way to add": ["Une nouvelle façon d'ajouter", "طريقة جديدة للإضافة"],
-  "The add screen is redesigned: a big amount on a money card, your balance after the entry before you save, categories in one swipeable row and a cleaner number pad.": ["L'écran d'ajout est repensé : un grand montant sur une carte, votre solde après l'opération avant d'enregistrer, les catégories sur une ligne à faire défiler et un pavé numérique plus épuré.", "أُعيد تصميم شاشة الإضافة: مبلغ كبير على بطاقة، ورصيدك بعد العملية قبل الحفظ، والفئات في صف واحد يمكن سحبه، ولوحة أرقام أنظف."]
+  "The add screen is redesigned: a big amount on a money card, your balance after the entry before you save, categories in one swipeable row and a cleaner number pad.": ["L'écran d'ajout est repensé : un grand montant sur une carte, votre solde après l'opération avant d'enregistrer, les catégories sur une ligne à faire défiler et un pavé numérique plus épuré.", "أُعيد تصميم شاشة الإضافة: مبلغ كبير على بطاقة، ورصيدك بعد العملية قبل الحفظ، والفئات في صف واحد يمكن سحبه، ولوحة أرقام أنظف."],
+  "Haircut & personal care": ["Coiffeur et soins", "حلاقة وعناية شخصية"],
+  "A new category for the barber, salon, nails and other personal care.": ["Une nouvelle catégorie pour le coiffeur, le salon, les ongles et les autres soins.", "فئة جديدة للحلاق والصالون والأظافر وغيرها من العناية الشخصية."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],

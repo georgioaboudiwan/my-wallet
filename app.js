@@ -39,6 +39,7 @@
     ["transport", "Fuel & transport", "expense", "needs", "#d9622b"],
     ["parking", "Parking", "expense", "needs", "#4f7cac"],
     ["health", "Health", "expense", "needs", "#d6455d"],
+    ["care", "Haircut & personal care", "expense", "wants", "#8e5bb5"],
     ["eating", "Eating out & coffee", "expense", "wants", "#c2508f"],
     ["shopping", "Shopping", "expense", "wants", "#1f9bb0"],
     ["fun", "Going out & fun", "expense", "wants", "#8a9a2b"],
@@ -51,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.58.0";
+  const VERSION = "3.59.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -109,6 +110,7 @@
     repeat: "M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3",
     sun: "M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4L7 17M17 7l1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
     moon: "M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z",
+    cut: "M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM20 4L8.1 15.9M14.5 14.5L20 20M8.1 8.1L12 12",
     park: "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM10 17V7h3a3 3 0 0 1 0 6h-3",
     gem: "M6 3h12l4 6-10 12L2 9zM2 9h20M12 21 8 9l4-6 4 6z",
     chip: "M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3M7 6h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM10 10h4v4h-4z",
@@ -377,8 +379,8 @@
   const rows = t => [...S.data[t].values()];
   const acc = id => S.data.accounts.get(id);
   const cat = id => S.data.categories.get(id);
-  const CAT_ICON_KEYS = { groceries: "cart", home: "home", bills: "wifi", generator: "bolt", transport: "car", parking: "park", health: "heart", eating: "cup", shopping: "bag", fun: "star", subs: "repeat", gifts: "gift", debt: "bank", salary: "work", freelance: "laptop", giftsin: "gift", remit: "globe", otherin: "coin" };
-  const CAT_ICON_WORDS = [[/parking|valet|garage/i, "park"], [/grocer|food|super|market/i, "cart"], [/rent|home|house|apart/i, "home"], [/bill|internet|phone|mobile|wifi/i, "wifi"], [/generat|electric|power|ampere/i, "bolt"], [/fuel|petrol|car|transport|taxi|uber|bus/i, "car"], [/health|doctor|pharm|medic|hospital|gym/i, "heart"], [/eat|coffee|restaurant|lunch|dinner|cafe|drink/i, "cup"], [/shop|cloth|amazon/i, "bag"], [/fun|going out|movie|party|travel|trip/i, "star"], [/subscri|netflix|spotify|apple|icloud/i, "repeat"], [/remit|abroad|transfer from|family support/i, "globe"], [/gift|family/i, "gift"], [/loan|debt|bank|repay/i, "bank"], [/salary|work|job|wage/i, "work"], [/freelance|side|client/i, "laptop"]];
+  const CAT_ICON_KEYS = { groceries: "cart", home: "home", bills: "wifi", generator: "bolt", transport: "car", parking: "park", care: "cut", health: "heart", eating: "cup", shopping: "bag", fun: "star", subs: "repeat", gifts: "gift", debt: "bank", salary: "work", freelance: "laptop", giftsin: "gift", remit: "globe", otherin: "coin" };
+  const CAT_ICON_WORDS = [[/parking|valet|garage/i, "park"], [/hair|barber|salon|beauty|nail|spa|personal care|groom/i, "cut"], [/grocer|food|super|market/i, "cart"], [/rent|home|house|apart/i, "home"], [/bill|internet|phone|mobile|wifi/i, "wifi"], [/generat|electric|power|ampere/i, "bolt"], [/fuel|petrol|car|transport|taxi|uber|bus/i, "car"], [/health|doctor|pharm|medic|hospital|gym/i, "heart"], [/eat|coffee|restaurant|lunch|dinner|cafe|drink/i, "cup"], [/shop|cloth|amazon/i, "bag"], [/fun|going out|movie|party|travel|trip/i, "star"], [/subscri|netflix|spotify|apple|icloud/i, "repeat"], [/remit|abroad|transfer from|family support/i, "globe"], [/gift|family/i, "gift"], [/loan|debt|bank|repay/i, "bank"], [/salary|work|job|wage/i, "work"], [/freelance|side|client/i, "laptop"]];
   const catIconName = c => {
     if (!c) return null;
     const m = String(c.id).match(/:cat:([a-z]+)$/);
@@ -607,8 +609,15 @@
   function ensureDefaults() {
     if (settings().seeded) {
       const ss = storedSettings();
-      if (ss.v326 && ss.v346) return;
+      if (ss.v326 && ss.v346 && ss.v358) return;
       const items = [];
+      if (!ss.v358) {
+        const cid = `${S.uid}:cat:care`;
+        if (!S.data.categories.has(cid) && !rows("categories").some(c => c.kind === "expense" && /hair|barber|salon|beauty|personal care/i.test(c.name))) {
+          const after = S.data.categories.get(`${S.uid}:cat:health`);
+          items.push({ t: "categories", r: { id: cid, name: "Haircut & personal care", kind: "expense", bucket: "wants", color: "#8e5bb5", budget: null, sort: after ? Math.round(Number(after.sort) || 0) : rows("categories").length } });
+        }
+      }
       if (!ss.v346) {
         const pid = `${S.uid}:cat:parking`;
         if (!S.data.categories.has(pid) && !rows("categories").some(c => c.kind === "expense" && /park/i.test(c.name))) {
@@ -616,8 +625,8 @@
           items.push({ t: "categories", r: { id: pid, name: "Parking", kind: "expense", bucket: "needs", color: "#4f7cac", budget: null, sort: after ? Math.round(Number(after.sort) || 0) : rows("categories").length } });
         }
       }
-      if (ss.v326) { items.push({ t: "settings", r: { id: settingsId(), data: { ...ss, v346: true } } }); TRACK.mute = true; putMany(items); TRACK.mute = false; return; }
-      items.push({ t: "settings", r: { id: settingsId(), data: { ...ss, remit: true, whish: true, v326: true, v346: true } } });
+      if (ss.v326) { items.push({ t: "settings", r: { id: settingsId(), data: { ...ss, v346: true, v358: true } } }); TRACK.mute = true; putMany(items); TRACK.mute = false; return; }
+      items.push({ t: "settings", r: { id: settingsId(), data: { ...ss, remit: true, whish: true, v326: true, v346: true, v358: true } } });
       const id = `${S.uid}:cat:remit`;
       const cur = S.data.categories.get(id);
       if (cur) items.unshift({ t: "categories", r: { ...cur, sort: Math.round(Number(cur.sort) || 0) } });
@@ -644,7 +653,7 @@
     TRACK.mute = false;
   }
 
-  const NOTE_SKIP_DEFAULT = ["groceries", "home", "bills", "generator", "transport", "parking", "subs", "salary", "debt"];
+  const NOTE_SKIP_DEFAULT = ["groceries", "home", "bills", "generator", "transport", "parking", "care", "subs", "salary", "debt"];
   function noteSkipSet() {
     const v = storedSettings().noteSkip;
     if (Array.isArray(v)) return new Set(v);
@@ -2904,6 +2913,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.59.0", items: [
+      ["", "New category", "\"Haircut & personal care\" (wants, purple, scissors icon) added for new users and, once, for existing users after Health unless they already have a similar category (hair, barber, salon, beauty, personal care). No note required by default. Custom categories with those words also get the scissors icon."]
+    ] },
     { v: "3.58.0", items: [
       ["", "Add screen redesign", "Amount, account and date now sit on an emerald money card with guilloche and a light sweep. The amount is larger and tinted by type (rose for spent with a minus, mint for received with a plus, gold for moves, blue for loans). New live line shows the account balance, then the balance after the entry while typing (red if it goes below zero); hidden when editing or for loans. Categories are one horizontal swipeable row of pills sorted by use; More still opens the full grid. Note field is a pill. Number pad keys have no boxes, bigger digits and a soft press highlight. Save button is dashed until an amount is typed. Sheet scrollbars hidden everywhere. Everything fits on one screen on a normal iPhone."]
     ] },
@@ -3004,6 +3016,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.59.0", items: [
+      ["tag", "Haircut & personal care", "A new category for the barber, salon, nails and other personal care."]
+    ] },
     { v: "3.58.0", items: [
       ["plus", "A new way to add", "The add screen is redesigned: a big amount on a money card, your balance after the entry before you save, categories in one swipeable row and a cleaner number pad."]
     ] },
