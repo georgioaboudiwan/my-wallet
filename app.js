@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.61.1";
+  const VERSION = "3.62.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2926,6 +2926,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.62.0", items: [
+      ["", "Two-step add flow", "Add sheet rebuilt as two steps. Step 1: type tabs, money card with the amount, balance or balance after, account and date chips, and a large number pad at thumb height. The button reads Choose category (or Choose who for loans, Next for moves) in gold; it reads Save directly when everything is already set (preset category from Quick add, editing an entry, or a move between same-currency accounts). A chip on the card shows the picked category and opens step 2. Step 2: a summary bar with the amount, account and date (tap to go back), a search field when there are more than 9 categories, every category as a 4-column tile grid sorted by use (selected tile fills with its color and shows a check), then the note with quick-note chips, receipt camera and Every month. Picking a category that needs a note opens the keyboard on the note right away and the grid collapses to the chosen tile; otherwise the Save button pulses. Steps slide left and right. The 3.58 single-screen layout and the 3.61 note-mode hiding of the pad are replaced by this flow."]
+    ] },
     { v: "3.61.1", items: [
       ["", "Category renamed", "\"Haircut & personal care\" renamed to \"Personal care\" for new users, and once for existing users whose category still has the old name (a name they changed themselves is kept). The 3.59 What's new note now says Personal care."]
     ] },
@@ -3038,6 +3041,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.62.0", items: [
+      ["plus", "Adding is now two simple steps", "First type the amount on a big number pad. Then pick the category from a clear grid, add a note if you want, and save."]
+    ] },
     { v: "3.61.0", items: [
       ["note", "Quicker notes", "When you write a note, the notes you use most for that category show up. Tap one to fill it in."]
     ] },
@@ -6489,7 +6495,16 @@
     const saveBtn = h("button", { type: "submit", class: "btn", form: "txn-form" });
     let armedDelete = false;
     let panel = "none";
-    let showAll = false, typeMenu = false, attn = false;
+    let showAll = false, typeMenu = false, attn = false, step = "amt", lastStep = "amt", catQ = "";
+    const needsNote = () => noteRule(f) && !x && f.kind !== "transfer";
+    const isCross = () => { const fa = acc(f.account), ft = f.kind === "transfer" ? acc(f.to) : null; return !!(fa && ft && ft.currency !== fa.currency); };
+    const canSave = () => {
+      const noteOk = !(needsNote() && !f.note.trim());
+      if (f.kind === "expense" || f.kind === "income") return !!f.category && noteOk;
+      if (f.kind === "transfer") return !!f.to && !isCross();
+      return !!loanPerson() && noteOk;
+    };
+    const goStep = k => { step = k; err.textContent = ""; panel = "none"; typeMenu = false; draw(); const sb = body.closest(".sheet-body"); if (sb) sb.scrollTop = 0; };
     const bal = balances();
 
     const pick = () => {
@@ -6511,7 +6526,7 @@
     const loanLabel = p => !p ? (f.lmode === "more" ? "Lent or borrowed" : "Paid back") : owesMe(p) ? (f.lmode === "more" ? `I lent ${p.name}` : `${p.name} paid me back`) : (f.lmode === "more" ? `I borrowed from ${p.name}` : `I paid ${p.name} back`);
     const convertFor = (amount, from, to) => roundCur(convert(amount, from, to), to);
 
-    const setKind = k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; f.category = null; typeMenu = false; panel = "none"; attn = false; draw(); };
+    const setKind = k => { f.kind = k; if (!x) f.account = null; f.toTouched = false; f.category = null; typeMenu = false; panel = "none"; attn = false; step = "amt"; draw(); };
     const draw = () => {
       pick();
       body.dataset.kind = f.kind;
@@ -6535,8 +6550,10 @@
           afterEl.replaceChildren(...[h("span", null, tr(v ? "Balance after" : "Balance")), v ? h("b", { class: "nx" + (cb + sign * v < 0 ? " neg" : "") }, fmt(cb + sign * v, cur, { show: true })) : h("b", null, fmt(cb, cur, { show: true }))]);
         } else afterEl.hidden = true;
         const verb = { expense: "Save", income: "Save", transfer: "Move", loan: "Save" }[f.kind];
-        saveBtn.textContent = !v ? tr("Enter an amount") : `${tr(verb)} ${fmt(v, cur, { show: true })}`;
-        saveBtn.className = "btn tx-save" + (!v ? " waiting" : "");
+        const ready = step === "det" || canSave();
+        const nextLabel = f.kind === "expense" || f.kind === "income" ? "Choose category" : f.kind === "loan" ? "Choose who" : "Next";
+        saveBtn.textContent = !v ? tr("Enter an amount") : ready ? `${tr(verb)} ${fmt(v, cur, { show: true })}` : `${tr(nextLabel)} →`;
+        saveBtn.className = "btn tx-save" + (!v ? " waiting" : ready ? "" : " next");
       };
       const pad = amountPad(cur, () => f.amount, v => { f.amount = v; }, refresh);
       const yest = ymd(new Date(Date.now() - 864e5));
@@ -6587,15 +6604,14 @@
       let pickArea = null;
       if (f.kind === "expense" || f.kind === "income") {
         const cats = rows("categories").filter(c => c.kind === f.kind).sort((p, q) => (usage.get(q.id) || 0) - (usage.get(p.id) || 0) || bySort(p, q));
-        const LIMIT = 7;
-        let shown = showAll || cats.length <= LIMIT + 1 ? cats : cats.slice(0, LIMIT);
-        if (!showAll && f.category && !shown.some(c => c.id === f.category)) shown = [...shown.slice(0, LIMIT - 1), cat(f.category)];
-        pickArea = h("section", { class: "tx-pick" + (attn ? " attn" : "") },
-          h("h3", null, f.kind === "expense" ? "What for?" : "From where?"),
-          h("div", { class: "bubbles" + (showAll ? "" : " row") },
-            shown.map(c => h("button", { type: "button", class: "bubble" + (c.id === f.category ? " on" : ""), style: { "--c": c.color }, "aria-pressed": String(c.id === f.category), on: { click: () => { f.category = c.id; attn = false; err.textContent = ""; draw(); } } },
-              h("span", { class: "bubble-ico" }, catGlyph(c, "ico")), h("span", { class: "bubble-name" }, c.name))),
-            cats.length > LIMIT + 1 ? h("button", { type: "button", class: "bubble more", on: { click: () => { showAll = !showAll; draw(); } } }, h("span", { class: "bubble-ico" }, icon(showAll ? "up" : "plus", "ico")), h("span", { class: "bubble-name" }, showAll ? "Less" : "More")) : null));
+        const q = catQ.trim().toLowerCase();
+        const shown = q ? cats.filter(c => tr(c.name).toLowerCase().includes(q) || c.name.toLowerCase().includes(q)) : cats;
+        pickArea = h("section", { class: "tx-pick tiles" + (attn ? " attn" : "") },
+          cats.length > 9 ? h("label", { class: "cat-search" }, icon("search", "ico sm"), h("input", { id: "f-catq", class: "note-input", type: "search", autocomplete: "off", enterkeyhint: "done", placeholder: f.kind === "expense" ? "Search what it was for" : "Search where it came from", value: catQ, "aria-label": "Search categories", on: { input: e => { catQ = e.target.value; draw(); }, keydown: e => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } } } })) : null,
+          h("div", { class: "cat-tiles" },
+            shown.map(c => h("button", { type: "button", class: "cat-tile bubble" + (c.id === f.category ? " on" : ""), style: { "--c": c.color }, "aria-pressed": String(c.id === f.category), on: { click: () => { f.category = c.id; attn = false; err.textContent = ""; catQ = ""; draw(); if (needsNote() && !f.note.trim()) { const n = document.getElementById("f-note"); if (n) n.focus(); } else { saveBtn.classList.remove("ready"); void saveBtn.offsetWidth; saveBtn.classList.add("ready"); } } } },
+              h("span", { class: "bubble-ico" }, catGlyph(c, "ico")), h("span", { class: "bubble-name" }, c.name), c.id === f.category ? h("i", { class: "ct-check" }, icon("check", "ico sm")) : null))),
+          shown.length ? null : h("p", { class: "hint center" }, "No category with that name."));
       } else if (isLoan) {
         const lb = loanBalances();
         const people = rows("people").sort((p, q) => Math.abs(toMain(lb.get(q.id) || 0, q.currency)) - Math.abs(toMain(lb.get(p.id) || 0, p.currency)) || bySort(p, q));
@@ -6648,18 +6664,34 @@
         ? h("button", { type: "button", class: "tx-mini" + (f.repeat ? " on" : ""), "aria-pressed": String(f.repeat), on: { click: () => { f.repeat = !f.repeat; f.repeatTouched = true; draw(); } } }, icon("repeat", "ico sm"), "Every month")
         : null;
 
-      const kids = [
+      const v0 = parseAmt(f.amount);
+      const selCat = (f.kind === "expense" || f.kind === "income") && f.category ? cat(f.category) : null;
+      const catChip = step === "amt" && v0 && selCat ? h("button", { type: "button", class: "tx-catchip", style: { "--c": selCat.color }, on: { click: () => goStep("det") } }, h("span", { class: "bubble-ico" }, catGlyph(selCat, "ico sm")), h("span", null, selCat.name), icon("fwd", "ico sm")) : null;
+      const sign = f.kind === "expense" ? "−" : f.kind === "income" ? "+" : "";
+      const back = h("button", { type: "button", class: "tx-back", "aria-label": "Change the amount", on: { click: () => goStep("amt") } },
+        h("span", { class: "tx-back-ico" }, icon("back", "ico sm")),
+        h("span", { class: "tx-back-amt num" }, `${sign}${fmt(v0 || 0, cur, { show: true })}`),
+        h("span", { class: "tx-back-sub" }, `${isMove ? `${a.name} → ${to ? to.name : ""}` : a.name} · ${tr(dateText)}`));
+      const extras = repeatChip || scanning ? h("div", { class: "tx-extras" }, repeatChip, scanning ? h("small", { class: "hint" }, "Reading the receipt…") : null) : null;
+      const crossField = cross ? h("label", { class: "field" }, h("span", null, `${to.name} receives (${curSymbol(to.currency)})`), toInput, h("span", { class: "hint" }, `At ${fmt(1, cur, { show: true })} = ${fmt(convert(1, cur, to.currency), to.currency, { show: true })}. Change it if you got a different rate.`)) : null;
+      const kids = step === "amt" ? [
         top, menu,
-        h("div", { class: "tx-hero", on: { click: () => { if (body.classList.contains("noting") && document.activeElement) document.activeElement.blur(); } } }, h("div", { class: "tx-amount" }, display, preview), afterEl, metas),
+        h("div", { class: "tx-hero" }, h("div", { class: "tx-amount" }, display, preview), afterEl, metas, catChip),
         panelEl ? h("div", { class: "panel list inline" }, panelEl) : null,
-        pickArea,
-        noteRow,
-        sugs,
-        repeatChip || scanning ? h("div", { class: "tx-extras" }, repeatChip, scanning ? h("small", { class: "hint" }, "Reading the receipt…") : null) : null,
-        cross ? h("label", { class: "field" }, h("span", null, `${to.name} receives (${curSymbol(to.currency)})`), toInput, h("span", { class: "hint" }, `At ${fmt(1, cur, { show: true })} = ${fmt(convert(1, cur, to.currency), to.currency, { show: true })}. Change it if you got a different rate.`)) : null,
         err,
         h("div", { class: "panel tx-pad" }, pad)
+      ] : [
+        back,
+        pickArea,
+        crossField,
+        noteRow,
+        sugs,
+        extras,
+        err
       ];
+      body.dataset.step = step;
+      if (lastStep !== step) { body.classList.remove("fwd", "bwd"); void body.offsetWidth; body.classList.add(step === "det" ? "fwd" : "bwd"); lastStep = step; }
+      if (step === "amt") body.classList.remove("noting");
       keepFocus(() => body.replaceChildren(...kids.filter(Boolean)));
       refresh();
     };
@@ -6671,7 +6703,8 @@
       err.textContent = "";
       const a = acc(f.account);
       const amount = parseAmt(f.amount);
-      if (!amount) { fail(null, "Type the amount on the number pad first.", body.querySelector(".amount-display")); return; }
+      if (!amount) { if (step !== "amt") goStep("amt"); fail(null, "Type the amount on the number pad first.", body.querySelector(".amount-display")); return; }
+      if (step === "amt" && !canSave()) { goStep("det"); return; }
       if ((f.kind === "expense" || f.kind === "income") && !f.category) { attn = true; draw(); fail(err, f.kind === "expense" ? "Pick what it was for." : "Pick where it came from.", body.querySelector(".tx-pick")); return; }
       if (f.kind === "loan" && !loanPerson()) { attn = true; draw(); fail(err, "Pick who it's with.", body.querySelector(".tx-pick")); return; }
       if (!DATE_RE.test(f.date)) { fail(err, "Pick a date."); return; }

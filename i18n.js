@@ -1569,7 +1569,16 @@ Object.assign(window.WALLET_I18N.words, {
   "Personal care": ["Soins personnels", "العناية الشخصية"],
   "A new category for haircuts, the salon, nails and other personal care.": ["Une nouvelle catégorie pour le coiffeur, le salon, les ongles et les autres soins.", "فئة جديدة للحلاقة والصالون والأظافر وغيرها من العناية الشخصية."],
   "Quicker notes": ["Notes plus rapides", "ملاحظات أسرع"],
-  "When you write a note, the notes you use most for that category show up. Tap one to fill it in.": ["Quand vous écrivez une note, celles que vous utilisez le plus pour cette catégorie apparaissent. Touchez-en une pour la remplir.", "عند كتابة ملاحظة، تظهر الملاحظات التي تستخدمها أكثر لهذه الفئة. اضغط على واحدة لتعبئتها."]
+  "When you write a note, the notes you use most for that category show up. Tap one to fill it in.": ["Quand vous écrivez une note, celles que vous utilisez le plus pour cette catégorie apparaissent. Touchez-en une pour la remplir.", "عند كتابة ملاحظة، تظهر الملاحظات التي تستخدمها أكثر لهذه الفئة. اضغط على واحدة لتعبئتها."],
+  "Choose category": ["Choisir la catégorie", "اختر الفئة"],
+  "Choose who": ["Choisir la personne", "اختر الشخص"],
+  "Search what it was for": ["Rechercher à quoi ça a servi", "ابحث عن سبب الصرف"],
+  "Search where it came from": ["Rechercher d'où ça vient", "ابحث عن مصدر المال"],
+  "Search categories": ["Rechercher des catégories", "ابحث في الفئات"],
+  "No category with that name.": ["Aucune catégorie avec ce nom.", "لا توجد فئة بهذا الاسم."],
+  "Change the amount": ["Modifier le montant", "غيّر المبلغ"],
+  "Adding is now two simple steps": ["Ajouter se fait maintenant en deux étapes simples", "الإضافة الآن بخطوتين بسيطتين"],
+  "First type the amount on a big number pad. Then pick the category from a clear grid, add a note if you want, and save.": ["Tapez d'abord le montant sur un grand pavé numérique. Choisissez ensuite la catégorie dans une grille claire, ajoutez une note si vous voulez, puis enregistrez.", "اكتب المبلغ أولًا على لوحة أرقام كبيرة. ثم اختر الفئة من شبكة واضحة، وأضف ملاحظة إن أردت، واحفظ."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
