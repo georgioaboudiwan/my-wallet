@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.66.0";
+  const VERSION = "3.66.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2959,6 +2959,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.66.1", items: [
+      ["", "Accounts open as cards", "The accounts section always opens as swipeable cards. See all now lasts only until the app is closed or reloaded instead of being remembered on the device."]
+    ] },
     { v: "3.66.0", items: [
       ["", "Coin stacks", "Insights: spending dial replaced by coin stacks (canvas): top 6 categories plus Everything else, each a stack of gold coins (up to 14, height scaled to the biggest) with a category-colored edge band; coins fall in with gravity and a small bounce when the card scrolls into view; slide a finger across to select a stack (glow and light haptic where supported), tap a stack to re-drop its coins; the line below shows category, amount and share. The 3.65 What's new entry for the dial was removed."]
     ] },
@@ -3090,7 +3093,7 @@
       ["coin", "Where your coins went", "Insights now shows your spending as stacks of gold coins, one stack per category. Slide across them or tap one to see the amount, and watch the coins drop again."]
     ] },
     { v: "3.65.0", items: [
-      ["card", "See all your accounts", "Tap See all next to your accounts to see every card at once, and Show as cards to swipe again."]
+      ["card", "See all your accounts", "Tap See all next to your accounts to see every card at once."]
     ] },
     { v: "3.64.0", items: [
       ["card", "Your accounts, as real cards", "Swipe through your accounts like cards in a wallet, with a bar showing where your money sits."],
@@ -3902,9 +3905,9 @@
         h("div", null, h("h2", null, "Your accounts"), h("small", null, `${accounts.length} ${tr(accounts.length === 1 ? "account" : "accounts")}`)),
         h("div", { class: "accs-right" },
           h("strong", { class: "accs-total num" + (accTotal < 0 ? " neg" : "") }, money(accTotal, { whole: true })),
-          h("button", { type: "button", class: "link-btn accs-toggle", on: { click: () => { store.set("accGrid", !store.get("accGrid", false)); render(); } } }, icon(store.get("accGrid", false) ? "card" : "plan", "ico sm"), store.get("accGrid", false) ? "Show as cards" : "See all"))),
+          h("button", { type: "button", class: "link-btn accs-toggle", on: { click: () => { S.accGrid = !S.accGrid; render(); } } }, icon(S.accGrid ? "card" : "plan", "ico sm"), S.accGrid ? "Show as cards" : "See all"))),
       accPosTot > 0 ? h("div", { class: "acc-dist", "aria-hidden": "true" }, accounts.map((a, i) => accPos[i] > 0 ? h("span", { class: "k-" + (KIND_ICON[a.kind] ? a.kind : "cash"), style: { flex: String(accPos[i] / accPosTot) } }) : null)) : null,
-      h("div", { class: "acc-rail" + (store.get("accGrid", false) ? " grid" : "") },
+      h("div", { class: "acc-rail" + (S.accGrid ? " grid" : "") },
         accounts.map(a => {
           const v = bal.get(a.id) || 0, k = KIND_ICON[a.kind] ? a.kind : "cash";
           return h("button", { type: "button", class: "acard k-" + k, "aria-label": `${a.name}, ${KIND_LABEL[a.kind] || ""}, ${fmt(v, a.currency)}`, on: { click: () => { S.filter = { q: "", kind: "all", account: a.id }; go("activity"); } } },
