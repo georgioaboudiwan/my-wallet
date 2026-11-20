@@ -2019,3 +2019,13 @@ body {
 @media (max-height: 700px) { .txn { gap: 10px; } .txn .tx-hero .tx-after { display: none; } .txn .tx-pad .key { height: 40px; font-size: 22px; } .tx-hero .amount-display { min-height: 50px; } .tx-hero .amount-display .val { font-size: 40px; } }
 @media (max-height: 700px) { .txn .tx-pick h3 { display: none; } .txn .tx-pad .keypad { gap: 4px 10px; } .txn .tx-pad .key { height: 38px; } .txn .tx-hero { padding: 8px 10px; gap: 4px; } .txn .tx-type .tx-tab { min-height: 34px; } .txn .tx-note .note-input { min-height: 38px; } .txn .tx-cam { width: 36px; height: 36px; } .txn .tx-mini { padding: 5px 10px; } }
 .txn.noting > .tx-pad { display: none !important; }
+html.kb .overlay { inset: auto 0 auto 0; top: var(--vvt, 0px); height: var(--vvh, 100%); }
+html.kb .sheet { max-height: calc(var(--vvh, 100dvh) - 8px); }
+html.kb .sheet-foot { padding-bottom: 10px; }
+.tx-sugs { display: none; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px; margin-top: -4px; -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
+.tx-sugs::-webkit-scrollbar { display: none; }
+.txn.noting .tx-sugs { display: flex; }
+.tx-sug { flex: none; padding: 8px 14px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); background: color-mix(in srgb, var(--accent) 10%, var(--card)); color: var(--ink); font: 600 14px var(--ui); white-space: nowrap; }
+.tx-sug:active { transform: scale(.95); }
+.txn.noting .tx-note { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent); }
+.txn.noting .tx-pick h3 { display: none; }

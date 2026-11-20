@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.60.0";
+  const VERSION = "3.61.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2012,6 +2012,13 @@
     const r = b && b.querySelector(".tab-add-ring");
     if (r) r.animate([{ transform: "scale(1)" }, { transform: "scale(1.24, .8)" }, { transform: "scale(.86, 1.16)" }, { transform: "scale(1.08, .94)" }, { transform: "scale(.97, 1.03)" }, { transform: "scale(1)" }], { duration: 700, easing: "ease-out" });
   }, true);
+  if (window.visualViewport) {
+    const vv = window.visualViewport, de = document.documentElement;
+    let vr = 0;
+    const upd = () => { vr = 0; const kb = innerHeight - vv.height > 120; de.style.setProperty("--vvh", vv.height + "px"); de.style.setProperty("--vvt", vv.offsetTop + "px"); de.classList.toggle("kb", kb); };
+    const q = () => { if (!vr) vr = requestAnimationFrame(upd); };
+    vv.addEventListener("resize", q); vv.addEventListener("scroll", q); upd();
+  }
   let fxQ = 0, fxReveal = false;
   function queueFx(reveal) {
     if (reveal) fxReveal = true;
@@ -2913,6 +2920,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.61.0", items: [
+      ["", "Note typing and keyboard fit", "Note typing on iPhone: the open sheet now resizes to the visible area above the keyboard (visualViewport height and offset), so the header stays in place, there is no empty gap and the Save button sits right above the keyboard. Removed the scroll-into-view jump; the sheet scrolls to the top instead. While typing, the note field glows and up to 8 most used notes for the chosen category (or the entry type if none is chosen) from the last 90 days show as tappable chips; tapping keeps the keyboard open. The same keyboard fit applies to every sheet with a text field."]
+    ] },
     { v: "3.60.0", items: [
       ["", "Add screen fit fixes", "While the note field has focus, the number pad, balance line, account and date chips and the Every month chip hide and the amount shrinks to a slim bar, so the phone keyboard never covers anything; the note scrolls to the middle. Tapping the amount bar closes the keyboard. Number pad is no longer sticky, so it can not cover the note or categories. On short screens (iPhone SE size) the layout tightens so every field is fully visible without scrolling."]
     ] },
@@ -3019,6 +3029,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.61.0", items: [
+      ["note", "Quicker notes", "When you write a note, the notes you use most for that category show up. Tap one to fill it in."]
+    ] },
     { v: "3.59.0", items: [
       ["tag", "Haircut & personal care", "A new category for the barber, salon, nails and other personal care."]
     ] },
@@ -6606,9 +6619,22 @@
       const noteRow = h("label", { class: "tx-note" + (needNote && !f.note.trim() ? " need" : "") }, icon("note", "ico sm"),
         h("input", { id: "f-note", class: "note-input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: noteHint, value: f.note, "aria-label": "Note",
           on: { input: e => { f.note = e.target.value; if (f.note.trim()) err.textContent = ""; e.target.parentNode.classList.toggle("need", needNote && !f.note.trim()); }, keydown: e => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } },
-            focus: e => { clearTimeout(body.__noteT); body.classList.add("noting"); const n = e.target; setTimeout(() => n.scrollIntoView({ block: "center", behavior: "smooth" }), 280); },
+            focus: () => { clearTimeout(body.__noteT); body.classList.add("noting"); const sb = body.closest(".sheet-body"); if (sb) requestAnimationFrame(() => { sb.scrollTop = 0; }); },
             blur: () => { clearTimeout(body.__noteT); body.__noteT = setTimeout(() => body.classList.remove("noting"), 120); } } }),
         camBtn, scanInput, receiptInput);
+      const sugs = (() => {
+        if (f.kind === "transfer") return null;
+        const cnt = new Map();
+        for (const t of rows("transactions")) {
+          if (!t.note || t.occurred_on < cutoff) continue;
+          if (f.category ? t.category_id !== f.category : t.kind !== f.kind) continue;
+          const n = String(t.note).trim(); if (!n || n.length > 40) continue;
+          const k = n.toLowerCase(); const c = cnt.get(k); cnt.set(k, c ? { n: c.n, c: c.c + 1 } : { n, c: 1 });
+        }
+        const list = [...cnt.values()].sort((p, q) => q.c - p.c).slice(0, 8);
+        if (!list.length) return null;
+        return h("div", { class: "tx-sugs" }, list.map(o => h("button", { type: "button", class: "tx-sug", on: { pointerdown: e => { e.preventDefault(); const inp = document.getElementById("f-note"); f.note = o.n; if (inp) { inp.value = o.n; inp.parentNode.classList.remove("need"); } err.textContent = ""; }, mousedown: e => e.preventDefault(), click: e => { e.preventDefault(); const inp = document.getElementById("f-note"); f.note = o.n; if (inp) inp.value = o.n; } } }, o.n)));
+      })();
       const repeatChip = !x && !adj && (f.kind === "expense" || f.kind === "income")
         ? h("button", { type: "button", class: "tx-mini" + (f.repeat ? " on" : ""), "aria-pressed": String(f.repeat), on: { click: () => { f.repeat = !f.repeat; f.repeatTouched = true; draw(); } } }, icon("repeat", "ico sm"), "Every month")
         : null;
@@ -6619,6 +6645,7 @@
         panelEl ? h("div", { class: "panel list inline" }, panelEl) : null,
         pickArea,
         noteRow,
+        sugs,
         repeatChip || scanning ? h("div", { class: "tx-extras" }, repeatChip, scanning ? h("small", { class: "hint" }, "Reading the receipt…") : null) : null,
         cross ? h("label", { class: "field" }, h("span", null, `${to.name} receives (${curSymbol(to.currency)})`), toInput, h("span", { class: "hint" }, `At ${fmt(1, cur, { show: true })} = ${fmt(convert(1, cur, to.currency), to.currency, { show: true })}. Change it if you got a different rate.`)) : null,
         err,
