@@ -1557,7 +1557,9 @@ Object.assign(window.WALLET_I18N.words, {
   "Your wallet": ["Votre portefeuille", "محفظتك"],
   "Your balance and your investments are now two cards in one wallet. Portfolio is a gold card: tap the card behind to bring it to the front.": ["Votre solde et vos investissements sont maintenant deux cartes dans un même portefeuille. Les investissements sont une carte dorée : touchez la carte derrière pour la mettre devant.", "أصبح رصيدك واستثماراتك بطاقتين في محفظة واحدة. المحفظة الاستثمارية بطاقة ذهبية: اضغط على البطاقة الخلفية لتظهر في الأمام."],
   "Show portfolio": ["Afficher le portefeuille", "اعرض المحفظة"],
-  "Show total balance": ["Afficher le solde total", "اعرض الرصيد الإجمالي"]
+  "Show total balance": ["Afficher le solde total", "اعرض الرصيد الإجمالي"],
+  "Real gold, a minted +": ["De l'or véritable, un + frappé", "ذهب حقيقي و+ مسكوك"],
+  "The Portfolio is now a polished gold card with a hologram and a gold coin in the middle. The + button is a minted coin that flips when you tap it.": ["Le portefeuille est maintenant une carte en or poli avec un hologramme et une pièce d'or au centre. Le bouton + est une pièce frappée qui se retourne quand vous la touchez.", "أصبحت المحفظة بطاقة ذهبية لامعة مع هولوغرام وعملة ذهبية في الوسط. وزر + عملة مسكوكة تنقلب عند الضغط عليها."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
