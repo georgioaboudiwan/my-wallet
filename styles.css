@@ -2280,3 +2280,12 @@ html.kb .sheet-foot { padding-bottom: 10px; }
 .mk-cat-top span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mk-cat-top b { font: 700 14.5px var(--nums); }
 .mk-cat-top small { width: 38px; text-align: end; font: 600 12px var(--nums); color: var(--muted); }
+.loan-tag { display: inline-block; margin-inline-start: 7px; padding: 1px 7px; border-radius: 99px; font: 800 9.5px var(--ui); font-style: normal; letter-spacing: .08em; text-transform: uppercase; vertical-align: 2px; color: #2f6fe0; background: color-mix(in srgb, #4f86f0 16%, transparent); border: 1px solid color-mix(in srgb, #4f86f0 35%, transparent); }
+.loan-flag { color: #4f86f0 !important; font-weight: 650; }
+.rcpt .loan-tag { margin: 0 2px; color: #2f5fb8; background: rgb(79 134 240 / .12); }
+.rcpt-line.is-loan .rcpt-name { max-width: 46%; }
+.mk-cat-top .loan-tag { flex: none; }
+.rcpt-items, .rcpt-items li, .rcpt-items button, .rcpt-line { min-width: 0; max-width: 100%; }
+.rcpt-name { flex: 0 1 auto; min-width: 0; }
+.rcpt-line .loan-tag, .rcpt-line b { flex: none; }
+.rcpt-line.is-loan .rcpt-name { max-width: none; }

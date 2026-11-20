@@ -1633,7 +1633,9 @@ Object.assign(window.WALLET_I18N.words, {
   "Lent & paid for others": ["Prêté et payé pour d'autres", "قروض ودفعات عن الآخرين"],
   "Borrowed & paid back to you": ["Emprunté et remboursé", "مقترض ومسترد"],
   "Loans now count": ["Les prêts comptent maintenant", "القروض تُحتسب الآن"],
-  "Money you lend now counts in what you spent, and money you borrow or get back counts in what came in. They show as their own line so you can tell them apart.": ["L'argent que vous prêtez compte maintenant dans vos dépenses, et l'argent emprunté ou remboursé compte dans les entrées. Ils ont leur propre ligne pour les distinguer.", "المال الذي تقرضه يُحتسب الآن ضمن المصروف، والمال الذي تقترضه أو يُرد إليك يُحتسب ضمن الداخل. يظهران في سطر خاص لتميّزهما."]
+  "Money you lend now counts in what you spent, and money you borrow or get back counts in what came in. They are flagged as Loan everywhere so you can tell them apart.": ["L'argent que vous prêtez compte maintenant dans vos dépenses, et l'argent emprunté ou remboursé compte dans les entrées. Ils ont leur propre ligne pour les distinguer.", "المال الذي تقرضه يُحتسب الآن ضمن المصروف، والمال الذي تقترضه أو يُرد إليك يُحتسب ضمن الداخل. يظهران في سطر خاص لتميّزهما."],
+  "incl.": ["dont", "منها"],
+  "loans": ["prêts", "قروض"]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],

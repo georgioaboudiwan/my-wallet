@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.69.0";
+  const VERSION = "3.69.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1374,7 +1374,7 @@
       const title = gx ? `${out ? "Paid" : "Received"} · ${gx.g.meta.name}` : String(x.id).startsWith("gx-") ? (out ? "Paid for a shared group" : "Received from a shared group") : loanTitle(x);
       return h("button", { type: "button", class: "row", on: { click: () => { if (gx) groupSheet(gx.g.id); else if (p) personSheet(p); } } },
         h("span", { class: "dot neutral" }, icon("people", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), h("span", { class: "row-sub" }, [rowDate(x.occurred_on), x.note, a ? a.name : null].filter(Boolean).join(" · "))),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, title, h("em", { class: "loan-tag" }, "Loan")), h("span", { class: "row-sub" }, [rowDate(x.occurred_on), x.note, a ? a.name : null].filter(Boolean).join(" · "))),
         h("span", { class: "row-end" + (out ? " neg" : " pos") }, (out ? "−" : "+") + fmt(Number(x.amount), x.currency), x.currency !== mainCur() ? h("small", null, "≈ " + money(txMain(x))) : null));
     }
     const c = cat(x.category_id);
@@ -2969,6 +2969,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.69.1", items: [
+      ["", "Loans flagged", "Loan amounts are marked: a blue LOAN tag on the loan lines in month sheets, on the receipt and on every loan entry row, and the Insights Spent and Came in tiles say incl. $X loans. Fixed the receipt getting wider than the paper when a line has a tag."]
+    ] },
     { v: "3.69.0", items: [
       ["", "Loans in month totals", "Month totals now include loans: loan_out (lent, paid back to someone, paid for a shared group) adds to Spent under a virtual category Lent & paid for others (blue); loan_in (borrowed, paid back to you, received from a group) adds to Came in under Borrowed & paid back to you (teal). Affects Insights tiles and month sheets, the receipt (tapping the loan line opens Split), Home Spent tiles, the plan tank and reports. Loans are not added to plan buckets or category budgets, and transfers are still not counted."]
     ] },
@@ -3109,7 +3112,7 @@
   ];
   const CHANGES = [
     { v: "3.69.0", items: [
-      ["people", "Loans now count", "Money you lend now counts in what you spent, and money you borrow or get back counts in what came in. They show as their own line so you can tell them apart."]
+      ["people", "Loans now count", "Money you lend now counts in what you spent, and money you borrow or get back counts in what came in. They are flagged as Loan everywhere so you can tell them apart."]
     ] },
     { v: "3.68.0", items: [
       ["chart", "Tap to see the details", "In Insights, tap Spent, Came in or Left over to see the month's entries and where the money went or came from."]
@@ -3710,7 +3713,7 @@
             const c = cat(id), pct = v / s.spent * 100;
             return h("li", { style: { "--c": c ? c.color : "#5b7083", "--p": pct.toFixed(1) + "%", "--i": String(i) } },
               h("button", { type: "button", on: { click: () => { if (c && c.virtual) return go("people"); S.filter = { q: c ? c.name : "", kind: "expense", account: null }; go("activity"); } } },
-                h("span", { class: "rcpt-line" }, h("span", { class: "rcpt-name" }, c ? c.name : "Uncategorized"), h("i", { class: "rcpt-dots" }), h("b", { class: "num" }, money(v))),
+                h("span", { class: "rcpt-line" + (c && c.virtual ? " is-loan" : "") }, h("span", { class: "rcpt-name" }, c ? c.name : "Uncategorized"), c && c.virtual ? h("em", { class: "loan-tag" }, "Loan") : null, h("i", { class: "rcpt-dots" }), h("b", { class: "num" }, money(v))),
                 h("span", { class: "rcpt-meta num" }, h("span", { class: "rcpt-bar" }), `${cnt.get(id) || 0} × · ${Math.round(pct)}%`)));
           })),
           h("div", { class: "rcpt-rule" }),
@@ -4021,7 +4024,7 @@
         h("button", { type: "button", class: "mk-half in", on: { click: () => monthKindSheet(m, "income") } }, h("small", null, "Came in"), h("b", { class: "num" }, money(s.income, { whole: true })), h("i", { style: { width: (s.income + s.spent ? s.income / Math.max(s.income, s.spent) * 100 : 0) + "%" } })),
         h("button", { type: "button", class: "mk-half out", on: { click: () => monthKindSheet(m, "expense") } }, h("small", null, "Spent"), h("b", { class: "num" }, money(s.spent, { whole: true })), h("i", { style: { width: (s.income + s.spent ? s.spent / Math.max(s.income, s.spent) * 100 : 0) + "%" } }))) : null,
       kind !== "both" && breakdown.length ? h("section", { class: "card flush mk-cats" }, h("div", { class: "card-head" }, h("h2", null, kind === "income" ? "Where it came from" : "By category")),
-        breakdown.map(([k, v]) => { const c = cat(k.slice(2)); const color = c ? c.color : "#5b7083"; return h("div", { class: "mk-cat" }, h("span", { class: "mk-cat-top" }, h("i", { style: { background: color } }), h("span", null, c ? c.name : kind === "income" ? "Other income" : "Uncategorized"), h("b", { class: "num" }, money(v, { whole: true })), h("small", { class: "num" }, `${Math.round(v / (total || 1) * 100)}%`)), h("span", { class: "bar" }, h("span", { style: { width: (v / bigK * 100) + "%", background: color } }))); })) : null,
+        breakdown.map(([k, v]) => { const c = cat(k.slice(2)); const color = c ? c.color : "#5b7083"; return h("div", { class: "mk-cat" }, h("span", { class: "mk-cat-top" }, h("i", { style: { background: color } }), h("span", null, c ? c.name : kind === "income" ? "Other income" : "Uncategorized"), c && c.virtual ? h("em", { class: "loan-tag" }, "Loan") : null, h("b", { class: "num" }, money(v, { whole: true })), h("small", { class: "num" }, `${Math.round(v / (total || 1) * 100)}%`)), h("span", { class: "bar" }, h("span", { style: { width: (v / bigK * 100) + "%", background: color } }))); })) : null,
       list.length ? h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Entries")), list.map(txnRow)) : h("p", { class: "empty" }, kind === "income" ? `Nothing came in during ${monthName(m)}.` : `No spending in ${monthName(m)}.`));
     openSheet(title, body, null, { fill: true });
   }
@@ -4043,8 +4046,8 @@
       changeText = pct === 0 ? `Same as ${monthName(prevM)}` : `${Math.abs(pct)}% ${pct > 0 ? "more" : "less"} than ${monthName(prevM)}`;
     }
     out.append(h("div", { class: "tiles" },
-      h("button", { type: "button", class: "tile tap", on: { click: () => monthKindSheet(m, "expense") } }, h("small", null, "Spent"), h("strong", null, money(s.spent, { whole: true })), changeText ? h("span", null, changeText) : null, icon("fwd", "ico sm tile-go")),
-      h("button", { type: "button", class: "tile tap", on: { click: () => monthKindSheet(m, "income") } }, h("small", null, "Came in"), h("strong", null, money(s.income, { whole: true })), icon("fwd", "ico sm tile-go")),
+      h("button", { type: "button", class: "tile tap", on: { click: () => monthKindSheet(m, "expense") } }, h("small", null, "Spent"), h("strong", null, money(s.spent, { whole: true })), s.loanOut ? h("span", { class: "loan-flag" }, `${tr("incl.")} ${money(s.loanOut, { whole: true })} ${tr("loans")}`) : changeText ? h("span", null, changeText) : null, icon("fwd", "ico sm tile-go")),
+      h("button", { type: "button", class: "tile tap", on: { click: () => monthKindSheet(m, "income") } }, h("small", null, "Came in"), h("strong", null, money(s.income, { whole: true })), s.loanIn ? h("span", { class: "loan-flag" }, `${tr("incl.")} ${money(s.loanIn, { whole: true })} ${tr("loans")}`) : null, icon("fwd", "ico sm tile-go")),
       h("button", { type: "button", class: "tile tap " + (left >= 0 ? "good" : "bad"), on: { click: () => monthKindSheet(m, "both") } }, h("small", null, left >= 0 ? "Left over" : "Overspent"), h("strong", null, money(Math.abs(left), { whole: true })), icon("fwd", "ico sm tile-go"))));
     if (s.count) out.append(h("button", { type: "button", class: "btn alt", on: { click: () => recapSheet(m) } }, `${monthName(m)} summary`));
     const rc = spendReceipt(m, s);
