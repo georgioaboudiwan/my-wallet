@@ -1482,7 +1482,9 @@ Object.assign(window.WALLET_I18N.words, {
   "Fewer notes to write": ["Moins de notes à écrire", "ملاحظات أقل"],
   "Everyday things like groceries, fuel or bills no longer need a note. Pick which categories need one in Settings → Entries and defaults.": ["Les dépenses courantes comme les courses, l'essence ou les factures n'ont plus besoin de note. Choisissez lesquelles en demandent dans Réglages → Opérations.", "الأشياء اليومية مثل البقالة والوقود والفواتير لم تعد تحتاج ملاحظة. اختر الفئات التي تحتاجها من الإعدادات ← العمليات."],
   "Asked for every category except the ones ticked below": ["Demandée pour toutes les catégories sauf celles cochées ci-dessous", "مطلوبة لكل الفئات ما عدا المحددة أدناه"],
-  "Parking": ["Parking", "موقف السيارات"]
+  "Parking": ["Parking", "موقف السيارات"],
+  "A fresh new look": ["Un nouveau look", "مظهر جديد"],
+  "BudgetSplit has a new logo: a B made of a bar and a split coin. To see the new icon on your Home Screen, remove the app and add it again.": ["BudgetSplit a un nouveau logo : un B fait d'une barre et d'une pièce coupée en deux. Pour voir la nouvelle icône, retirez l'app de l'écran d'accueil et ajoutez-la à nouveau.", "لدى BudgetSplit شعار جديد: حرف B مكوّن من خط وعملة مقسومة. لرؤية الأيقونة الجديدة، احذف التطبيق من الشاشة الرئيسية وأضفه مجدداً."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],

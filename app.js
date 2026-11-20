@@ -48,7 +48,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.47.3";
+  const VERSION = "3.48.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -171,8 +171,8 @@
     shell = null;
     const pick = k => { LANG = k; trCache.clear(); try { localStorage.setItem("wallet:lang", k); } catch { } applyLang(); render(); };
     root.replaceChildren(h("div", { class: "lang-pick" },
-      h("img", { class: "login-logo", src: "icons/icon-192-bs.png", alt: "" }),
-      h("h1", null, "BudgetSplit"),
+      h("img", { class: "login-logo", src: "icons/icon-192-b.png", alt: "" }),
+      h("h1", null, "Budget", h("span", { class: "brand-split" }, "Split")),
       h("p", { lang: "en" }, "Choose your language"),
       h("p", { lang: "fr" }, "Choisissez votre langue"),
       h("p", { lang: "ar", dir: "rtl" }, "اختر لغتك"),
@@ -1044,7 +1044,7 @@
       click: () => { if (held) { held = false; return; } if (document.querySelector(".add-fan")) return closeFan(); txnSheet(null); }
     } }, h("span", { class: "tab-add-ring" }, icon("plus")));
     const lens = h("span", { class: "lens", "aria-hidden": "true" });
-    const brand = h("div", { class: "side-brand" }, h("img", { src: "icons/icon-192-bs.png", alt: "" }), h("span", null, "BudgetSplit"));
+    const brand = h("div", { class: "side-brand" }, h("img", { src: "icons/icon-192-b.png", alt: "" }), h("span", null, "Budget", h("span", { class: "brand-split" }, "Split")));
     const sideAdd = h("button", { type: "button", class: "side-add", on: { click: () => txnSheet(null) } }, icon("plus", "ico"), "New entry");
     const sideSettings = h("button", { type: "button", class: "tab side-only", "data-view": "settings", on: { click: () => go("settings") } }, icon("gear"), h("span", null, "Settings"));
     const tabsEl = h("div", { class: "tabs glass" }, lens, tabs[0], tabs[1], add, tabs[2], tabs[3], sideSettings);
@@ -1122,7 +1122,8 @@
     if (!shell) buildShell();
     maybeOnboard();
     const v = VIEWS[S.view] || VIEWS.home;
-    shell.title.textContent = tr(v.title);
+    if (v.title === "BudgetSplit") shell.title.replaceChildren(document.createTextNode("Budget"), h("span", { class: "brand-split" }, "Split"));
+    else shell.title.textContent = tr(v.title);
     shell.eye.replaceChildren(icon(S.hidden ? "eyeOff" : "eye"));
     shell.eye.setAttribute("aria-label", tr(S.hidden ? "Show amounts" : "Hide amounts"));
     const sameView = shell.lastView === S.view;
@@ -1156,7 +1157,7 @@
   function renderSetup() {
     shell = null;
     root.replaceChildren(h("div", { class: "auth" }, h("div", { class: "auth-box" },
-      h("img", { class: "auth-mark", src: "icons/icon-192-bs.png", alt: "" }),
+      h("img", { class: "auth-mark", src: "icons/icon-192-b.png", alt: "" }),
       h("h1", null, "Almost ready"),
       h("p", null, "Add your Supabase project URL and anon key to ", h("code", null, "config.js"), ", then reload this page.")
     )));
@@ -1288,8 +1289,8 @@
     root.replaceChildren(h("div", { class: "login" },
       h("header", { class: "login-hero" },
         h("div", { class: "login-brand" },
-          h("img", { class: "login-logo", src: "icons/icon-192-bs.png", alt: "" }),
-          h("h1", null, "BudgetSplit"),
+          h("img", { class: "login-logo", src: "icons/icon-192-b.png", alt: "" }),
+          h("h1", null, "Budget", h("span", { class: "brand-split" }, "Split")),
           h("p", null, "Budget, track spending, split bills and loans.")),
         h("div", { class: "login-card", "aria-hidden": "true" },
           h("span", { class: "lc-label" }, "Total balance"),
@@ -2476,6 +2477,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.48.0", items: [
+      ["", "New logo", "B mark (white bar, white and gold half-coins) on the green gradient for the Home Screen icon, Android adaptive icon, browser tab, login, side bar, notifications and emails. The header reads Budget in ink and Split in the brand color."]
+    ] },
     { v: "3.47.3", items: [
       ["", "No more −$0", "Amounts that round to zero (tiny leftovers from exchange rates) show as $0 instead of −$0."]
     ] },
@@ -2543,6 +2547,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.48.0", items: [
+      ["star", "A fresh new look", "BudgetSplit has a new logo: a B made of a bar and a split coin. To see the new icon on your Home Screen, remove the app and add it again."]
+    ] },
     { v: "3.46.0", items: [
       ["note", "Fewer notes to write", "Everyday things like groceries, fuel or bills no longer need a note. Pick which categories need one in Settings → Entries and defaults."]
     ] },
@@ -5199,7 +5206,7 @@
     shell = null;
     const box = h("div", { class: "auth-box" }, h("p", { class: "hint" }, "Loading your balance…"));
     root.replaceChildren(h("div", { class: "auth" }, box));
-    const fail = text => box.replaceChildren(h("img", { class: "auth-mark", src: "icons/icon-192-bs.png", alt: "" }), h("h1", null, "Can't open this page"), h("p", null, text));
+    const fail = text => box.replaceChildren(h("img", { class: "auth-mark", src: "icons/icon-192-b.png", alt: "" }), h("h1", null, "Can't open this page"), h("p", null, text));
     const [tok, skey] = String(token).split(".");
     token = tok;
     if (!TOKEN_RE.test(token) || !/^[A-Za-z0-9_-]{43}$/.test(skey || "")) return fail("This link is from an older version or isn't complete. Ask for a new one.");
@@ -6511,7 +6518,7 @@
     const input = passField("np-pass", "New password (10+ characters)", "new-password");
     const btn = h("button", { class: "btn login-go", type: "submit" }, "Save new password");
     const panel = h("form", { class: "login-panel solo", novalidate: true },
-      h("div", { class: "login-title" }, h("img", { class: "login-logo", src: "icons/icon-192-bs.png", alt: "" }), h("h2", null, "Choose a new password"), h("p", null, S.email)),
+      h("div", { class: "login-title" }, h("img", { class: "login-logo", src: "icons/icon-192-b.png", alt: "" }), h("h2", null, "Choose a new password"), h("p", null, S.email)),
       h("div", { class: "login-fields" }, h("label", { class: "login-field", for: "np-pass" }, icon("lock", "ico"), input)),
       err, btn);
     panel.addEventListener("submit", async ev => {
@@ -6614,7 +6621,7 @@
       LOCK.el.remove(); LOCK.el = null; LOCK.hiddenAt = 0;
     };
     LOCK.el = h("div", { class: "lock", role: "dialog", "aria-modal": "true", "aria-label": "BudgetSplit is locked" },
-      h("img", { class: "login-logo", src: "icons/icon-192-bs.png", alt: "" }),
+      h("img", { class: "login-logo", src: "icons/icon-192-b.png", alt: "" }),
       h("h2", null, "BudgetSplit is locked"),
       h("p", null, "Unlock with Face ID, Touch ID or your device passcode."),
       h("button", { type: "button", class: "btn", on: { click: tryUnlock } }, icon("lock", "ico"), "Unlock"),
@@ -6846,7 +6853,7 @@
     const rec = needRecovery ? h("input", { id: "ul-rec", class: "input", autocomplete: "off", autocapitalize: "characters", spellcheck: "false", placeholder: "XXXX-XXXX-XXXX-XXXX-XXXX-XXXX", "aria-label": "Recovery key" }) : null;
     const btn = h("button", { class: "btn login-go", type: "submit" }, "Unlock");
     const panel = h("form", { class: "login-panel solo", novalidate: true },
-      h("div", { class: "login-title" }, h("img", { class: "login-logo", src: "icons/icon-192-bs.png", alt: "" }), h("h2", null, "Unlock your data"),
+      h("div", { class: "login-title" }, h("img", { class: "login-logo", src: "icons/icon-192-b.png", alt: "" }), h("h2", null, "Unlock your data"),
         h("p", null, oauth ? "Reset by email is turned off for this account, so your recovery key is needed to open your encrypted data on this device." : needRecovery ? "Your password was changed by email, so your recovery key is needed once to open your encrypted data." : "Your data is encrypted with your password. Enter it once on this device.")),
       h("div", { class: "login-fields" }, oauth ? null : h("label", { class: "login-field", for: "ul-pass" }, icon("lock", "ico"), pass), rec ? h("label", { class: "login-field", for: "ul-rec" }, icon("shield", "ico"), rec) : null),
       err, btn,

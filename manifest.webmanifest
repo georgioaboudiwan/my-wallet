@@ -9,18 +9,18 @@
   "background_color": "#edf2ee",
   "icons": [
     {
-      "src": "icons/icon-192-bs.png",
+      "src": "icons/icon-192-b.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icons/icon-512-bs.png",
+      "src": "icons/icon-512-b.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-maskable-bs.png",
+      "src": "icons/icon-maskable-b.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -33,7 +33,7 @@
       "url": "./#add",
       "icons": [
         {
-          "src": "icons/icon-192-bs.png",
+          "src": "icons/icon-192-b.png",
           "sizes": "192x192",
           "type": "image/png"
         }

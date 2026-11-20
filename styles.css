@@ -1645,3 +1645,7 @@ main.view.set-snap { transition: transform .25s var(--ease); }
 .note-chip.on { border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: var(--accent-soft); color: var(--accent); }
 .note-chip .ico.sm { width: 15px; height: 15px; }
 .card.day { content-visibility: auto; contain-intrinsic-size: auto 320px; }
+.brand-split { color: var(--accent); }
+:root[data-theme="dark"] .brand-split { color: #f6c453; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brand-split { color: #f6c453; } }
+.login .brand-split, .login-brand .brand-split { color: #f6c453; }
