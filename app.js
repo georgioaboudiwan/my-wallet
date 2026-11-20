@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.63.0";
+  const VERSION = "3.64.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2059,6 +2059,9 @@
     fxQ = requestAnimationFrame(() => {
       fxQ = 0;
       for (const c of document.querySelectorAll("canvas.orb")) if (!c.__orb) orbInit(c); else orbMix(c.__orb);
+      for (const r of document.querySelectorAll(".acc-rail")) if (!r.__rail) railInit(r); else r.__rail();
+      for (const c of document.querySelectorAll("canvas.tank")) if (!c.__tank) tankInit(c); else c.__tank.read();
+      for (const c of document.querySelectorAll("canvas.bubbles-cv")) if (!c.__bub) bubblesInit(c); else if (c.__bub.raw !== c.dataset.b) c.__bub.rebuild();
       for (const el of document.querySelectorAll(".wallet > .hero, .pf-card:not(.pf-empty), .pf-hero, .login-card")) if (!el.__tilt) tiltInit(el);
       const a = document.querySelector(".wallet > .hero .hero-total"); if (a) countUp(a, "home");
       const b = document.querySelector(".pf-card .pf-total"); if (b) countUp(b, "pf");
@@ -2956,6 +2959,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.64.0", items: [
+      ["", "Accounts cards, liquid plan, spending bubbles", "Accounts section rebuilt: header with count and total, a distribution bar of positive balances by account kind, then a horizontal snap carousel of bank-card shaped account cards (kind materials: emerald cash, blue bank with chip, titanium card with chip, coral e-wallet, gold savings; balance, converted value, name and currency tag; side cards shrink, tilt and fade as you swipe), ending with a dashed Add account card. Home month plan card is now a liquid tank (canvas waves at the percent used, green, amber at 80%, red when over) that sloshes when you drag across it; a drag no longer opens the plan. Money planet removed from Home and Insights; Insights gets spending bubbles: up to 12 categories as physics circles sized by amount, draggable and flickable, tap one to show name, amount and share. Animations pause off screen and in the background."]
+    ] },
     { v: "3.63.0", items: [
       ["", "Planet, portfolio cost, owe chip, Arabic title", "Money planet: interactive particle globe on Home (after the tiles) and Insights (after the summary button) with bands colored by this month's spending per category (up to 14), drag to spin with inertia, legend of the top 3 (Home) or 5 (Insights); tapping the Home card opens Insights, a swipe does not. Portfolio: total \"You paid\" on the gold card, a You paid → Worth now block in the Portfolio sheet (only holdings with a purchase price, with a note when some have none), and Paid → Now under each holding. Balance card: added a \"you owe\" chip next to \"owed to you\" (the total balance itself only counts money in accounts; lent and borrowed money moved through an account are already reflected there). Arabic: app title shows ميزانية وتقسيم on one line; total balance label no longer hides under the card chip. Fixed: canvas globes lost their size after a re-render."]
     ] },
@@ -3074,8 +3080,11 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.64.0", items: [
+      ["card", "Your accounts, as real cards", "Swipe through your accounts like cards in a wallet, with a bar showing where your money sits."],
+      ["chart", "Play with your money", "Your month plan fills like liquid you can shake, and Insights shows your spending as bubbles you can drag and flick. Tap one to see the amount."]
+    ] },
     { v: "3.63.0", items: [
-      ["gem", "Your money planet", "A spinning planet on Home and Insights shows where your money went this month, one color per category. Swipe it to spin it."],
       ["coin", "What you paid, what it's worth", "The Portfolio now shows how much you paid next to what your investments are worth today, for each one and in total."]
     ] },
     { v: "3.62.0", items: [
@@ -3570,20 +3579,144 @@
       h("span", { class: "hb-hint" }, icon("sync", "ico sm"), "Tap to flip"));
   }
 
-  function moneyPlanet(m, s, big) {
-    const cats = [...s.byCat].filter(e => e[1] > 0).sort((p, q) => q[1] - p[1]);
+  const ANIM_DRAG = { at: 0 };
+  function sizeCanvas(c, hgt) {
+    const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.max(1, Math.round(c.clientWidth || c.parentNode.clientWidth));
+    if (c.__w === w && c.width === Math.round(w * dpr)) return false;
+    c.__w = w; c.width = Math.round(w * dpr); c.height = Math.round(hgt * dpr); c.__dpr = dpr;
+    return true;
+  }
+  function animLoop(c, step) {
+    let last = performance.now(), raf = 0, vis = true;
+    const tick = now => {
+      raf = 0;
+      if (!c.isConnected) return;
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      if (!vis || document.hidden) return;
+      step(dt);
+      raf = requestAnimationFrame(tick);
+    };
+    const kick = () => { if (!raf && vis && !document.hidden && c.isConnected) { last = performance.now(); raf = requestAnimationFrame(tick); } };
+    if ("IntersectionObserver" in window) new IntersectionObserver(es => { for (const en of es) vis = en.isIntersecting; kick(); }).observe(c);
+    document.addEventListener("visibilitychange", kick);
+    kick();
+    return kick;
+  }
+  function railInit(r) {
+    let raf = 0;
+    const upd = () => {
+      raf = 0;
+      const rr = r.getBoundingClientRect(), mid = rr.left + rr.width / 2;
+      for (const el of r.children) { const b = el.getBoundingClientRect(), d = Math.min(1, Math.abs(b.left + b.width / 2 - mid) / rr.width); el.style.setProperty("--d", d.toFixed(3)); }
+    };
+    r.addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(upd); }, { passive: true });
+    r.__rail = upd;
+    upd();
+  }
+  function tankInit(c) {
+    const H = 132, o = { level: 0, slosh: 0, vs: 0, t: 0, drag: null };
+    c.__tank = o;
+    const card = c.closest(".tank-card");
+    const read = () => { o.target = Math.max(0, Math.min(1, Number(c.dataset.pct) || 0)); o.color = c.dataset.c || "#2fd39a"; };
+    read();
+    o.read = read;
+    if (RM.matches) o.level = o.target;
+    const draw = () => {
+      sizeCanvas(c, H);
+      const ctx = c.getContext("2d"), dpr = c.__dpr || 1, W = c.width, Hh = c.height;
+      ctx.clearRect(0, 0, W, Hh);
+      const base = Hh * (1 - (0.06 + o.level * 0.86));
+      const wave = (amp, k, sp, ph) => {
+        ctx.beginPath(); ctx.moveTo(0, Hh);
+        for (let x = 0; x <= W; x += 6 * dpr) { const u = x / W; ctx.lineTo(x, base + Math.sin(u * k + o.t * sp + ph) * amp * dpr * (1 + Math.abs(o.slosh) * 3) + o.slosh * (u - 0.5) * Hh * 0.5); }
+        ctx.lineTo(W, Hh); ctx.closePath();
+      };
+      const g = ctx.createLinearGradient(0, base - 20 * dpr, 0, Hh);
+      g.addColorStop(0, o.color + "cc"); g.addColorStop(1, o.color + "40");
+      wave(5, 9, 1.4, 1.8); ctx.fillStyle = o.color + "44"; ctx.fill();
+      wave(6, 7, 2, 0); ctx.fillStyle = g; ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.55)";
+      for (let i = 0; i < 7; i++) { const bx = ((i * 97 + o.t * 18 * (1 + i % 3)) % (W / dpr)) * dpr, by = Hh - ((o.t * (14 + i * 5) + i * 40) % Math.max(1, (Hh - base) / dpr)) * dpr; if (by > base + 6 * dpr) { ctx.beginPath(); ctx.arc(bx, by, (1.2 + i % 3) * dpr, 0, 6.3); ctx.fill(); } }
+    };
+    const kick = animLoop(c, dt => {
+      o.t += dt;
+      o.level += (o.target - o.level) * Math.min(1, dt * 1.8);
+      o.vs += (-o.slosh * 26 - o.vs * 3.2) * dt; o.slosh += o.vs * dt;
+      draw();
+    });
+    const at = e => e.clientX;
+    card.addEventListener("pointerdown", e => { o.drag = { x: at(e), moved: 0 }; });
+    card.addEventListener("pointermove", e => { if (!o.drag) return; const dx = at(e) - o.drag.x; o.drag.x = at(e); o.drag.moved += Math.abs(dx); o.vs += dx * 0.06; o.vs = Math.max(-4, Math.min(4, o.vs)); kick(); });
+    const up = () => { if (o.drag && o.drag.moved > 8) ANIM_DRAG.at = performance.now(); o.drag = null; };
+    card.addEventListener("pointerup", up); card.addEventListener("pointercancel", up); card.addEventListener("pointerleave", up);
+    card.style.touchAction = "pan-y";
+    draw();
+  }
+  function spendBubbles(m, s) {
+    const cats = [...s.byCat].filter(e => e[1] > 0).sort((p, q) => q[1] - p[1]).slice(0, 12);
     if (!cats.length) return null;
-    const top = cats.slice(0, 5);
-    const parts = cats.slice(0, 14).map(([id, v]) => [(cat(id) || {}).color || "#5b7083", Math.round(v * 100) / 100]);
-    const legend = top.slice(0, big ? 5 : 3).map(([id, v]) => { const c = cat(id); return h("span", { class: "mp-leg", style: { "--c": c ? c.color : "#5b7083" } }, h("i"), h("span", null, c ? c.name : "Uncategorized"), h("b", { class: "num" }, `${Math.round(v / s.spent * 100)}%`)); });
-    return h("section", { class: "money-planet" + (big ? " big" : ""), role: big ? null : "button", tabindex: big ? null : "0", on: big ? {} : { click: e => { if (e.target.closest("canvas") || performance.now() - ORB_DRAG.at < 500) return; S.month = m; go("insights"); } } },
-      h("div", { class: "mp-text" },
-        h("span", { class: "mp-kicker" }, "Your money planet"),
-        h("strong", { class: "mp-total num" }, money(s.spent, { whole: true })),
-        h("span", { class: "mp-sub" }, `${tr("spent in")} ${monthName(m)}`),
-        h("div", { class: "mp-legend" }, legend),
-        h("span", { class: "mp-hint" }, "Swipe the planet to spin it")),
-      orb(big ? 230 : 160, "mp-orb", { "data-mix": JSON.stringify(parts) }));
+    const data = cats.map(([id, v]) => { const c = cat(id); return [tr(c ? c.name : "Uncategorized"), c ? c.color : "#5b7083", Math.round(v * 100) / 100, Math.round(v / s.spent * 100), money(v, { whole: true })]; });
+    return h("section", { class: "bub-card" },
+      h("div", { class: "bub-head" }, h("span", { class: "bub-kicker" }, "Spending bubbles"), h("span", { class: "bub-hint" }, "Drag and flick the bubbles")),
+      h("canvas", { class: "bubbles-cv", "data-b": JSON.stringify(data), "aria-hidden": "true" }),
+      h("p", { class: "bub-tip num", "aria-live": "polite" }, tr("Tap a bubble")));
+  }
+  function bubblesInit(c) {
+    const H = 280, card = c.closest(".bub-card"), tip = card.querySelector(".bub-tip");
+    let data = [];
+    try { data = JSON.parse(c.dataset.b || "[]"); } catch { }
+    const o = { list: [], drag: null, sel: -1, raw: c.dataset.b };
+    c.__bub = o;
+    const build = () => {
+      sizeCanvas(c, H);
+      const dpr = c.__dpr || 1, W = c.width / dpr, max = Math.max(...data.map(d => d[2]));
+      const R = Math.min(W, H) * 0.3, area = data.reduce((t, d) => t + Math.PI * Math.pow(Math.sqrt(d[2] / max) * R, 2), 0), f = Math.min(1, Math.sqrt(W * H * 0.5 / area));
+      o.W = W; o.H = H;
+      o.list = data.map((d, i) => { const r = Math.max(14, Math.sqrt(d[2] / max) * R * f); const old = o.list[i]; return { name: d[0], color: d[1], pct: d[3], label: d[4], r, x: old ? old.x : W / 2 + (Math.random() - 0.5) * W * 0.6, y: old ? old.y : H / 2 + (Math.random() - 0.5) * H * 0.6, vx: 0, vy: 0 }; });
+    };
+    build();
+    o.rebuild = () => { try { data = JSON.parse(c.dataset.b || "[]"); } catch { data = []; } o.raw = c.dataset.b; build(); };
+    const step = dt => {
+      if (sizeCanvas(c, H)) build();
+      const { W } = o, L = o.list, k = Math.min(1, dt * 60);
+      for (const b of L) {
+        if (b === o.drag?.b) continue;
+        b.vx += (W / 2 - b.x) * 0.0016 * k; b.vy += (H / 2 - b.y) * 0.0016 * k;
+        b.vx *= Math.pow(0.94, k); b.vy *= Math.pow(0.94, k);
+        b.x += b.vx * k; b.y += b.vy * k;
+      }
+      for (let it = 0; it < 3; it++) for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {
+        const a = L[i], b = L[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01, min = a.r + b.r + 3;
+        if (d < min) { const push = (min - d) / 2, nx = dx / d, ny = dy / d; const wa = a === o.drag?.b ? 0 : 1, wb = b === o.drag?.b ? 0 : 1, tw = wa + wb || 1; a.x -= nx * push * 2 * wa / tw; a.y -= ny * push * 2 * wa / tw; b.x += nx * push * 2 * wb / tw; b.y += ny * push * 2 * wb / tw; const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny; if (rv < 0) { a.vx += nx * rv * 0.5 * wa; a.vy += ny * rv * 0.5 * wa; b.vx -= nx * rv * 0.5 * wb; b.vy -= ny * rv * 0.5 * wb; } }
+      }
+      for (const b of L) { if (b.x < b.r) { b.x = b.r; b.vx = Math.abs(b.vx) * 0.6; } if (b.x > W - b.r) { b.x = W - b.r; b.vx = -Math.abs(b.vx) * 0.6; } if (b.y < b.r) { b.y = b.r; b.vy = Math.abs(b.vy) * 0.6; } if (b.y > H - b.r) { b.y = H - b.r; b.vy = -Math.abs(b.vy) * 0.6; } }
+      draw();
+    };
+    const draw = () => {
+      const ctx = c.getContext("2d"), dpr = c.__dpr || 1;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, o.W, H);
+      o.list.forEach((b, i) => {
+        const g = ctx.createRadialGradient(b.x - b.r * 0.35, b.y - b.r * 0.4, b.r * 0.1, b.x, b.y, b.r);
+        g.addColorStop(0, "rgba(255,255,255,.32)"); g.addColorStop(0.35, b.color); g.addColorStop(1, b.color + "cc");
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.2832); ctx.fillStyle = g; ctx.fill();
+        if (i === o.sel) { ctx.lineWidth = 3; ctx.strokeStyle = "#fff"; ctx.stroke(); }
+        if (b.r >= 26) {
+          ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.font = `800 ${Math.min(20, b.r * 0.42)}px system-ui, sans-serif`;
+          ctx.fillText(b.pct + "%", b.x, b.y - (b.r > 29 ? 7 : 0));
+          if (b.r > 29) { ctx.font = `600 ${Math.max(9.5, Math.min(12, b.r * 0.26))}px system-ui, sans-serif`; let n = b.name; while (n.length > 3 && ctx.measureText(n).width > b.r * 1.6) n = n.slice(0, -2); ctx.fillText(n === b.name ? n : n + "…", b.x, b.y + 12); }
+        }
+      });
+    };
+    const kick = animLoop(c, step);
+    const pos = e => { const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    const hit = (x, y) => { for (let i = o.list.length - 1; i >= 0; i--) { const b = o.list[i]; if (Math.hypot(x - b.x, y - b.y) <= b.r) return i; } return -1; };
+    c.addEventListener("pointerdown", e => { const [x, y] = pos(e); const i = hit(x, y); if (i < 0) return; o.drag = { b: o.list[i], i, x, y, t: performance.now(), moved: 0 }; try { c.setPointerCapture(e.pointerId); } catch { } kick(); });
+    c.addEventListener("pointermove", e => { const d = o.drag; if (!d) return; const [x, y] = pos(e); const now = performance.now(), dt = Math.max(8, now - d.t); d.b.vx = (x - d.x) / dt * 16; d.b.vy = (y - d.y) / dt * 16; d.moved += Math.hypot(x - d.x, y - d.y); d.b.x = x; d.b.y = y; d.x = x; d.y = y; d.t = now; });
+    const up = () => { const d = o.drag; if (!d) return; o.drag = null; if (d.moved < 6) { o.sel = o.sel === d.i ? -1 : d.i; const b = o.list[d.i]; tip.textContent = o.sel < 0 ? tr("Tap a bubble") : `${b.name} · ${b.label} · ${b.pct}%`; tip.style.setProperty("--c", b.color); tip.classList.toggle("on", o.sel >= 0); } kick(); };
+    c.addEventListener("pointerup", up); c.addEventListener("pointercancel", up);
+    c.style.touchAction = "pan-y";
   }
 
   function viewHome() {
@@ -3643,17 +3776,22 @@
         ? h("button", { type: "button", class: "tile " + (safe.left >= 0 ? "good" : "bad"), on: { click: () => { S.month = m; go("plan"); } } }, h("small", null, "Safe to spend"), h("strong", null, money(safe.perDay, { whole: true })), h("span", null, "per day"))
         : h("button", { type: "button", class: "tile", on: { click: () => go("plan") } }, h("small", null, "Safe to spend"), h("strong", null, "—"), h("span", null, "Set a plan"))));
 
-    const planet = moneyPlanet(m, s, false);
-    if (planet) out.append(planet);
-
     const plan = planFor(m);
     if (plan.base > 0) {
       const left = plan.base - s.spent;
       const pct = Math.min(100, Math.round(s.spent / plan.base * 100));
-      out.append(h("button", { type: "button", class: "card month-card", on: { click: () => { S.month = m; go("plan"); } } },
-        h("span", { class: "month-top" }, h("strong", null, `${monthName(m)} plan`), h("span", { class: left < 0 ? "neg" : "" }, left >= 0 ? `${money(left, { whole: true })} left` : `${money(-left, { whole: true })} over`)),
-        h("span", { class: "bar" }, h("span", { class: left < 0 ? "over" : "", style: { width: pct + "%" } })),
-        h("span", { class: "month-sub" }, `${money(s.spent, { whole: true })} of ${money(plan.base, { whole: true })} spent · ${safe ? safe.daysLeft : 0} days left`)));
+      const tone = left < 0 ? "#ff6b6b" : pct >= 80 ? "#f5a524" : "#2fd39a";
+      out.append(h("section", { class: "card month-card tank-card", role: "button", tabindex: "0", on: { click: () => { if (performance.now() - ANIM_DRAG.at < 500) return; S.month = m; go("plan"); } } },
+        h("canvas", { class: "tank", "data-pct": String(Math.min(1, s.spent / plan.base)), "data-c": tone, "aria-hidden": "true" }),
+        h("span", { class: "tank-text" },
+          h("span", { class: "tank-kicker" }, `${monthName(m)} plan`),
+          h("strong", { class: "tank-pct num" }, `${pct}%`),
+          h("span", { class: "tank-sub" }, `${money(s.spent, { whole: true })} of ${money(plan.base, { whole: true })} used`)),
+        h("span", { class: "tank-side" },
+          h("b", { class: "num" + (left < 0 ? " neg" : "") }, left >= 0 ? money(left, { whole: true }) : `−${money(-left, { whole: true })}`),
+          h("small", null, left >= 0 ? "left" : "over"),
+          h("small", { class: "tank-days" }, `${safe ? safe.daysLeft : 0} ${tr("days left")}`)),
+        h("span", { class: "tank-hint" }, "Shake it")));
     }
 
     const usage = new Map();
@@ -3724,18 +3862,23 @@
     }
 
     const accTotal = accounts.reduce((t, a) => t + toMain(bal.get(a.id) || 0, a.currency), 0);
+    const accPos = accounts.map(a => Math.max(0, toMain(bal.get(a.id) || 0, a.currency)));
+    const accPosTot = accPos.reduce((p, q) => p + q, 0);
     const accCard = h("section", { class: "card col-a accs-card" },
-      h("div", { class: "card-head" }, h("h2", null, `Your accounts (${accounts.length})`), h("span", { class: "accs-total num" }, money(accTotal, { whole: true }))),
-      h("div", { class: "accs" },
+      h("div", { class: "accs-head" },
+        h("div", null, h("h2", null, "Your accounts"), h("small", null, `${accounts.length} ${tr(accounts.length === 1 ? "account" : "accounts")}`)),
+        h("strong", { class: "accs-total num" + (accTotal < 0 ? " neg" : "") }, money(accTotal, { whole: true }))),
+      accPosTot > 0 ? h("div", { class: "acc-dist", "aria-hidden": "true" }, accounts.map((a, i) => accPos[i] > 0 ? h("span", { class: "k-" + (KIND_ICON[a.kind] ? a.kind : "cash"), style: { flex: String(accPos[i] / accPosTot) } }) : null)) : null,
+      h("div", { class: "acc-rail" },
         accounts.map(a => {
-          const v = bal.get(a.id) || 0;
-          return h("button", { type: "button", class: "acc k-" + (KIND_ICON[a.kind] ? a.kind : "cash"), "aria-label": `${a.name}, ${KIND_LABEL[a.kind] || ""}, ${fmt(v, a.currency)}`, on: { click: () => { S.filter = { q: "", kind: "all", account: a.id }; go("activity"); } } },
-            h("span", { class: "acc-top" }, h("span", { class: "acc-ico" }, icon(KIND_ICON[a.kind] || "cash", "ico sm")), h("span", { class: "acc-kind" }, `${KIND_LABEL[a.kind] || ""} · ${curTag(a.currency)}`)),
-            h("span", { class: "acc-name" }, a.name),
-            h("span", { class: "acc-bal num" + (v < 0 ? " neg" : "") }, fmt(v, a.currency)),
-            a.currency !== mainCur() ? h("small", { class: "acc-alt num" }, "≈ " + money(toMain(v, a.currency), { whole: true })) : null);
+          const v = bal.get(a.id) || 0, k = KIND_ICON[a.kind] ? a.kind : "cash";
+          return h("button", { type: "button", class: "acard k-" + k, "aria-label": `${a.name}, ${KIND_LABEL[a.kind] || ""}, ${fmt(v, a.currency)}`, on: { click: () => { S.filter = { q: "", kind: "all", account: a.id }; go("activity"); } } },
+            h("span", { class: "acard-top" }, h("span", { class: "acard-ico" }, icon(KIND_ICON[a.kind] || "cash", "ico sm")), h("span", { class: "acard-kind" }, KIND_LABEL[a.kind] || ""), k === "bank" || k === "card" ? h("i", { class: "acard-chip" }) : null),
+            h("span", { class: "acard-bal num" + (v < 0 ? " neg" : "") }, fmt(v, a.currency)),
+            a.currency !== mainCur() ? h("span", { class: "acard-alt num" }, "≈ " + money(toMain(v, a.currency), { whole: true })) : h("span", { class: "acard-alt" }, "\u00a0"),
+            h("span", { class: "acard-foot" }, h("span", { class: "acard-name" }, a.name), h("span", { class: "acard-cur" }, curTag(a.currency))));
         }),
-        h("button", { type: "button", class: "acc acc-add", on: { click: () => accountSheet(null) } }, h("span", { class: "acc-ico" }, icon("plus", "ico sm")), h("span", { class: "acc-name" }, "Add account"), h("small", null, "Cash, bank, card, Whish…"))));
+        h("button", { type: "button", class: "acard add", on: { click: () => accountSheet(null) } }, h("span", { class: "acard-ico" }, icon("plus", "ico sm")), h("strong", null, "Add account"), h("small", null, "Cash, bank, card, Whish…"))));
     out.append(accCard);
 
     if (txns.length) {
@@ -3875,8 +4018,8 @@
       h("div", { class: "tile" }, h("small", null, "Came in"), h("strong", null, money(s.income, { whole: true }))),
       h("div", { class: "tile " + (left >= 0 ? "good" : "bad") }, h("small", null, left >= 0 ? "Left over" : "Overspent"), h("strong", null, money(Math.abs(left), { whole: true })))));
     if (s.count) out.append(h("button", { type: "button", class: "btn alt", on: { click: () => recapSheet(m) } }, `${monthName(m)} summary`));
-    const bigPlanet = moneyPlanet(m, s, true);
-    if (bigPlanet) out.append(bigPlanet);
+    const bub = spendBubbles(m, s);
+    if (bub) out.append(bub);
 
     const where = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Where it went")));
     const cats = [...s.byCat].sort((a, b) => b[1] - a[1]);

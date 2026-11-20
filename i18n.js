@@ -1588,7 +1588,19 @@ Object.assign(window.WALLET_I18N.words, {
   "Swipe the planet to spin it": ["Faites glisser la planète pour la tourner", "اسحب الكوكب ليدور"],
   "A spinning planet on Home and Insights shows where your money went this month, one color per category. Swipe it to spin it.": ["Une planète qui tourne sur l'accueil et les analyses montre où est allé votre argent ce mois-ci, une couleur par catégorie. Faites-la glisser pour la tourner.", "كوكب يدور في الرئيسية والتحليلات يُظهر أين ذهبت أموالك هذا الشهر، بلون لكل فئة. اسحبه ليدور."],
   "What you paid, what it's worth": ["Ce que vous avez payé, ce que ça vaut", "ما دفعته وما يساويه"],
-  "The Portfolio now shows how much you paid next to what your investments are worth today, for each one and in total.": ["Le portefeuille affiche maintenant ce que vous avez payé à côté de la valeur actuelle de vos investissements, pour chacun et au total.", "تعرض المحفظة الآن ما دفعته بجانب قيمة استثماراتك اليوم، لكل استثمار وللمجموع."]
+  "The Portfolio now shows how much you paid next to what your investments are worth today, for each one and in total.": ["Le portefeuille affiche maintenant ce que vous avez payé à côté de la valeur actuelle de vos investissements, pour chacun et au total.", "تعرض المحفظة الآن ما دفعته بجانب قيمة استثماراتك اليوم، لكل استثمار وللمجموع."],
+  "account": ["compte", "حساب"],
+  "accounts": ["comptes", "حسابات"],
+  "Shake it": ["Secouez-le", "هزّه"],
+  "days left": ["jours restants", "يوم متبقٍ"],
+  "Spending bubbles": ["Bulles de dépenses", "فقاعات المصاريف"],
+  "Drag and flick the bubbles": ["Faites glisser et lancez les bulles", "اسحب الفقاعات وارمها"],
+  "Tap a bubble": ["Touchez une bulle", "اضغط على فقاعة"],
+  "used": ["utilisé", "مستخدم"],
+  "Your accounts, as real cards": ["Vos comptes, comme de vraies cartes", "حساباتك كبطاقات حقيقية"],
+  "Swipe through your accounts like cards in a wallet, with a bar showing where your money sits.": ["Faites défiler vos comptes comme des cartes dans un portefeuille, avec une barre qui montre où est votre argent.", "تصفّح حساباتك كالبطاقات في محفظة، مع شريط يُظهر أين توجد أموالك."],
+  "Play with your money": ["Jouez avec votre argent", "العب بأموالك"],
+  "Your month plan fills like liquid you can shake, and Insights shows your spending as bubbles you can drag and flick. Tap one to see the amount.": ["Votre plan du mois se remplit comme un liquide que vous pouvez secouer, et les analyses montrent vos dépenses en bulles à faire glisser et lancer. Touchez-en une pour voir le montant.", "تمتلئ خطة شهرك كسائل يمكنك هزّه، وتعرض التحليلات مصاريفك كفقاعات يمكنك سحبها ورميها. اضغط على واحدة لرؤية المبلغ."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],
