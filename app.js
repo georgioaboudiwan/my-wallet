@@ -51,7 +51,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.51.0";
+  const VERSION = "3.52.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2710,6 +2710,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.52.0", items: [
+      ["", "Money theme", "Palette moved from navy and violet to emerald vault green and gold in both themes. Gold card chip and guilloche banknote pattern on the balance card, gold-foil totals on the balance and Portfolio, gold Portfolio buttons and labels, gold ring around the + button, gold settings avatar and sheet handles, green-and-gold suggestion cards and background glow. Status bar colors updated to match."]
+    ] },
     { v: "3.51.0", items: [
       ["", "Unified futuristic design", "New cool palette for both themes (ice-white and deep navy-black), aurora background, deep-space surface shared by the total balance, Portfolio, Split banner and login, mint-to-ice gradient for every main button and the + button, one style for all suggestion cards (salary, split, bills, payday, your part), luminous card edges, neon focus rings and switches, gradient amounts in the add screen."]
     ] },
@@ -2789,6 +2792,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.52.0", items: [
+      ["gem", "Made for money", "Emerald and gold colors, banknote-style patterns, and a total balance that looks like a premium bank card."]
+    ] },
     { v: "3.51.0", items: [
       ["sun", "A whole new look", "BudgetSplit has a new futuristic design across every screen: deep-space cards, glowing buttons and one consistent style in light and dark mode."]
     ] },
@@ -3947,8 +3953,8 @@
     if (v === "system") { root.removeAttribute("data-theme"); root.style.colorScheme = ""; } else { root.setAttribute("data-theme", v); root.style.colorScheme = v; }
     document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.remove());
     const add = (content, media) => { const m = document.createElement("meta"); m.name = "theme-color"; m.content = content; if (media) m.media = media; document.head.append(m); };
-    if (v === "system") { add("#eef3f8", "(prefers-color-scheme: light)"); add("#05070f", "(prefers-color-scheme: dark)"); }
-    else add(v === "dark" ? "#05070f" : "#eef3f8");
+    if (v === "system") { add("#f1f5f0", "(prefers-color-scheme: light)"); add("#040b08", "(prefers-color-scheme: dark)"); }
+    else add(v === "dark" ? "#040b08" : "#f1f5f0");
   }
   function setTheme(v) {
     const before = themeIsDark(themePref());

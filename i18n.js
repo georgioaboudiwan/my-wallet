@@ -1543,7 +1543,9 @@ Object.assign(window.WALLET_I18N.words, {
   "Prices updated.": ["Prix mis à jour.", "تم تحديث الأسعار."],
   "Refresh prices": ["Actualiser les prix", "حدّث الأسعار"],
   "asset": ["actif", "أصل"],
-  "assets": ["actifs", "أصول"]
+  "assets": ["actifs", "أصول"],
+  "Made for money": ["Pensé pour l'argent", "مصمم للمال"],
+  "Emerald and gold colors, banknote-style patterns, and a total balance that looks like a premium bank card.": ["Couleurs émeraude et or, motifs de billets de banque et un solde total qui ressemble à une carte bancaire premium.", "ألوان زمردية وذهبية، ونقوش تشبه الأوراق النقدية، ورصيد إجمالي يبدو كبطاقة مصرفية فاخرة."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],

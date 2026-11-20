@@ -8,7 +8,7 @@
     for (const m of document.querySelectorAll('meta[name="theme-color"]')) m.remove();
     const m = document.createElement("meta");
     m.name = "theme-color";
-    m.content = v === "dark" ? "#05070f" : "#eef3f8";
+    m.content = v === "dark" ? "#040b08" : "#f1f5f0";
     document.head.appendChild(m);
   }
 })();
