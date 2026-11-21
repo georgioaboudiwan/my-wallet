@@ -1679,7 +1679,12 @@ Object.assign(window.WALLET_I18N.words, {
   "days": ["jours", "أيام"],
   "Added automatically": ["Ajouté automatiquement", "يُضاف تلقائيًا"],
   "Coming up on Home": ["À venir sur l'accueil", "القادم في الرئيسية"],
-  "Your next bills and scheduled payments now show near the top of Home, with how much is due this week and in the next 30 days. Tap See all for the next 3 months.": ["Vos prochaines factures et paiements prévus apparaissent en haut de l'accueil, avec ce qui est dû cette semaine et dans les 30 prochains jours. Touchez Tout voir pour les 3 prochains mois.", "تظهر فواتيرك ودفعاتك المجدولة القادمة أعلى الرئيسية، مع المستحق هذا الأسبوع وخلال 30 يومًا. اضغط عرض الكل لرؤية الأشهر الثلاثة القادمة."]
+  "Your next bills and scheduled payments now show near the top of Home, with how much is due this week and in the next 30 days. Tap See all for the next 3 months.": ["Vos prochaines factures et paiements prévus apparaissent en haut de l'accueil, avec ce qui est dû cette semaine et dans les 30 prochains jours. Touchez Tout voir pour les 3 prochains mois.", "تظهر فواتيرك ودفعاتك المجدولة القادمة أعلى الرئيسية، مع المستحق هذا الأسبوع وخلال 30 يومًا. اضغط عرض الكل لرؤية الأشهر الثلاثة القادمة."],
+  "Taken from": ["Pris de", "أُخذ من"],
+  "Put into": ["Mis dans", "وُضع في"],
+  "This money is counted in": ["Cet argent est compté dans", "يُحتسب هذا المال في"],
+  "and in this month's totals.": ["et dans les totaux du mois.", "وفي مجاميع هذا الشهر."],
+  "No account changes. Use this for an old debt from before.": ["Aucun compte ne change. Pour une ancienne dette.", "لا يتغير أي حساب. استخدمه لدين قديم."]
 });
 window.WALLET_I18N.patterns.push(
   ["^Did your (.+) salary come in\\?$", "Votre salaire de $1 est arrivé ?", "هل وصل راتب $1؟"],

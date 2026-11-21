@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.72.1";
+  const VERSION = "3.72.2";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2996,6 +2996,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.72.2", items: [
+      ["", "Pick the account when editing a loan entry", "Edit entry for a person now has Taken from / Put into with every account plus Don't move money. Choosing an account creates or moves the matching account entry; choosing Don't move money removes it. Lets users turn a starting balance into real money that came in."]
+    ] },
     { v: "3.72.1", items: [
       ["", "Starting balances of people not counted", "A person's starting balance (debt that existed before they were added) was counted as money that came in or went out this month since 3.70. It is now left out of Spent, Came in and Left over; only real loans given or received during the month count."]
     ] },
@@ -5950,7 +5953,8 @@
   function loanEntrySheet(p, e) {
     const cur = p.currency;
     const linked = S.data.transactions.get(`ln-${e.id}`);
-    const f = { amount: String(Math.abs(Number(e.amount))), gave: netMine(p, Number(e.amount)) > 0, note: e.note || "", date: e.occurred_on };
+    const f = { amount: String(Math.abs(Number(e.amount))), gave: netMine(p, Number(e.amount)) > 0, note: e.note || "", date: e.occurred_on, account: linked ? linked.account_id : null };
+    const accs = rows("accounts").filter(a => !a.archived || (linked && a.id === linked.account_id)).sort(bySort);
     const body = h("form", { class: "form", id: "le-form", novalidate: true });
     const err = h("p", { class: "form-err", role: "alert" });
     let armed = false;
@@ -5961,7 +5965,11 @@
       h("label", { class: "field" }, h("span", null, `${tr("Amount")} (${curSymbol(cur)})`), h("input", { id: "le-amt", class: "input num", inputmode: "decimal", autocomplete: "off", value: f.amount, on: { input: ev => { f.amount = ev.target.value; } } })),
       h("label", { class: "field" }, h("span", null, "Note"), h("input", { id: "le-note", class: "input", maxlength: "200", autocomplete: "off", value: f.note, on: { input: ev => { f.note = ev.target.value; } } })),
       h("label", { class: "field" }, h("span", null, "Date"), h("input", { id: "le-date", class: "input", type: "date", value: f.date, on: { change: ev => { f.date = ev.target.value; } } })),
-      linked ? h("p", { class: "hint" }, `${tr("Also updates the entry in")} ${(acc(linked.account_id) || {}).name || tr("your account")}.`) : null,
+      h("div", { class: "field" }, h("span", { class: "label" }, f.gave ? "Taken from" : "Put into"),
+        h("div", { class: "chips wrap" },
+          accs.map(a => h("button", { type: "button", class: "chip", "aria-pressed": String(f.account === a.id), on: { click: () => { f.account = a.id; draw(); } } }, h("span", { class: "chip-cur" }, curTag(a.currency)), a.name)),
+          h("button", { type: "button", class: "chip", "aria-pressed": String(!f.account), on: { click: () => { f.account = null; draw(); } } }, "Don't move money"))),
+      h("p", { class: "hint" }, f.account ? `${tr("This money is counted in")} ${(acc(f.account) || {}).name} ${tr("and in this month's totals.")}` : tr("No account changes. Use this for an old debt from before.")),
       err,
       h("button", { type: "button", class: "btn danger alt", on: { click: () => {
         if (!armed) { armed = true; draw(); return; }
@@ -5976,8 +5984,10 @@
       const amount = roundCur(v, cur) * (f.gave ? 1 : -1) * (owesMe(p) ? 1 : -1);
       const note = f.note.trim().slice(0, 200) || null;
       const items = [{ t: "loan_entries", r: { ...e, amount, note, occurred_on: f.date } }];
-      if (linked) items.push({ t: "transactions", r: { ...linked, kind: f.gave ? "loan_out" : "loan_in", amount: roundCur(convert(v, cur, linked.currency), linked.currency), note, occurred_on: f.date } });
+      const ta = f.account && acc(f.account);
+      if (ta) items.push({ t: "transactions", r: { ...(linked || { id: `ln-${e.id}`, to_account_id: null, to_amount: null, category_id: null, rule_id: null, receipt: null, created_at: new Date().toISOString() }), kind: f.gave ? "loan_out" : "loan_in", account_id: ta.id, currency: ta.currency, rate: rateOf(ta.currency), amount: roundCur(convert(v, cur, ta.currency), ta.currency), note, occurred_on: f.date } });
       putMany(items);
+      if (!ta && linked) removeRow("transactions", linked);
       closeSheet(); toast("Entry updated."); personSheet(S.data.people.get(p.id) || p);
     });
     draw();
