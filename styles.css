@@ -2201,7 +2201,6 @@ html.kb .sheet-foot { padding-bottom: 10px; }
 .acc-rail.grid .acard.add { min-height: 118px; }
 @media (min-width: 640px) { .acc-rail.grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
-
 .rcpt-card { position: relative; padding: 0 10px; }
 .rcpt-slot { position: relative; z-index: 2; height: 22px; border-radius: 14px; background: linear-gradient(180deg, #1c2b24, #0b1511); box-shadow: inset 0 1px 0 rgb(255 255 255 / .1), 0 6px 14px rgb(0 0 0 / .25); }
 .rcpt-slot::after { content: ""; position: absolute; left: 18px; right: 18px; top: 10px; height: 4px; border-radius: 4px; background: #020604; box-shadow: inset 0 1px 2px rgb(0 0 0 / .8); }
@@ -2318,11 +2317,11 @@ html.kb .sheet-foot { padding-bottom: 10px; }
 .ai-cta small { font-size: 12.5px; color: var(--muted); }
 .ai-form[hidden] { display: none; }
 
-.top:has(.tool.keys) { flex-wrap: wrap; row-gap: 8px; top: -46px; }
-.top:has(.tool.keys) h1 { flex: 1 0 100%; order: 0; height: 38px; font-size: 30px; line-height: 38px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity .2s; }
-html[lang="ar"] .top:has(.tool.keys) h1 { font-size: 27px; }
-.top.scrolled:has(.tool.keys) h1 { opacity: 0; }
-.top .tool.keys { order: 1; flex: 1 0 100%; min-width: 0; max-width: 100%; display: flex; align-items: center; gap: 8px; padding: 0; margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.top:has(.tool.keys) { gap: 10px; }
+.top:has(.tool.keys) h1 { flex: 0 1 auto; font-size: 25px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[lang="ar"] .top:has(.tool.keys) h1 { font-size: 23px; }
+
+.top .tool.keys { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 0; margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
 .key { position: relative; flex: none; width: 42px; height: 42px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--card); color: var(--ink); cursor: pointer; transition: transform .15s var(--ease), background .15s; -webkit-tap-highlight-color: transparent; }
 .key:active, .ask-pill:active { transform: scale(.94); }
 .key .ico, .priv-knob .ico { width: 20px; height: 20px; }
@@ -2336,13 +2335,13 @@ html[lang="ar"] .top:has(.tool.keys) h1 { font-size: 27px; }
 @keyframes askSheen { 0%, 100% { background-position: 0 0, 100% 0; } 50% { background-position: 0 0, 0 0; } }
 .ask-tx { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14.5px; font-weight: 600; }
 @media (max-width: 360px) { .top .tool.keys { gap: 6px; } .key { width: 38px; height: 38px; } .ask-pill { height: 38px; } .ask-tx { font-size: 13.5px; } }
-@media (min-width: 900px) { .ask-pill { flex: 0 1 460px; margin-inline-end: auto; } }
+@media (min-width: 900px) { .ask-pill { flex: 0 1 320px; } .top:has(.tool.keys) h1 { font-size: 30px; } }
 @media (prefers-reduced-motion: reduce) { .ask-pill { animation: none; } }
 .pf-mini { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 16px; border: 0; border-radius: 18px; background: linear-gradient(145deg, #145a45, #0a2f25); color: #f3d28a; font: 700 15px var(--ui); text-align: left; cursor: pointer; box-shadow: inset 0 0 0 1px rgb(245 196 81 / .35); }
 .pf-mini span { flex: 1; }
 .pf-mini small { color: rgb(243 210 138 / .7); font-weight: 600; font-size: 13px; }
 .pf-mini .ico:last-child { transform: rotate(-90deg); opacity: .7; }
-.top.scrolled:has(.tool.keys) { background: linear-gradient(to bottom, var(--bg) 82%, color-mix(in srgb, var(--bg) 0%, transparent)); }
+
 html[lang="ar"] body { text-align: left; }
 input, textarea { unicode-bidi: plaintext; }
 
@@ -2360,5 +2359,13 @@ html[lang="ar"] .rcpt bdi { font-family: var(--ui), "Geeza Pro", "Noto Sans Arab
 @keyframes gioSpark { 0%, 70%, 100% { transform: rotate(0) scale(1); } 80% { transform: rotate(45deg) scale(1.12); } 90% { transform: rotate(90deg) scale(1); } }
 @keyframes gioMini { 0%, 72%, 100% { transform: scale(1); opacity: 1; } 82% { transform: scale(.3); opacity: .4; } 92% { transform: scale(1.2); opacity: 1; } }
 .ai-typing { display: flex; align-items: flex-end; gap: 8px; justify-self: start; }
-.ask-pill { padding-inline-start: 5px; gap: 9px; }
+.ask-pill { flex: 0 1 132px; min-width: 42px; padding: 0 12px 0 4px; gap: 7px; }
+.ask-tx { font-size: 14px; font-weight: 700; color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .gio .gio-spark, .gio .gio-mini { animation: none; } }
+.top .key { width: 40px; height: 40px; } .top .ask-pill { height: 40px; } .ask-tx:empty { display: none; }
+.top:has(.tool.keys) h1 { flex: 0 0 auto; max-width: 62%; }
+html[lang="ar"] .top:has(.tool.keys) h1 { font-size: 22px; }
+.top .tool.keys { container: keys / inline-size; }
+.top .ask-pill { flex: none; width: auto; }
+.ask-tx { overflow: visible; }
+@container keys (max-width: 250px) { .top .ask-pill { width: 40px; padding: 0; justify-content: center; } .top .ask-tx { display: none; } }

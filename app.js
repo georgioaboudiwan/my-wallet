@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.78.0";
+  const VERSION = "3.78.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1098,7 +1098,7 @@
     const status = h("button", { type: "button", class: "status", on: { click: () => sync() } });
     const bell = h("button", { type: "button", class: "key bell-btn", "aria-label": "Notifications", on: { click: inboxSheet } }, icon("bell"), h("span", { class: "bell-badge" }));
     const eye = h("button", { type: "button", class: "key eye-btn", role: "switch", on: { click: () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); } } }, h("span", { class: "priv-knob" }));
-    const help = h("button", { type: "button", class: "help-btn ask-pill", "aria-label": "Ask Gio", on: { click: assistantSheet } }, gioMark("gio ask-gio"), h("span", { class: "ask-tx" }, "Ask Gio anything"));
+    const help = h("button", { type: "button", class: "help-btn ask-pill", "aria-label": "Ask Gio", on: { click: assistantSheet } }, gioMark("gio ask-gio"), h("span", { class: "ask-tx" }, "Ask Gio"));
     const gear = h("button", { type: "button", class: "key gear-btn me-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, h("span", { class: "me-init" }));
     const main = h("main", { class: "view" });
     const tab = (view, label, ic) => h("button", { type: "button", class: "tab", "data-view": view, on: { click: () => go(view) } }, icon(ic), h("span", null, label));
@@ -3017,6 +3017,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.78.1", items: [
+      ["", "One-row header", "Title and controls back on one row (smaller header): title 25px (22px Arabic) never truncated, then Ask Gio pill, eye, bell, avatar at 40px. The keys row is a size container: when it has under 250px the pill collapses to the Gio logo only (Home, Split), otherwise it shows Ask Gio (Insights). Desktop title 30px."]
+    ] },
     { v: "3.78.0", items: [
       ["", "Gio", "The assistant is now called Gio: header pill, sheet title, consent, hello, Insights card, tour and error texts; the system prompt says it is Gio. New gioMark() SVG logo (emerald rounded tile, gold coin ring, gold four-point spark, small white spark) with a slow twinkle, faster while thinking; reduced motion off. Fix for busy answers: Groq retired llama-3.3-70b-versatile (logs showed 404 model_not_found), so models are now openai/gpt-oss-120b, then gpt-oss-20b, then llama-3.1-8b-instant, with reasoning_effort low and include_reasoning false; empty replies are logged. Function version 4."]
     ] },
