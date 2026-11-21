@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.86.1";
+  const VERSION = "3.87.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3130,6 +3130,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.87.0", items: [
+      ["", "Split scale and item split", "The green Split hero is replaced by a light card with drifting color blobs (dark navy in dark mode) and an SVG balance scale: green coins for what you are owed on the left, coral for what you owe on the right, stacks sized to the amounts with a drop-in animation; the beam tilts toward the heavier side with a spring, can be dragged and swings back, tap to wobble; requestAnimationFrame runs only while it moves, reduced motion keeps it still. Split by item: big scan button, people as colored face bubbles, items on a paper receipt with dotted leaders and per-item faces, tip chips (none, 10, 15, 20%) plus a custom amount, a dark Who pays what card with a colored bar, and a compact category picker."]
+    ] },
     { v: "3.86.1", items: [
       ["", "New admin dashboard", "Command center card on top: total users with new this week, a live pulse with active today and this week, a 14-day app opens sparkline and health lights for the reminder timer, the push server and app errors, plus a refresh button. Four sticky tabs split the rest: Overview (6 KPI tiles, Announce this version and Send a notification as big actions, newest users), People (search by email, users sorted by last activity with a green ring when active in the last day, Admin and Blocked badges), Growth (usage and all insight cards) and Messages (send and history). Nothing removed."]
     ] },
@@ -3350,6 +3353,10 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.87.0", items: [
+      ["people", "A balance you can play with", "The Split page now shows a real scale: the side that's owed more goes down. Drag it and watch it swing."],
+      ["note", "A better split by item", "Tap faces to pick who had what, choose a tip in one tap, and see who pays what on a colored bar."]
+    ] },
     { v: "3.86.0", items: [
       ["people", "A new Split page", "Your balance with people on one card, a bar that shows who owes more, colorful group cards and a tile for each person."],
       ["gear", "A new Settings page", "Your profile card, quick switches, and big colorful tiles for everything you use most."]
@@ -5879,31 +5886,49 @@
       } catch { toast("Couldn't read the receipt. Type the items in.", "error"); }
       scanning = false; draw();
     } } });
-    const whoChip = (id, on, click, small) => h("button", { type: "button", class: "chip" + (small ? " sm" : "") + (on ? " on" : ""), "aria-pressed": String(on), on: { click } }, label(id));
+    const order = () => [ME, ...people().map(p => p.id)];
+    const colorOf = id => id === ME ? "#12b886" : COLORS[(order().indexOf(id) + 2) % COLORS.length];
+    const initial = id => id === ME ? tr("Me").charAt(0).toUpperCase() : label(id).trim().charAt(0).toUpperCase();
+    const bubble = (id, on, click, size = "") => h("button", { type: "button", class: `is-bub ${size}` + (on ? " on" : ""), style: { "--c": colorOf(id) }, "aria-pressed": String(on), "aria-label": label(id), on: { click } }, h("span", { class: "is-bub-in" }, initial(id)), size ? null : h("small", null, label(id)));
+    let showCats = false;
     const draw = () => {
       const { t, total } = shares();
-      const sel = [...f.who];
+      const sel = order().filter(id => f.who.has(id));
+      const base = f.items.reduce((a, it) => a + num(it.price), 0);
+      const extraPct = base ? Math.round(num(f.extra) / base * 100) : 0;
+      const c = cat(f.category);
       keepFocus(() => body.replaceChildren(
-        h("div", { class: "field" }, h("span", { class: "label" }, "Who was there?"),
-          h("div", { class: "chips wrap" },
-            [ME, ...people().map(p => p.id)].map(id => whoChip(id, f.who.has(id), () => { if (id === ME) return; f.who.has(id) ? f.who.delete(id) : f.who.add(id); draw(); })),
-            h("span", { class: "isplit-new" }, h("input", { id: "is-new", class: "input", maxlength: "40", autocomplete: "off", placeholder: "Add a name", value: f.newName, on: { input: e => { f.newName = e.target.value; }, keydown: e => { if (e.key === "Enter") { e.preventDefault(); addName(); } } } }),
-              h("button", { type: "button", class: "chip", "aria-label": "Add", on: { click: addName } }, icon("plus", "ico sm"))))),
-        h("div", { class: "isplit-head" }, h("span", { class: "label" }, "Items"),
-          h("button", { type: "button", class: "link-btn", disabled: scanning, on: { click: () => scanInput.click() } }, icon("cam", "ico sm"), scanning ? "Reading…" : "Scan receipt")),
-        h("div", { class: "card flush isplit-items" }, f.items.map((it, i) => h("div", { class: "isplit-item" },
-          h("div", { class: "isplit-row" },
-            h("input", { class: "input", maxlength: "40", autocomplete: "off", placeholder: `${tr("Item")} ${i + 1}`, value: it.name, "aria-label": "Item", on: { input: e => { it.name = e.target.value; } } }),
-            h("input", { class: "input num isplit-price", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: it.price, "aria-label": "Price", on: { input: e => { it.price = e.target.value; }, change: draw } }),
-            h("button", { type: "button", class: "icon-btn", "aria-label": "Remove", on: { click: () => { f.items.splice(i, 1); if (!f.items.length) f.items.push({ name: "", price: "", who: null }); draw(); } } }, icon("close", "ico sm"))),
-          sel.length > 1 ? h("div", { class: "chips wrap" }, sel.map(id => whoChip(id, (it.who || f.who).has(id), () => { const w = new Set(it.who || f.who); w.has(id) ? w.delete(id) : w.add(id); it.who = w; draw(); }, true))) : null))),
-        h("button", { type: "button", class: "btn alt", on: { click: () => { f.items.push({ name: "", price: "", who: null }); draw(); const ins = body.querySelectorAll(".isplit-row .input:not(.isplit-price)"); if (ins.length) ins[ins.length - 1].focus(); } } }, icon("plus", "ico sm"), "Add item"),
-        h("label", { class: "field" }, h("span", null, `${tr("Tax, service and tip")} (${curSymbol(cur())})`), h("input", { id: "is-extra", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.extra, on: { input: e => { f.extra = e.target.value; }, change: draw } })),
-        h("div", { class: "card flush" }, sel.map(id => h("div", { class: "row" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, label(id)), h("span", { class: "row-sub" }, id === ME ? tr("Your part") : tr("Owes you"))), h("span", { class: "row-end num" }, fmt(t.get(id) || 0, cur(), { show: true })))),
-          h("div", { class: "row isplit-total" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Total")), h("span", { class: "row-end num" }, fmt(total, cur(), { show: true })))),
-        h("div", { class: "field" }, h("span", { class: "label" }, "Paid from"), h("div", { class: "chips wrap" }, accounts.map(a => h("button", { type: "button", class: "chip", "aria-pressed": String(f.account === a.id), on: { click: () => { f.account = a.id; draw(); } } }, h("span", { class: "chip-cur" }, curTag(a.currency)), a.name)))),
-        h("div", { class: "field" }, h("span", { class: "label" }, "Your part goes to"), h("div", { class: "chips wrap" }, rows("categories").filter(c => c.kind === "expense").sort(bySort).map(c => h("button", { type: "button", class: "chip", "aria-pressed": String(f.category === c.id), on: { click: () => { f.category = c.id; draw(); } } }, tr(c.name))))),
-        h("label", { class: "field" }, h("span", null, "Note"), h("input", { id: "is-note", class: "input", maxlength: "200", autocomplete: "off", placeholder: "e.g. Dinner with friends", value: f.note, on: { input: e => { f.note = e.target.value; } } })),
+        h("button", { type: "button", class: "is-scan" + (scanning ? " busy" : ""), disabled: scanning, on: { click: () => scanInput.click() } },
+          h("span", { class: "is-scan-ico" }, icon("cam")),
+          h("span", null, h("strong", null, scanning ? "Reading the receipt…" : "Scan the receipt"), h("small", null, scanning ? "This takes a few seconds" : "Items and prices are filled in for you. Or type them below.")),
+          scanning ? h("span", { class: "is-spin" }) : icon("fwd", "ico sm")),
+        h("div", { class: "is-sec" }, h("span", { class: "is-label" }, "Who was there?"),
+          h("div", { class: "is-people" },
+            order().map(id => bubble(id, f.who.has(id), () => { if (id === ME) return; f.who.has(id) ? f.who.delete(id) : f.who.add(id); draw(); })),
+            h("label", { class: "is-add" }, h("span", { class: "is-bub-in plus" }, icon("plus", "ico sm")),
+              h("input", { id: "is-new", class: "is-new-in", maxlength: "40", autocomplete: "off", placeholder: tr("Add a name"), value: f.newName, on: { input: e => { f.newName = e.target.value; }, keydown: e => { if (e.key === "Enter") { e.preventDefault(); addName(); } }, blur: () => { if (f.newName.trim()) addName(); } } })))),
+        h("div", { class: "is-sec" }, h("span", { class: "is-label" }, `${tr("Items")}${base ? ` · ${fmt(base, cur(), { show: true })}` : ""}`),
+          h("div", { class: "is-receipt" }, f.items.map((it, i) => h("div", { class: "is-item" },
+            h("div", { class: "is-row" },
+              h("input", { class: "is-name", maxlength: "40", autocomplete: "off", placeholder: `${tr("Item")} ${i + 1}`, value: it.name, "aria-label": "Item", on: { input: e => { it.name = e.target.value; } } }),
+              h("i", { class: "is-dots", "aria-hidden": "true" }),
+              h("input", { class: "is-price num isplit-price", inputmode: "decimal", autocomplete: "off", placeholder: "0.00", value: it.price, "aria-label": "Price", on: { input: e => { it.price = e.target.value; }, change: draw } }),
+              h("button", { type: "button", class: "is-x", "aria-label": "Remove", on: { click: () => { f.items.splice(i, 1); if (!f.items.length) f.items.push({ name: "", price: "", who: null }); draw(); } } }, icon("close", "ico sm"))),
+            sel.length > 1 ? h("div", { class: "is-who" }, sel.map(id => bubble(id, (it.who || f.who).has(id), () => { const w = new Set(it.who || f.who); w.has(id) ? w.delete(id) : w.add(id); it.who = w; draw(); }, "xs")),
+              h("small", null, (() => { const n = [...(it.who || f.who)].filter(id => f.who.has(id)).length; return n === sel.length ? tr("Everyone") : n ? `${n} ${tr(n === 1 ? "person" : "people")}` : tr("Nobody"); })())) : null)),
+            h("button", { type: "button", class: "is-additem", on: { click: () => { f.items.push({ name: "", price: "", who: null }); draw(); const ins = body.querySelectorAll(".is-name"); if (ins.length) ins[ins.length - 1].focus(); } } }, icon("plus", "ico sm"), "Add item"))),
+        h("div", { class: "is-sec" }, h("span", { class: "is-label" }, "Tax, service and tip"),
+          h("div", { class: "is-tips" }, [0, 10, 15, 20].map(pc => h("button", { type: "button", class: "is-tip" + (extraPct === pc && (pc || !num(f.extra)) ? " on" : ""), on: { click: () => { f.extra = pc ? String(roundCur(base * pc / 100, cur())) : ""; draw(); } } }, pc ? `${pc}%` : tr("None"))),
+            h("input", { id: "is-extra", class: "is-tip-in num", inputmode: "decimal", autocomplete: "off", placeholder: curSymbol(cur()), value: f.extra, "aria-label": "Tax, service and tip", on: { input: e => { f.extra = e.target.value; }, change: draw } }))),
+        total > 0 ? h("div", { class: "is-sum" },
+          h("div", { class: "is-sum-top" }, h("span", null, "Who pays what"), h("b", { class: "num" }, fmt(total, cur(), { show: true }))),
+          h("div", { class: "is-bar" }, sel.map(id => h("span", { style: { "--c": colorOf(id), width: ((t.get(id) || 0) / total * 100).toFixed(2) + "%" } }))),
+          sel.map(id => h("div", { class: "is-line" }, h("span", { class: "is-bub-in sm", style: { "--c": colorOf(id) } }, initial(id)), h("span", { class: "is-line-name" }, label(id), h("small", null, id === ME ? tr("Your part") : tr("Owes you"))), h("b", { class: "num" }, fmt(t.get(id) || 0, cur(), { show: true }))))) : null,
+        h("div", { class: "is-sec" }, h("span", { class: "is-label" }, "Paid from"), h("div", { class: "chips wrap" }, accounts.map(a => h("button", { type: "button", class: "chip", "aria-pressed": String(f.account === a.id), on: { click: () => { f.account = a.id; draw(); } } }, h("span", { class: "chip-cur" }, curTag(a.currency)), a.name)))),
+        h("div", { class: "is-sec" }, h("span", { class: "is-label" }, "Your part goes to"),
+          showCats ? h("div", { class: "chips wrap" }, rows("categories").filter(x => x.kind === "expense").sort(bySort).map(x => h("button", { type: "button", class: "chip", "aria-pressed": String(f.category === x.id), on: { click: () => { f.category = x.id; showCats = false; draw(); } } }, tr(x.name))))
+            : h("button", { type: "button", class: "is-cat", style: { "--c": c ? c.color : "#5b7083" }, on: { click: () => { showCats = true; draw(); } } }, h("span", { class: "is-cat-ico" }, icon(c ? catIconName(c) || "tag" : "tag", "ico sm")), h("span", null, c ? tr(c.name) : tr("Pick a category")), h("small", null, "Change"))),
+        h("label", { class: "note-line" }, h("span", { class: "ftile-ico" }, icon("note", "ico sm")), h("input", { id: "is-note", class: "note-input", maxlength: "200", autocomplete: "off", placeholder: tr("e.g. Dinner with friends"), value: f.note, on: { input: e => { f.note = e.target.value; } } })),
         err, scanInput));
       btn.textContent = total > 0 ? `${tr("Save split")} · ${fmt(total, cur(), { show: true })}` : tr("Save split");
     };
@@ -6640,6 +6665,62 @@
     } catch { toast("Couldn't join the group. Open the link again.", "error"); }
   }
 
+  function splitScale(owed, owe, total, top, ava, act) {
+    const NS = "http://www.w3.org/2000/svg";
+    const mk = (tag, at, ...kids) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); e.append(...kids); return e; };
+    const span = Math.max(owed, owe, 1);
+    const target = Math.max(-16, Math.min(16, (owe - owed) / span * 16));
+    const coins = v => Math.max(v > 0.5 ? 1 : 0, Math.min(7, Math.round(v / span * 7)));
+    const stack = (n, x, cls) => mk("g", { class: "sc-coins " + cls }, ...Array.from({ length: n }, (_, i) => mk("g", { class: "sc-coin", style: `--i:${i}` }, mk("ellipse", { cx: x, cy: 0 - i * 9, rx: 22, ry: 7, class: "sc-c-side" }), mk("ellipse", { cx: x, cy: -4 - i * 9, rx: 22, ry: 7, class: "sc-c-top" }))));
+    const L = 52, R = 268, PY = 70, CX = 160;
+    const panL = mk("g", { class: "sc-pan in" }, mk("line", { x1: L - 26, y1: 0, x2: L, y2: -58, class: "sc-rope" }), mk("line", { x1: L + 26, y1: 0, x2: L, y2: -58, class: "sc-rope" }), mk("path", { d: `M${L - 38} 0 Q${L} 26 ${L + 38} 0 Z`, class: "sc-dish" }), stack(coins(owed), L, "in"));
+    const panR = mk("g", { class: "sc-pan out" }, mk("line", { x1: R - 26, y1: 0, x2: R, y2: -58, class: "sc-rope" }), mk("line", { x1: R + 26, y1: 0, x2: R, y2: -58, class: "sc-rope" }), mk("path", { d: `M${R - 38} 0 Q${R} 26 ${R + 38} 0 Z`, class: "sc-dish" }), stack(coins(owe), R, "out"));
+    const beam = mk("g", { class: "sc-beam" }, mk("rect", { x: L - 6, y: PY - 5, width: R - L + 12, height: 10, rx: 5, class: "sc-bar" }), mk("circle", { cx: L, cy: PY, r: 6, class: "sc-end" }), mk("circle", { cx: R, cy: PY, r: 6, class: "sc-end" }));
+    const svg = mk("svg", { viewBox: "0 0 320 200", class: "sc-svg", role: "img", "aria-label": `${tr("Owed to you")} ${money(owed, { whole: true })}, ${tr("You owe")} ${money(owe, { whole: true })}` },
+      mk("defs", {}, mk("linearGradient", { id: "scGold", x1: "0", y1: "0", x2: "0", y2: "1" }, mk("stop", { offset: "0", "stop-color": "#ffe9a8" }), mk("stop", { offset: ".55", "stop-color": "#f2b93b" }), mk("stop", { offset: "1", "stop-color": "#b87d17" }))),
+      mk("ellipse", { cx: CX, cy: 188, rx: 70, ry: 7, class: "sc-shadow" }),
+      mk("path", { d: `M${CX - 34} 186 L${CX} 150 L${CX + 34} 186 Z`, class: "sc-base" }),
+      mk("rect", { x: CX - 5, y: PY, width: 10, height: 84, rx: 5, class: "sc-post" }),
+      panL, panR, beam,
+      mk("circle", { cx: CX, cy: PY, r: 11, class: "sc-pivot" }), mk("circle", { cx: CX, cy: PY, r: 4, class: "sc-pivot-in" }));
+    let ang = RM.matches ? target : 0, vel = 0, raf = 0, drag = null;
+    const place = () => {
+      const r = ang * Math.PI / 180, dy = Math.sin(r) * (CX - L), dx = (1 - Math.cos(r)) * (CX - L);
+      beam.setAttribute("transform", `rotate(${ang.toFixed(2)} ${CX} ${PY})`);
+      panL.setAttribute("transform", `translate(${dx.toFixed(2)} ${(PY + 58 - dy).toFixed(2)})`);
+      panR.setAttribute("transform", `translate(${(-dx).toFixed(2)} ${(PY + 58 + dy).toFixed(2)})`);
+    };
+    const step = () => {
+      raf = 0;
+      if (!svg.isConnected) return;
+      if (!drag) { vel += (target - ang) * 0.06; vel *= 0.88; ang += vel; }
+      place();
+      if (drag || Math.abs(vel) > 0.01 || Math.abs(target - ang) > 0.02) raf = requestAnimationFrame(step);
+    };
+    const kick = v => { if (RM.matches) return; vel += v; if (!raf) raf = requestAnimationFrame(step); };
+    place();
+    svg.addEventListener("pointerdown", e => { if (RM.matches) return; drag = { x: e.clientX, a: ang }; try { svg.setPointerCapture(e.pointerId); } catch { } if (!raf) raf = requestAnimationFrame(step); });
+    svg.addEventListener("pointermove", e => { if (!drag) return; ang = Math.max(-28, Math.min(28, drag.a + (e.clientX - drag.x) / 4)); });
+    const up = () => { if (!drag) return; const moved = Math.abs(ang - drag.a) > 1; drag = null; if (!moved) kick(ang > target ? -6 : 6); else kick(0); };
+    svg.addEventListener("pointerup", up); svg.addEventListener("pointercancel", up);
+    requestAnimationFrame(() => kick(0));
+    const goPeople = () => document.getElementById("sp-people")?.scrollIntoView({ behavior: RM.matches ? "auto" : "smooth" });
+    return h("section", { class: "sp-scale" },
+      h("span", { class: "sc-blob a", "aria-hidden": "true" }), h("span", { class: "sc-blob b", "aria-hidden": "true" }), h("span", { class: "sc-blob c", "aria-hidden": "true" }),
+      h("div", { class: "sc-head" },
+        h("div", null, h("small", null, "Who's ahead"), h("strong", { class: "num" }, Math.abs(total) < 0.5 ? tr("All settled") : (total > 0 ? "+" : "−") + money(Math.abs(total), { whole: true })), h("span", null, Math.abs(total) < 0.5 ? tr("Nobody owes anything") : total > 0 ? tr("More is owed to you than you owe") : tr("You owe more than you're owed"))),
+        top.length ? h("div", { class: "sp-stack", "aria-hidden": "true" }, top.map((p, i) => ava(p.name, p.sort || i, owesMe(p) === (loanBalances().get(p.id) > 0) ? "in" : "out"))) : null),
+      svg,
+      h("div", { class: "sc-sides" },
+        h("button", { type: "button", class: "sc-side in", on: { click: goPeople } }, h("small", null, "Owed to you"), h("b", { class: "num" }, money(owed, { whole: true }))),
+        h("small", { class: "sc-hint" }, "Drag the scale"),
+        h("button", { type: "button", class: "sc-side out", on: { click: goPeople } }, h("small", null, "You owe"), h("b", { class: "num" }, money(owe, { whole: true })))),
+      h("div", { class: "sp-acts" },
+        act("people", "Split a bill", newGroupSheet, "main"),
+        act("up", "Lend or borrow", () => personSheet(null)),
+        act("note", "By item", itemSplitSheet)));
+  }
+
   function viewPeople() {
     const bal = loanBalances();
     const people = rows("people").sort(bySort);
@@ -6657,23 +6738,7 @@
     const top = people.filter(p => Math.abs(net.get(p.id)) > 0.004).sort((p, q) => Math.abs(net.get(q.id)) - Math.abs(net.get(p.id))).slice(0, 5);
     const ava = (name, i, cls = "") => h("span", { class: "sp-ava " + cls, style: { "--c": COLORS[i % COLORS.length] } }, String(name || "?").trim().charAt(0).toUpperCase());
     const act = (ic, label, fn, cls = "") => h("button", { type: "button", class: "sp-act " + cls, on: { click: fn } }, h("span", { class: "sp-act-ico" }, icon(ic, "ico sm")), h("span", null, label));
-    out.append(h("section", { class: "sp-hero" },
-      h("div", { class: "sp-top" },
-        h("div", { class: "sp-head" },
-          h("span", { class: "hero-label" }, "Balance with people"),
-          h("strong", { class: "sp-net num" }, Math.abs(total) < 0.5 ? tr("All settled") : (total > 0 ? "+" : "−") + money(Math.abs(total), { whole: true })),
-          h("small", null, Math.abs(total) < 0.5 ? tr("Nobody owes anything") : total > 0 ? tr("More is owed to you than you owe") : tr("You owe more than you're owed"))),
-        top.length ? h("div", { class: "sp-stack", "aria-hidden": "true" }, top.map((p, i) => ava(p.name, p.sort || i, net.get(p.id) > 0 ? "in" : "out"))) : null),
-      h("div", { class: "sp-beam", "aria-hidden": "true" },
-        h("span", { class: "sp-beam-in", style: { "--w": (owed / span * 100).toFixed(1) + "%" } }),
-        h("span", { class: "sp-beam-out", style: { "--w": (owe / span * 100).toFixed(1) + "%" } })),
-      h("div", { class: "sp-sides" },
-        h("button", { type: "button", class: "sp-side in", on: { click: () => document.getElementById("sp-people")?.scrollIntoView({ behavior: RM.matches ? "auto" : "smooth" }) } }, h("small", null, "Owed to you"), h("b", { class: "num" }, money(owed, { whole: true }))),
-        h("button", { type: "button", class: "sp-side out", on: { click: () => document.getElementById("sp-people")?.scrollIntoView({ behavior: RM.matches ? "auto" : "smooth" }) } }, h("small", null, "You owe"), h("b", { class: "num" }, money(owe, { whole: true })))),
-      h("div", { class: "sp-acts" },
-        act("people", "Split a bill", newGroupSheet, "main"),
-        act("up", "Lend or borrow", () => personSheet(null)),
-        act("note", "By item", itemSplitSheet))));
+    out.append(splitScale(owed, owe, total, top, ava, act));
     out.append(groupsCard());
     const grid = h("div", { class: "sp-grid" }, people.map((p, i) => {
       const v = bal.get(p.id) || 0, n = net.get(p.id) || 0, d = theyOwe(p, v) ? dueInfo(p) : null;

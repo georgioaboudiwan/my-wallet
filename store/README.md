@@ -214,6 +214,7 @@ Update this list with every app change, so the listing, screenshots and privacy 
 | 3.84.0 | Receipts shared as images; Gio sphere bar in chat | Mention "share your monthly receipt" in the description |
 | 3.85.0 | Up to 4 daily reminders | In the native app, schedule these as local notifications too |
 | 3.86.0 | Split and Settings pages redesigned | Split screenshot regenerated |
+| 3.87.0 | Interactive balance scale on Split; split by item redesigned | Split screenshot regenerated; consider a split-by-item screenshot |
 
 ## Save for the native app
 
