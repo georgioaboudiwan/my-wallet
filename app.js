@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.74.0";
+  const VERSION = "3.75.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -66,7 +66,7 @@
     plan: "M12 3a9 9 0 1 0 9 9h-9zM15 2.6A9 9 0 0 1 21.4 9H15z",
     plus: "M12 5v14M5 12h14",
     gear: "M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4",
-    cog: "M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z",
+    bubble: "M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-5 4v-4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z",
     eye: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
     eyeOff: "M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6",
     back: "M15 18l-6-6 6-6",
@@ -1080,9 +1080,8 @@
     const status = h("button", { type: "button", class: "status", on: { click: () => sync() } });
     const bell = h("button", { type: "button", class: "key bell-btn", "aria-label": "Notifications", on: { click: inboxSheet } }, icon("bell"), h("span", { class: "bell-badge" }));
     const eye = h("button", { type: "button", class: "eye-btn priv", role: "switch", on: { click: () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); } } }, h("span", { class: "priv-track" }, h("span", { class: "priv-knob" })));
-    const help = h("button", { type: "button", class: "key help-btn ai-btn", "aria-label": "Ask AI", on: { click: assistantSheet } }, h("span", { class: "ai-orb", "aria-hidden": "true" }), icon("star"));
-    const gear = h("button", { type: "button", class: "key gear-btn me-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, h("span", { class: "me-init" }), h("span", { class: "me-gear" }, icon("cog")));
-    const gem = h("button", { type: "button", class: "key gem-btn coin-btn", "aria-label": "Portfolio", on: { click: () => portfolioSheet() } }, icon("gem"));
+    const help = h("button", { type: "button", class: "key help-btn ai-btn", "aria-label": "Ask AI", on: { click: assistantSheet } }, icon("bubble"), h("span", { class: "ai-tag", "aria-hidden": "true" }, document.createTextNode("AI")));
+    const gear = h("button", { type: "button", class: "key gear-btn me-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, h("span", { class: "me-init" }));
     const main = h("main", { class: "view" });
     const tab = (view, label, ic) => h("button", { type: "button", class: "tab", "data-view": view, on: { click: () => go(view) } }, icon(ic), h("span", null, label));
     const tabs = [tab("home", "Home", "home"), tab("activity", "Activity", "list"), tab("insights", "Insights", "chart"), tab("people", "Split", "people")];
@@ -1131,7 +1130,7 @@
     tabsEl.addEventListener("pointercancel", dragDone);
     tabsEl.addEventListener("click", e => { if (Date.now() - dragEnd < 400) { e.stopPropagation(); e.preventDefault(); } }, true);
     const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, tabsEl);
-    const top = h("header", { class: "top" }, title, h("div", { class: "tool keys" }, status, help, gem, eye, bell, gear));
+    const top = h("header", { class: "top" }, title, h("div", { class: "tool keys" }, status, help, eye, bell, gear));
     const ptr = h("div", { class: "ptr", "aria-hidden": "true" }, icon("sync"));
     root.replaceChildren(h("div", { class: "shell" }, top, ptr, main, nav));
     shell = { title, status, eye, bell, gear, main, tabs: [...tabs, sideSettings], top, ptr, lens, lastView: null };
@@ -2143,7 +2142,7 @@
   function portfolioCard() {
     const list = holdings();
     if (!list.length) {
-      if (store.get("pfTeaserOff", false)) return null;
+      if (store.get("pfTeaserOff", false)) return h("button", { type: "button", class: "pf-mini", on: { click: () => portfolioSheet() } }, icon("gem"), h("span", null, "Portfolio"), h("small", null, "Gold, crypto, stocks"), icon("chev", "ico sm"));
       return h("section", { class: "pf-card pf-empty", role: "button", tabindex: "0", on: { click: e => { if (!e.target.closest(".pf-x")) holdingSheet(null); } } },
         h("span", { class: "pf-grid", "aria-hidden": "true" }),
         orb(190, "pf-orb"),
@@ -2889,7 +2888,7 @@
       [".quick", "Quick add", "Your most used categories. Tap one to add an expense already filed in that category."],
       [".remind-pill, .remind", "Daily reminder", "A notification every evening so no expense is forgotten."],
       [".dock .tabs", "Sections", "Home, Activity for every entry, Insights for where your money goes, Split for loans and shared expenses. Tap a tab or slide your finger along the bar."],
-      [".help-btn", "Ask AI anytime", "Tap the star to ask questions about your money, or to replay this tour."]
+      [".help-btn", "Ask AI anytime", "Tap the AI bubble to ask questions about your money, or to replay this tour."]
     ],
     activity: [
       [".search", "Search", "Find any entry by its note, category or amount."],
@@ -3000,6 +2999,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.75.0", items: [
+      ["", "Top bar dock", "3.74 keys replaced by one emerald and gold dock (user picked it from 3 mockups): AI is a chat bubble with an AI tag, eye toggle, bell with badge, initial for Settings, gold dividers, RTL-aware. Portfolio button removed from the bar; when the Portfolio teaser was dismissed and there are no holdings, Home now shows a slim Portfolio row instead of nothing. Hover only on hover devices; Settings key hidden on desktop like before. Removed orb, coin, switch track, cog badge and bell ring."]
+    ] },
     { v: "3.74.0", items: [
       ["", "Top bar keys", "Top bar rebuilt as separate keys instead of one glass pill: glowing conic orb behind the AI star, gold coin for Portfolio, privacy switch with eye knob (role=switch, aria-checked), bell that rings when there are unread items, avatar with the first letter of the name (or email) plus a small cog badge for Settings. Title shrinks to fit and truncates instead of overlapping; keys shrink at 430 px and 380 px, coin hidden under 350 px. New cog icon. Animations off with reduced motion."]
     ] },
@@ -3166,8 +3168,8 @@
     ] }
   ];
   const CHANGES = [
-    { v: "3.74.0", items: [
-      ["eye", "A clearer top bar", "Each button at the top now looks like what it does: a glowing AI orb, a gold coin for your portfolio, a switch to hide amounts, a bell that rings when something is new, and your initial for settings."]
+    { v: "3.75.0", items: [
+      ["bubble", "A cleaner top bar", "The buttons at the top now sit together in one emerald and gold bar. The AI chat has its own bubble, and Portfolio lives on your Home screen."]
     ] },
     { v: "3.73.0", items: [
       ["star", "Ask AI, for free", "Tap the gold star at the top to ask anything about your money: how much you spent, where you can save, who owes you, or how the app works. 30 free questions a day."]
