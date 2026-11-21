@@ -191,3 +191,13 @@ Not collected: location, contacts, health, messages, audio, files, web history, 
 - App Privacy answers: same data as the Play table. Data linked to the user: email, financial info, user content (photos), usage data. Not used for tracking.
 - If you add paid features, they must use Apple in-app purchase on iPhone.
 - Sign in with Google or Microsoft on iPhone requires also offering Sign in with Apple.
+
+## Changes to carry into the store release
+
+Update this list with every app change, so the listing, screenshots and privacy policy stay right.
+
+| Version | Change | Store impact |
+|---|---|---|
+| 3.80.0 | Privacy, terms, delete-account and support pages; store images | Use these URLs and images |
+| 3.81.0 | Worldwide defaults (currency from device region, LBP only if chosen); no brand names; generic e-wallet | Listing says "any currency"; screenshots regenerated |
+| 3.81.1 | Number pad layout fix on the add screen; neutral demo and placeholder names | Screenshots regenerated with neutral names |

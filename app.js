@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.81.0";
+  const VERSION = "3.81.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3073,6 +3073,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.81.1", items: [
+      ["", "Number pad fixed", "The header buttons' .key styles (3.76) were global and squeezed the add screen's number pad into small circles. They are now scoped to the header. Placeholders and examples use neutral names (Alex, Sam, Ski trip) instead of real ones."]
+    ] },
     { v: "3.81.0", items: [
       ["", "Worldwide defaults", "New users start in the currency of their device region (USD if unknown) with Cash, Bank account and Savings; lira cash and generator bills only appear when LBP is picked as the main currency. No brand names in the app or store listing: the Whish default and the old auto-added Whish account are gone, the e-wallet hint is generic, Generator & electricity is now Electricity & water for new users, and phone hints use an international example. Existing users keep their accounts and categories. Public pages, manifest and store texts and images say any currency."]
     ] },
