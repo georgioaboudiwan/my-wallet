@@ -2370,3 +2370,9 @@ html[lang="ar"] .top:has(.tool.keys) h1 { font-size: 22px; }
 .ask-tx { overflow: visible; }
 @container keys (max-width: 250px) { .top .ask-pill { width: 40px; padding: 0; justify-content: center; } .top .ask-tx { display: none; } }
 .top .key { overflow: visible; } .top .bell-badge { z-index: 1; }
+.mcheck-fix { width: auto; flex: none; min-height: 36px; padding: 6px 14px; font-size: 14px; }
+.mcheck-save { display: grid; grid-template-columns: auto 1fr; gap: 12px 14px; align-items: center; padding: 16px; border-radius: var(--r); background: color-mix(in srgb, var(--accent) 8%, var(--card)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent); }
+.mcheck-save > div { display: grid; gap: 3px; min-width: 0; }
+.mcheck-save small { color: var(--muted); font-size: 13.5px; }
+.mcheck-save .btn { grid-column: 1 / -1; }
+.mcheck-off { justify-self: center; font-size: 13.5px; }

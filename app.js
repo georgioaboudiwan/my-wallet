@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.78.3";
+  const VERSION = "3.79.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -865,6 +865,50 @@
         h("button", { type: "button", class: "btn sm", on: { click: () => confirmSalary(r, Number(r.amount)) } }, "Yes, add it"),
         h("button", { type: "button", class: "btn sm alt", on: { click: () => salaryOther(r) } }, "Other amount"),
         h("button", { type: "button", class: "link-btn", on: { click: () => { store.set("paySnooze:" + r.id, today()); render(); } } }, "Not yet")));
+  }
+
+  const checkMonth = () => {
+    const t = today(), d = Number(t.slice(8)), m = t.slice(0, 7);
+    const last = new Date(Number(m.slice(0, 4)), Number(m.slice(5)), 0).getDate();
+    return d >= last - 1 ? m : d <= 7 ? shiftMonth(m, -1) : null;
+  };
+  const leftOver = m => { const st = monthStats(m); return roundCur(st.income - st.spent, mainCur()); };
+  function monthEndCard() {
+    if (storedSettings().monthCheckOff) return null;
+    const m = checkMonth();
+    if (!m || store.get("mcheck:" + m, false) || store.get("mcheckSnooze", "") === today()) return null;
+    if (!monthStats(m).count || !rows("accounts").some(a => !a.archived)) return null;
+    const left = leftOver(m), over = m < thisMonth();
+    return h("section", { class: "payday mcheck" },
+      h("span", { class: "payday-ico" }, icon("piggy")),
+      h("div", { class: "payday-main" },
+        h("strong", null, over ? `${monthName(m)} is over. Is your money still right?` : `${monthName(m)} is ending. Is your money still right?`),
+        h("small", null, left > 0 ? `${money(left, { show: true })} left over this month. Keep it or move it to savings.` : "Check your accounts match the money you really have.")),
+      h("div", { class: "payday-acts" },
+        h("button", { type: "button", class: "btn sm", on: { click: () => monthEndSheet(m) } }, "Check now"),
+        h("button", { type: "button", class: "link-btn", on: { click: () => { store.set("mcheckSnooze", today()); render(); } } }, "Later")));
+  }
+  function monthEndSheet(m) {
+    const done = () => { store.set("mcheck:" + m, true); track("add", "month_check"); render(); };
+    const list = rows("accounts").filter(a => !a.archived).sort(bySort);
+    const bal = balances();
+    const left = leftOver(m);
+    const savings = list.find(a => a.kind === "savings");
+    const from = list.filter(a => a.kind !== "savings").sort((p, q) => toMain(bal.get(q.id) || 0, q.currency) - toMain(bal.get(p.id) || 0, p.currency))[0];
+    const fromBal = from ? roundCur(bal.get(from.id) || 0, from.currency) : 0;
+    const saveAmt = left > 0 ? Math.min(fromBal, roundCur(convert(left, mainCur(), from.currency), from.currency)) : fromBal;
+    const body = h("div", { class: "form" },
+      h("p", { class: "hint" }, "Compare each account with the money you really have. If one is different, fix it so your history stays right."),
+      h("div", { class: "card flush" }, list.map(a => h("div", { class: "row" },
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, a.name), h("span", { class: "row-sub num" }, fmt(bal.get(a.id) || 0, a.currency, { show: true }))),
+        h("button", { type: "button", class: "btn sm alt mcheck-fix", on: { click: () => { done(); closeSheet(); setTimeout(() => balanceSheet(a), 320); } } }, "Fix")))),
+      fromBal > 0 ? h("div", { class: "mcheck-save" },
+        h("span", { class: "payday-ico" }, icon("piggy")),
+        h("div", null, h("strong", null, left > 0 ? `${money(left, { show: true })} left over in ${monthName(m)}` : `${fmt(fromBal, from.currency, { show: true })} still in ${from.name}`), h("small", null, savings ? `Put some aside in ${savings.name}?` : "Put some aside in a savings account?")),
+        h("button", { type: "button", class: "btn sm", on: { click: () => { done(); closeSheet(); setTimeout(() => txnSheet(null, { kind: "transfer", account: from.id, to: savings ? savings.id : undefined, amount: String(saveAmt), note: `${monthName(m)} left over` }), 320); } } }, "Move to savings")) : null,
+      h("button", { type: "button", class: "link-btn mcheck-off", on: { click: () => { saveSettings({ monthCheckOff: true }); closeSheet(); toast("Month-end check turned off. Turn it on again in Settings, Entries and defaults."); } } }, "Don't ask me every month"));
+    const btn = h("button", { type: "button", class: "btn", on: { click: () => { done(); closeSheet(); toast("Great, all set for next month."); } } }, "Everything is right");
+    openSheet(`${monthName(m)} check`, body, btn);
   }
 
   function runRules() {
@@ -3017,6 +3061,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.79.0", items: [
+      ["", "Month-end check", "Home card from the second-to-last day of a month until the 7th of the next (instead of the payday card when that one shows): asks if the money is still right. Sheet lists every account with its balance and a Fix button (opens Change balance), offers Move to savings (transfer from the fullest non-savings account to the first savings account, amount = month left over capped at that balance, or the balance), Everything is right, and Don't ask me every month. Done per month in local storage, Later snoozes for the day. Setting monthCheckOff (synced) under Entries and defaults, Month end. Patterns added for the month texts."]
+    ] },
     { v: "3.78.3", items: [
       ["", "Bell count clipped", "The header keys share the .key class with the keypad, which sets overflow: hidden for the ripple, so the red count on the bell was cut by the round button. Header keys now have overflow visible and no ripple (they already shrink on tap)."]
     ] },
@@ -3207,6 +3254,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.79.0", items: [
+      ["piggy", "Your month-end check", "At the end of each month the app asks if your money is still right. Fix an account in one tap, or move what's left to savings. You can turn it off in Settings."]
+    ] },
     { v: "3.78.0", items: [
       ["star", "Meet Gio", "Your money assistant now has a name and its own logo. Tap Ask Gio at the top to ask about your spending, bills, loans or how the app works."]
     ] },
@@ -3964,6 +4014,8 @@
 
     const pay = paydayCard();
     if (pay) out.append(pay);
+    const mEnd = pay ? null : monthEndCard();
+    if (mEnd) out.append(mEnd);
     const coming = upcomingCard();
     if (coming && !coming.classList.contains("bill-teaser")) out.append(coming);
     else { const sug = salarySuggest(); if (sug) out.append(sug); }
@@ -4622,6 +4674,10 @@
       h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("mail", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Monthly report by email"), h("span", { class: "row-sub wrap" }, storedSettings().reportOff ? "Off" : "A summary of last month, sent when you open the app on or after the 1st")),
         h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(!storedSettings().reportOff), "aria-label": "Monthly report by email", on: { click: () => saveSettings({ reportOff: !storedSettings().reportOff }) } }, h("span", { class: "knob" })))));
+    out.append(group("Month end",
+      h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("piggy", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Month-end check"), h("span", { class: "row-sub wrap" }, storedSettings().monthCheckOff ? "Off" : "At the end of each month, ask if your money is still right and offer to move what's left to savings")),
+        h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(!storedSettings().monthCheckOff), "aria-label": "Month-end check", on: { click: () => saveSettings({ monthCheckOff: !storedSettings().monthCheckOff }) } }, h("span", { class: "knob" })))));
     out.append(group("Entries",
       h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("note", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Note is required"), h("span", { class: "row-sub wrap" }, settings().noteRequired ? "Asked for every category except the ones ticked below" : "Notes are optional")),
