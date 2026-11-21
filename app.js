@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.87.0";
+  const VERSION = "3.87.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3130,6 +3130,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.87.1", items: [
+      ["", "No more null in split by item", "Before any price was typed, the Who pays what card was null and replaceChildren printed it as the word null. Empty parts are now filtered out."]
+    ] },
     { v: "3.87.0", items: [
       ["", "Split scale and item split", "The green Split hero is replaced by a light card with drifting color blobs (dark navy in dark mode) and an SVG balance scale: green coins for what you are owed on the left, coral for what you owe on the right, stacks sized to the amounts with a drop-in animation; the beam tilts toward the heavier side with a spring, can be dragged and swings back, tap to wobble; requestAnimationFrame runs only while it moves, reduced motion keeps it still. Split by item: big scan button, people as colored face bubbles, items on a paper receipt with dotted leaders and per-item faces, tip chips (none, 10, 15, 20%) plus a custom amount, a dark Who pays what card with a colored bar, and a compact category picker."]
     ] },
@@ -5897,7 +5900,7 @@
       const base = f.items.reduce((a, it) => a + num(it.price), 0);
       const extraPct = base ? Math.round(num(f.extra) / base * 100) : 0;
       const c = cat(f.category);
-      keepFocus(() => body.replaceChildren(
+      keepFocus(() => body.replaceChildren(...[
         h("button", { type: "button", class: "is-scan" + (scanning ? " busy" : ""), disabled: scanning, on: { click: () => scanInput.click() } },
           h("span", { class: "is-scan-ico" }, icon("cam")),
           h("span", null, h("strong", null, scanning ? "Reading the receipt…" : "Scan the receipt"), h("small", null, scanning ? "This takes a few seconds" : "Items and prices are filled in for you. Or type them below.")),
@@ -5929,7 +5932,7 @@
           showCats ? h("div", { class: "chips wrap" }, rows("categories").filter(x => x.kind === "expense").sort(bySort).map(x => h("button", { type: "button", class: "chip", "aria-pressed": String(f.category === x.id), on: { click: () => { f.category = x.id; showCats = false; draw(); } } }, tr(x.name))))
             : h("button", { type: "button", class: "is-cat", style: { "--c": c ? c.color : "#5b7083" }, on: { click: () => { showCats = true; draw(); } } }, h("span", { class: "is-cat-ico" }, icon(c ? catIconName(c) || "tag" : "tag", "ico sm")), h("span", null, c ? tr(c.name) : tr("Pick a category")), h("small", null, "Change"))),
         h("label", { class: "note-line" }, h("span", { class: "ftile-ico" }, icon("note", "ico sm")), h("input", { id: "is-note", class: "note-input", maxlength: "200", autocomplete: "off", placeholder: tr("e.g. Dinner with friends"), value: f.note, on: { input: e => { f.note = e.target.value; } } })),
-        err, scanInput));
+        err, scanInput].filter(Boolean)));
       btn.textContent = total > 0 ? `${tr("Save split")} · ${fmt(total, cur(), { show: true })}` : tr("Save split");
     };
     function addName() {
