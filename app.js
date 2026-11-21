@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.85.0";
+  const VERSION = "3.86.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3130,6 +3130,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.86.0", items: [
+      ["", "Split and Settings redesign", "Split: emerald hero card (net with people in gold foil, avatar stack of the top 5 balances with green or coral rings, owed vs owe beam, two balance buttons that jump to People, three actions: Split a bill, Lend or borrow, By item); groups as a horizontal rail of colored cards (color from the name, member avatars, your balance, approvals badge, invites with Accept and Decline); people as a 2-column tile grid with a ring showing each person's share and a late badge; fresh users still get the intro. Settings: profile as a member card (entries, accounts, member since, sync status), quick switches with a mini toggle, Money and App sections as gradient tiles, the rest as lists with glossy icons, and a footer with the logo, version and policy links."]
+    ] },
     { v: "3.85.0", items: [
       ["", "Multiple daily reminders", "push_subs gets extra_times (up to 3 HH:MM, checked by a constraint) and sent_slots (today's sent times). The cron sends one push per run for any due time within 3 hours that wasn't sent today; bill reminders still go only with the first time. Settings → Notifications lists the extra times (Also at) with remove buttons and Add another reminder; they are saved per device. send-reminder version 18."]
     ] },
@@ -3344,6 +3347,10 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.86.0", items: [
+      ["people", "A new Split page", "Your balance with people on one card, a bar that shows who owes more, colorful group cards and a tile for each person."],
+      ["gear", "A new Settings page", "Your profile card, quick switches, and big colorful tiles for everything you use most."]
+    ] },
     { v: "3.85.0", items: [
       ["bell", "Several reminders a day", "Add up to 4 daily reminders, for example after lunch and before bed, in Settings → Notifications."]
     ] },
@@ -5147,10 +5154,18 @@
     const q = (S.setQuery || "").trim().toLowerCase();
     const name = settings().name;
     const syncTxt = !navigator.onLine ? tr("Offline") : S.syncError ? tr("Couldn't sync") : S.outbox.length ? `${S.outbox.length} ${tr("waiting")}` : tr("Up to date");
-    const profile = h("button", { type: "button", class: "set-profile", on: { click: () => settingsOpen("profile") } },
-      h("span", { class: "set-avatar" }, (name || S.email || "?").trim().charAt(0).toUpperCase()),
-      h("span", { class: "set-who" }, h("strong", null, name || tr("Add your name")), h("small", null, S.email || "")),
-      h("span", { class: "set-sync" + (S.syncError || !navigator.onLine ? " bad" : S.outbox.length ? " wait" : "") }, h("i"), syncTxt));
+    const txs = rows("transactions");
+    const since = [...txs.map(x => x.occurred_on), ...rows("accounts").map(a => String(a.created_at || "").slice(0, 10))].filter(d => DATE_RE.test(d)).sort()[0];
+    const profile = h("button", { type: "button", class: "set-card", on: { click: () => settingsOpen("profile") } },
+      h("span", { class: "set-card-top" },
+        h("span", { class: "set-avatar" }, (name || S.email || "?").trim().charAt(0).toUpperCase()),
+        h("span", { class: "set-who" }, h("strong", null, name || tr("Add your name")), h("small", null, S.email || ""),
+          h("span", { class: "set-sync" + (S.syncError || !navigator.onLine ? " bad" : S.outbox.length ? " wait" : "") }, h("i"), syncTxt)),
+        icon("fwd", "ico sm")),
+      h("span", { class: "set-card-stats" },
+        h("span", null, h("b", { class: "num" }, String(txs.length)), h("small", null, "Entries")),
+        h("span", null, h("b", { class: "num" }, String(rows("accounts").filter(a => !a.archived).length)), h("small", null, "Accounts")),
+        h("span", null, h("b", { class: "sm" }, since ? dfmt({ month: "short", year: "numeric" }).format(new Date(since + "T12:00:00")) : "—"), h("small", null, "Member since"))));
     const search = h("label", { class: "set-search" }, icon("search", "ico sm"),
       h("input", { id: "set-q", type: "search", class: "set-q", placeholder: tr("Search settings"), autocomplete: "off", value: S.setQuery || "", "aria-label": "Search settings", on: { input: e => { S.setQuery = e.target.value; render(); } } }),
       q ? h("button", { type: "button", class: "set-q-x", "aria-label": "Clear", on: { click: () => { S.setQuery = ""; render(); } } }, icon("close", "ico sm")) : null);
@@ -5176,7 +5191,7 @@
       return out;
     }
     const quickToggle = (ic, label, onNow, fn, disabled) => h("button", { type: "button", class: "set-tile" + (onNow ? " on" : ""), "aria-pressed": String(!!onNow), disabled: !!disabled, on: { click: fn } },
-      icon(ic, "ico sm"), h("span", null, label), h("small", null, tr(onNow ? "On" : "Off")));
+      h("span", { class: "set-tile-ico" }, icon(ic, "ico sm")), h("span", { class: "set-tile-name" }, label), h("span", { class: "set-mini", "aria-hidden": "true" }, h("i")));
     kids.push(h("div", { class: "set-tiles" },
       quickToggle("lock", "App lock", lockOn, () => (lockOn ? disableLock() : enableLock()), !lockSupported()),
       quickToggle("bell", "Daily reminder", pushOn, () => pushOn ? disablePush() : PUSH.state === "off" ? enablePush(PUSH.time || "21:00") : settingsOpen("notifications")),
@@ -5185,11 +5200,14 @@
     for (const sec of ["Money", "App", "Privacy and data", "Help", "Admin", "Account"]) {
       const list = PAGES.filter(p => p.sec === sec);
       if (!list.length) continue;
+      const grid = sec === "Money" || sec === "App";
       kids.push(h("section", { class: "group" }, h("h2", { class: "group-title" }, sec),
-        h("div", { class: "card flush set-list" }, list.map(p => h("button", { type: "button", class: "row", on: { click: () => openPage(p) } },
-          ico(p), h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.t)), p.v ? h("span", { class: "set-val" }, p.v) : null, icon("fwd"))))));
+        grid ? h("div", { class: "set-grid" }, list.map(p => h("button", { type: "button", class: "set-gtile", style: { "--c": p.c }, on: { click: () => openPage(p) } },
+            h("span", { class: "set-ico big" }, icon(p.ic, "ico sm")), h("span", { class: "set-gname" }, p.t), h("span", { class: "set-gval" }, p.v || "\u00a0"))))
+          : h("div", { class: "card flush set-list" }, list.map(p => h("button", { type: "button", class: "row", on: { click: () => openPage(p) } },
+            ico(p), h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.t)), p.v ? h("span", { class: "set-val" }, p.v) : null, icon("fwd"))))));
     }
-    kids.push(h("p", { class: "about" }, `BudgetSplit · Version ${VERSION}`));
+    kids.push(h("div", { class: "set-foot" }, h("img", { src: "icons/icon-192-b.png", alt: "" }), h("strong", null, ...brandMark()), h("small", null, `${tr("Version")} ${VERSION}`), legalLinks("set-legal")));
     out.replaceChildren(...kids);
     return out;
   }
@@ -5954,25 +5972,31 @@
 
   function groupsCard() {
     const list = [...GROUPS.list.values()];
-    const card = h("section", { class: "card flush groups-card" }, h("div", { class: "card-head" }, h("h2", null, "Shared groups"), h("button", { type: "button", class: "link-btn", on: { click: newGroupSheet } }, "New")));
+    const HUES = [162, 214, 266, 36, 340, 190, 128, 290]; const hue = t => { let x = 0; for (const ch of String(t)) x = (x * 31 + ch.charCodeAt(0)) % 9973; return HUES[x % HUES.length]; };
+    const sec = h("section", { class: "sp-sec" }, h("div", { class: "sp-sec-head" }, h("h2", null, "Groups"), h("button", { type: "button", class: "link-btn", on: { click: newGroupSheet } }, icon("plus", "ico sm"), "New group")));
+    if (!list.length) { sec.append(h("button", { type: "button", class: "sp-group empty", on: { click: newGroupSheet } }, h("span", { class: "sp-g-ico" }, icon("people")), h("span", null, h("strong", null, "Start a group"), h("small", null, "A trip, the house, a dinner. Everyone sees who owes whom.")))); return sec; }
+    const rail = h("div", { class: "sp-rail" });
     for (const g of list.filter(x => !x.joined)) {
       const by = g.members.find(m => m.user_id === g.invited_by);
-      card.append(h("div", { class: "row invite-row" }, h("span", { class: "dot gold" }, icon("people", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, g.meta.name), h("span", { class: "row-sub wrap" }, `${by && by.name !== "Member" ? by.name : "Someone"} invited you`)),
+      rail.append(h("div", { class: "sp-group invite", style: { "--h": String(hue(g.meta.name)) } },
+        h("span", { class: "sp-g-badge" }, "Invite"),
+        h("strong", { class: "sp-g-name" }, g.meta.name),
+        h("small", null, `${by && by.name !== "Member" ? by.name : tr("Someone")} ${tr("invited you")}`),
         h("span", { class: "inv-btns" },
           h("button", { type: "button", class: "chip", on: { click: () => answerGroup(g, false) } }, "Decline"),
           h("button", { type: "button", class: "chip on", on: { click: () => answerGroup(g, true) } }, "Accept"))));
     }
     for (const g of list.filter(x => x.joined)) {
-      const v = myGroupBalance(g);
+      const v = myGroupBalance(g), parties = gParties(g);
       const pend = g.entries.filter(e => e.votes.length && !e.votes.includes(S.uid)).length;
-      card.append(h("button", { type: "button", class: "row", on: { click: () => groupSheet(g.id) } },
-        h("span", { class: "dot neutral" }, icon("people", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, g.meta.name), h("span", { class: "row-sub" }, [`${gParties(g).length} people`, pend ? `${pend} to approve` : null].filter(Boolean).join(" · "))),
-        h("span", { class: "row-end" + (v > 0.005 ? " pos" : v < -0.005 ? " neg" : "") }, Math.abs(v) < 0.005 ? tr("Settled") : (v > 0 ? "+" : "−") + fmt(Math.abs(v), g.meta.currency))));
+      rail.append(h("button", { type: "button", class: "sp-group", style: { "--h": String(hue(g.meta.name)) }, on: { click: () => groupSheet(g.id) } },
+        pend ? h("span", { class: "sp-g-badge" }, `${pend} ${tr("to approve")}`) : null,
+        h("strong", { class: "sp-g-name" }, g.meta.name),
+        h("span", { class: "sp-g-people" }, parties.slice(0, 4).map((p, i) => h("span", { class: "sp-ava xs", style: { "--c": COLORS[i % COLORS.length] } }, String(p.name || "?").charAt(0).toUpperCase())), parties.length > 4 ? h("span", { class: "sp-ava xs more" }, `+${parties.length - 4}`) : null),
+        h("span", { class: "sp-g-bal" + (v > 0.005 ? " in" : v < -0.005 ? " out" : "") }, Math.abs(v) < 0.005 ? tr("Settled") : `${v > 0 ? tr("You get") : tr("You pay")} ${fmt(Math.abs(v), g.meta.currency)}`)));
     }
-    if (!list.length) card.append(h("p", { class: "empty" }, "Share loans and expenses with other people. Everyone sees the same history and who owes whom."));
-    return card;
+    sec.append(rail);
+    return sec;
   }
 
   async function answerGroup(g, yes) {
@@ -6614,32 +6638,51 @@
   }
 
   function viewPeople() {
-    const st = settings();
     const bal = loanBalances();
     const people = rows("people").sort(bySort);
     let { owed, owe } = groupTotals();
+    const net = new Map();
     for (const p of people) {
       const v = netMine(p, toMain(bal.get(p.id) || 0, p.currency));
+      net.set(p.id, v);
       if (v > 0) owed += v; else owe -= v;
     }
-    const out = h("div", { class: "stack" });
-    out.append(h("div", { class: "tiles two" },
-      h("div", { class: "tile good" }, h("small", null, "Owed to you"), h("strong", null, money(owed))),
-      h("div", { class: "tile" + (owe > 0 ? " bad" : "") }, h("small", null, "You owe"), h("strong", null, money(owe)))));
+    const out = h("div", { class: "stack sp" });
     const fresh = !people.length && !GROUPS.list.size;
-    out.append(splitIntro(fresh));
+    if (fresh) { out.append(splitIntro(true)); return out; }
+    const total = owed - owe, span = owed + owe || 1;
+    const top = people.filter(p => Math.abs(net.get(p.id)) > 0.004).sort((p, q) => Math.abs(net.get(q.id)) - Math.abs(net.get(p.id))).slice(0, 5);
+    const ava = (name, i, cls = "") => h("span", { class: "sp-ava " + cls, style: { "--c": COLORS[i % COLORS.length] } }, String(name || "?").trim().charAt(0).toUpperCase());
+    const act = (ic, label, fn, cls = "") => h("button", { type: "button", class: "sp-act " + cls, on: { click: fn } }, h("span", { class: "sp-act-ico" }, icon(ic, "ico sm")), h("span", null, label));
+    out.append(h("section", { class: "sp-hero" },
+      h("div", { class: "sp-top" },
+        h("div", { class: "sp-head" },
+          h("span", { class: "hero-label" }, "Balance with people"),
+          h("strong", { class: "sp-net num" }, Math.abs(total) < 0.5 ? tr("All settled") : (total > 0 ? "+" : "−") + money(Math.abs(total), { whole: true })),
+          h("small", null, Math.abs(total) < 0.5 ? tr("Nobody owes anything") : total > 0 ? tr("More is owed to you than you owe") : tr("You owe more than you're owed"))),
+        top.length ? h("div", { class: "sp-stack", "aria-hidden": "true" }, top.map((p, i) => ava(p.name, p.sort || i, net.get(p.id) > 0 ? "in" : "out"))) : null),
+      h("div", { class: "sp-beam", "aria-hidden": "true" },
+        h("span", { class: "sp-beam-in", style: { "--w": (owed / span * 100).toFixed(1) + "%" } }),
+        h("span", { class: "sp-beam-out", style: { "--w": (owe / span * 100).toFixed(1) + "%" } })),
+      h("div", { class: "sp-sides" },
+        h("button", { type: "button", class: "sp-side in", on: { click: () => document.getElementById("sp-people")?.scrollIntoView({ behavior: RM.matches ? "auto" : "smooth" }) } }, h("small", null, "Owed to you"), h("b", { class: "num" }, money(owed, { whole: true }))),
+        h("button", { type: "button", class: "sp-side out", on: { click: () => document.getElementById("sp-people")?.scrollIntoView({ behavior: RM.matches ? "auto" : "smooth" }) } }, h("small", null, "You owe"), h("b", { class: "num" }, money(owe, { whole: true })))),
+      h("div", { class: "sp-acts" },
+        act("people", "Split a bill", newGroupSheet, "main"),
+        act("up", "Lend or borrow", () => personSheet(null)),
+        act("note", "By item", itemSplitSheet))));
     out.append(groupsCard());
-    const list = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Your loans")));
-    for (const p of people) {
-      const v = bal.get(p.id) || 0;
-      list.append(h("button", { type: "button", class: "row", on: { click: () => personSheet(p) } },
-        h("span", { class: "dot", style: { background: COLORS[(p.sort || 0) % COLORS.length] } }, p.name.charAt(0).toUpperCase()),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" + (theyOwe(p, v) && dueInfo(p) && dueInfo(p).late ? " late" : "") }, [statusText(p, v), theyOwe(p, v) && dueInfo(p) ? dueInfo(p).text : null, linkOf(p) || (p.share_token && LINKS.owned.has(p.share_token)) ? "Shared" : p.share_token ? "Has their page" : null].filter(Boolean).join(" · "))),
-        h("span", { class: "row-end" + (netMine(p, v) > 0.004 ? " pos" : netMine(p, v) < -0.004 ? " neg" : "") }, fmt(Math.abs(v), p.currency))));
-    }
-    if (!people.length) list.append(h("p", { class: "empty" }, "No one yet. Add the people you lend money to or borrow from."));
-    list.append(h("button", { type: "button", class: "row-btn", on: { click: () => personSheet(null) } }, "Add person"));
-    out.append(list, h("p", { class: "hint" }, "Each person can get a private link that shows only their own balance and history. They don't need an account."));
+    const grid = h("div", { class: "sp-grid" }, people.map((p, i) => {
+      const v = bal.get(p.id) || 0, n = net.get(p.id) || 0, d = theyOwe(p, v) ? dueInfo(p) : null;
+      const share = Math.min(1, Math.abs(n) / Math.max(1, ...people.map(q => Math.abs(net.get(q.id) || 0))));
+      return h("button", { type: "button", class: "sp-person" + (n > 0.004 ? " in" : n < -0.004 ? " out" : " even"), style: { "--p": (share * 100).toFixed(1) + "%" }, on: { click: () => personSheet(p) } },
+        h("span", { class: "sp-ring" }, ava(p.name, p.sort || i)),
+        h("span", { class: "sp-name" }, p.name),
+        h("b", { class: "sp-amt num" }, Math.abs(v) < 0.005 ? tr("Settled") : fmt(Math.abs(v), p.currency, { compact: true })),
+        h("small", { class: "sp-st" + (d && d.late ? " late" : "") }, d && d.late ? tr("Late") : tr(statusText(p, v))));
+    }), h("button", { type: "button", class: "sp-person add", on: { click: () => personSheet(null) } }, h("span", { class: "sp-ring" }, h("span", { class: "sp-ava plus" }, icon("plus", "ico sm"))), h("span", { class: "sp-name" }, "Add person"), h("small", { class: "sp-st" }, "Lend or borrow")));
+    out.append(h("section", { class: "sp-sec", id: "sp-people" }, h("div", { class: "sp-sec-head" }, h("h2", null, "People"), h("span", { class: "hint num" }, people.length ? String(people.length) : "")), grid));
+    out.append(h("p", { class: "hint sp-foot" }, "Each person can get a private link that shows only their own balance and history. They don't need an account."));
     return out;
   }
 
