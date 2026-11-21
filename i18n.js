@@ -1876,6 +1876,9 @@ Object.assign(window.WALLET_I18N.words, {
   "Tap faces to pick who had what, choose a tip in one tap, and see who pays what on a colored bar.": ["Touchez les visages pour choisir qui a pris quoi, choisissez le pourboire d'un geste et voyez qui paie quoi sur une barre colorée.", "اضغط على الوجوه لتختار من أخذ ماذا، اختر البقشيش بلمسة، وشاهد من يدفع ماذا على شريط ملوّن."],
   "A colorful balance card": ["Une carte de solde colorée", "بطاقة رصيد ملوّنة"],
   "Split now opens with a vivid card of shifting colors. Move your finger on it and the light follows.": ["Partage s'ouvre maintenant sur une carte aux couleurs vives et changeantes. Bougez le doigt dessus et la lumière suit.", "صفحة التقسيم تبدأ الآن ببطاقة بألوان زاهية متحركة. حرّك إصبعك عليها ويتبعه الضوء."],
+  "Your people in orbit": ["Vos proches en orbite", "أشخاصك في مدار"],
+  "The Split card now shows everyone you share money with circling around you. Spin it with your finger and tap a person to see their balance.": ["La carte Partage montre maintenant tous ceux avec qui vous partagez de l'argent en orbite autour de vous. Faites-la tourner du doigt et touchez une personne pour voir son solde.", "بطاقة التقسيم تعرض الآن كل من تتقاسم معهم المال يدورون حولك. أدِرها بإصبعك واضغط على شخص لترى رصيده."],
+  "Owes you": ["Vous doit", "يدين لك"],
   "Ask AI, for free": ["Demandez à l'IA, gratuitement", "اسأل الذكاء الاصطناعي مجانًا"],
   "Tap the gold star at the top to ask anything about your money: how much you spent, where you can save, who owes you, or how the app works. 30 free questions a day.": ["Touchez l'étoile dorée en haut pour poser n'importe quelle question sur votre argent : combien vous avez dépensé, où économiser, qui vous doit, ou comment marche l'app. 30 questions gratuites par jour.", "اضغط النجمة الذهبية في الأعلى لتسأل أي شيء عن أموالك: كم صرفت، أين توفّر، من يدين لك، أو كيف يعمل التطبيق. 30 سؤالًا مجانيًا يوميًا."]
 });

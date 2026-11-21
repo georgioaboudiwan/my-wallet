@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.88.1";
+  const VERSION = "3.89.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2232,8 +2232,9 @@
       for (const c of document.querySelectorAll("canvas.orb")) if (!c.__orb) orbInit(c); else orbMix(c.__orb);
       for (const r of document.querySelectorAll(".acc-rail")) if (!r.__rail) railInit(r); else r.__rail();
       for (const c of document.querySelectorAll("canvas.tank")) if (!c.__tank) tankInit(c); else c.__tank.read();
+      for (const c of document.querySelectorAll("canvas.orbit")) if (!c.__orb) orbitFx(c); else c.__orb.sync();
       for (const r of document.querySelectorAll(".rcpt-card")) if (!r.__seen) { r.__seen = true; if (RM.matches || !("IntersectionObserver" in window)) { r.__done = true; r.classList.add("printing", "printed"); } else { const io = new IntersectionObserver(es => { if (es.some(en => en.isIntersecting)) { io.disconnect(); r.__done = true; r.classList.add("printing"); setTimeout(() => r.classList.add("printed"), 1700); } }, { threshold: 0.2 }); io.observe(r); } } else if (r.__done) r.classList.add("printing", "printed");
-      for (const el of document.querySelectorAll(".wallet > .hero, .pf-card:not(.pf-empty), .pf-hero, .login-card, .sp-aura")) if (!el.__tilt) tiltInit(el);
+      for (const el of document.querySelectorAll(".wallet > .hero, .pf-card:not(.pf-empty), .pf-hero, .login-card")) if (!el.__tilt) tiltInit(el);
       const a = document.querySelector(".wallet > .hero .hero-total"); if (a) countUp(a, "home");
       const b = document.querySelector(".pf-card .pf-total"); if (b) countUp(b, "pf");
       const c = document.querySelector(".pf-hero .pf-total"); if (c) countUp(c, "pfs");
@@ -3130,6 +3131,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.89.0", items: [
+      ["", "Orbit card on Split", "The aurora card is replaced by a dark emerald card with gold hairlines. A canvas orbit puts you at the center (a gold diamond) and up to 9 people on three perspective rings, emerald for owed to you and rose for you owe, bead size by amount, depth sorting and light trails. It turns slowly; a horizontal drag spins it with inertia; tapping a bead shows the name and amount at the center with a dotted gold line. Pauses off screen and when the tab is hidden; reduced motion keeps it still. The rainbow mesh, the owed bar and the card tilt are gone."]
+    ] },
     { v: "3.88.1", items: [
       ["", "Rounded Split card on iPhone", "Safari drops the rounded clip when a 3D-transformed card has blurred and blended children, so the aurora card showed square corners. It now clips with clip-path inset round 30px plus a WebKit mask."]
     ] },
@@ -3362,6 +3366,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.89.0", items: [
+      ["people", "Your people in orbit", "The Split card now shows everyone you share money with circling around you. Spin it with your finger and tap a person to see their balance."]
+    ] },
     { v: "3.88.0", items: [
       ["people", "A colorful balance card", "Split now opens with a vivid card of shifting colors. Move your finger on it and the light follows."]
     ] },
@@ -6676,21 +6683,96 @@
     } catch { toast("Couldn't join the group. Open the link again.", "error"); }
   }
 
-  function splitAura(owed, owe, total, top, ava, act) {
-    const span = owed + owe || 1;
+  function orbitFx(c) {
+    const card = c.closest(".sp-aura"), read = card?.querySelector(".orb-read");
+    if (!card) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1), ctx = c.getContext("2d");
+    let W = 0, H = 0, list = [], phi = -0.6, vel = 0, raf = 0, vis = true, last = 0, drag = null, sel = -1, pos = [];
+    const AUTO = 0.14, TAU = Math.PI * 2;
+    const size = () => { const r = c.parentElement.getBoundingClientRect(); W = r.width; H = r.height; c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); c.style.width = W + "px"; c.style.height = H + "px"; };
+    const load = () => {
+      try { list = JSON.parse(c.dataset.orbit || "[]"); } catch { list = []; }
+      const n = list.length, max = Math.max(1, ...list.map(o => Math.abs(o.v)));
+      list.forEach((o, i) => { o.ring = n < 3 ? 1 : i % 3; o.t = i / Math.max(1, n) * TAU + o.ring * 0.7; o.s = 0.75 + 0.35 * Math.sqrt(Math.abs(o.v) / max); });
+      sel = -1; if (read) read.hidden = true;
+    };
+    const geo = ring => { const rx = Math.min(W / 2 - 26, 70 + ring * 46 * (W / 360)); return { rx, ry: rx * 0.3 }; };
+    const draw = () => {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+      if (W < 80 || H < 40) return;
+      const cx = W / 2, cy = H / 2 + 4, rings = new Set(list.map(o => o.ring));
+      if (!rings.size) rings.add(1);
+      for (const k of rings) { const { rx, ry } = geo(k); const g = ctx.createLinearGradient(cx - rx, 0, cx + rx, 0); g.addColorStop(0, "rgba(217,185,107,.05)"); g.addColorStop(.5, "rgba(217,185,107,.42)"); g.addColorStop(1, "rgba(217,185,107,.05)"); ctx.strokeStyle = g; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, TAU); ctx.stroke(); }
+      pos = list.map((o, i) => { const { rx, ry } = geo(o.ring), a = o.t + phi * (1 - o.ring * 0.18); const z = Math.sin(a); return { i, o, a, x: cx + rx * Math.cos(a), y: cy + ry * z, z, k: 0.78 + 0.22 * (z + 1) / 2 }; });
+      const bead = p => {
+        const { o, x, y, z, k } = p, col = o.v > 0 ? "52,211,153" : "251,113,133", r = 13 * o.s * k, on = p.i === sel;
+        const { rx, ry } = geo(o.ring);
+        ctx.lineCap = "round";
+        for (let j = 1; j <= 14; j++) { const b = p.a - j * 0.045 * Math.sign(vel || 1), a2 = p.a - (j - 1) * 0.045 * Math.sign(vel || 1); ctx.strokeStyle = `rgba(${col},${(0.42 * (1 - j / 14) * (0.5 + 0.5 * (z + 1) / 2)).toFixed(3)})`; ctx.lineWidth = 2 * k; ctx.beginPath(); ctx.moveTo(cx + rx * Math.cos(a2), cy + ry * Math.sin(a2)); ctx.lineTo(cx + rx * Math.cos(b), cy + ry * Math.sin(b)); ctx.stroke(); }
+        if (on) { ctx.strokeStyle = "rgba(217,185,107,.7)"; ctx.lineWidth = 1; ctx.setLineDash([2, 4]); ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x, y); ctx.stroke(); ctx.setLineDash([]); }
+        const g = ctx.createRadialGradient(x, y, r * .4, x, y, r * 2.4); g.addColorStop(0, `rgba(${col},${on ? .5 : .28})`); g.addColorStop(1, `rgba(${col},0)`); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 2.4, 0, TAU); ctx.fill();
+        const f = ctx.createLinearGradient(x, y - r, x, y + r); f.addColorStop(0, "#1d2e29"); f.addColorStop(1, "#0a1311"); ctx.fillStyle = f; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+        ctx.strokeStyle = `rgb(${col})`; ctx.lineWidth = on ? 2 : 1.4; ctx.stroke();
+        ctx.globalAlpha = 0.55 + 0.45 * (z + 1) / 2; ctx.fillStyle = "#f4efe2"; ctx.font = `600 ${Math.round(r * .95)}px -apple-system, Segoe UI, Roboto, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(o.i, x, y + 0.5); ctx.globalAlpha = 1;
+      };
+      const back = pos.filter(p => p.z < 0).sort((p, q) => p.z - q.z), front = pos.filter(p => p.z >= 0).sort((p, q) => p.z - q.z);
+      back.forEach(bead);
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 26); g.addColorStop(0, "rgba(242,214,140,.55)"); g.addColorStop(1, "rgba(242,214,140,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, 26, 0, TAU); ctx.fill();
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.PI / 4); const gd = ctx.createLinearGradient(-6, -6, 6, 6); gd.addColorStop(0, "#fff3cf"); gd.addColorStop(.5, "#d9b96b"); gd.addColorStop(1, "#8a6a26"); ctx.fillStyle = gd; ctx.fillRect(-5.5, -5.5, 11, 11); ctx.restore();
+      front.forEach(bead);
+    };
+    const tick = now => {
+      raf = 0;
+      if (!c.isConnected || !vis || document.hidden) return;
+      const dt = Math.min(0.05, (now - (last || now)) / 1000); last = now;
+      if (!drag) { vel += ((vel < 0 ? -AUTO : AUTO) - vel) * Math.min(1, dt * 1.6); phi += vel * dt; }
+      draw(); raf = requestAnimationFrame(tick);
+    };
+    const kick = () => { if (!raf && !RM.matches && vis) { last = 0; raf = requestAnimationFrame(tick); } };
+    const show = i => {
+      sel = i;
+      if (!read) return;
+      if (i < 0) { read.hidden = true; return; }
+      const o = list[i]; read.hidden = false;
+      read.replaceChildren(h("span", null, o.n), h("b", { class: "num " + (o.v > 0 ? "in" : "out") }, o.m), h("small", null, tr(o.v > 0 ? "Owes you" : "You owe")));
+    };
+    const pt = e => { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    c.addEventListener("pointerdown", e => { const p = pt(e); drag = { x: p.x, sx: p.x, t: performance.now(), moved: 0 }; vel = 0; });
+    c.addEventListener("pointermove", e => {
+      if (!drag) return;
+      const p = pt(e), dx = p.x - drag.x, now = performance.now(), dt = Math.max(8, now - drag.t) / 1000;
+      drag.moved += Math.abs(dx); const d = dx / (W * 0.32); phi += d; vel = vel * 0.5 + d / dt * 0.5; drag.x = p.x; drag.t = now;
+      if (RM.matches) draw();
+    });
+    const up = e => {
+      if (!drag) return;
+      if (drag.moved < 6) { const p = pt(e); let best = -1, bd = 26; for (const q of pos) { const d = Math.hypot(q.x - p.x, q.y - p.y) - q.z * 4; if (d < bd) { bd = d; best = q.i; } } show(best === sel ? -1 : best); if (best >= 0 && navigator.vibrate) navigator.vibrate(6); draw(); }
+      vel = Math.max(-6, Math.min(6, vel)); drag = null;
+    };
+    c.addEventListener("pointerup", up); c.addEventListener("pointercancel", () => { drag = null; });
+    if ("IntersectionObserver" in window) new IntersectionObserver(es => { for (const en of es) vis = en.isIntersecting; if (vis) kick(); }).observe(c);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) kick(); });
+    const sync = () => {
+      const k = c.dataset.orbit;
+      if (c.__k === k) { if (!c.style.width || c.width !== Math.round(W * dpr)) { size(); draw(); } kick(); return; }
+      c.__k = k; size(); load(); draw(); kick();
+    };
+    if ("ResizeObserver" in window) new ResizeObserver(() => { const r = c.parentElement.getBoundingClientRect(); if (Math.abs(r.width - W) > 1 || Math.abs(r.height - H) > 1) { size(); draw(); } }).observe(c.parentElement);
+    c.__orb = { sync };
+    sync();
+  }
+
+  function splitAura(owed, owe, total, orb, act) {
     const goPeople = () => document.getElementById("sp-people")?.scrollIntoView({ behavior: RM.matches ? "auto" : "smooth" });
     return h("div", { class: "aura-wrap" },
       h("section", { class: "sp-aura" },
-        h("span", { class: "aura-mesh", "aria-hidden": "true" }),
-        h("span", { class: "aura-sheen", "aria-hidden": "true" }),
-        h("span", { class: "fx-glare", "aria-hidden": "true" }),
-        h("div", { class: "aura-top" },
-          h("span", { class: "aura-label" }, "Balance with people"),
-          top.length ? h("div", { class: "sp-stack", "aria-hidden": "true" }, top.map((p, i) => ava(p.name, p.sort || i, owesMe(p) === (loanBalances().get(p.id) > 0) ? "in" : "out"))) : null),
+        h("div", { class: "aura-top" }, h("span", { class: "aura-label" }, "Balance with people"), h("span", { class: "aura-count num" }, orb.length ? `${orb.length} ${tr(orb.length === 1 ? "person" : "people")}` : "")),
         h("div", { class: "aura-mid" },
           h("strong", { class: "aura-net num" }, Math.abs(total) < 0.5 ? tr("All settled") : (total > 0 ? "+" : "−") + money(Math.abs(total), { whole: true })),
           h("span", { class: "aura-sub" }, Math.abs(total) < 0.5 ? tr("Nobody owes anything") : total > 0 ? tr("More is owed to you than you owe") : tr("You owe more than you're owed"))),
-        h("div", { class: "aura-bar", "aria-hidden": "true" }, h("span", { class: "in", style: { "--w": (owed / span * 100).toFixed(1) + "%" } }), h("span", { class: "out", style: { "--w": (owe / span * 100).toFixed(1) + "%" } })),
+        orb.length ? h("div", { class: "orb-box" },
+          h("canvas", { class: "orbit", "data-orbit": JSON.stringify(orb), "aria-hidden": "true" }),
+          h("div", { class: "orb-read", hidden: true, "aria-live": "polite" })) : null,
         h("div", { class: "aura-sides" },
           h("button", { type: "button", class: "aura-side", on: { click: goPeople } }, h("small", null, h("i", { class: "dot-in" }), tr("Owed to you")), h("b", { class: "num" }, money(owed, { whole: true }))),
           h("button", { type: "button", class: "aura-side", on: { click: goPeople } }, h("small", null, h("i", { class: "dot-out" }), tr("You owe")), h("b", { class: "num" }, money(owe, { whole: true }))))),
@@ -6717,7 +6799,8 @@
     const top = people.filter(p => Math.abs(net.get(p.id)) > 0.004).sort((p, q) => Math.abs(net.get(q.id)) - Math.abs(net.get(p.id))).slice(0, 5);
     const ava = (name, i, cls = "") => h("span", { class: "sp-ava " + cls, style: { "--c": COLORS[i % COLORS.length] } }, String(name || "?").trim().charAt(0).toUpperCase());
     const act = (ic, label, fn, cls = "") => h("button", { type: "button", class: "sp-act " + cls, on: { click: fn } }, h("span", { class: "sp-act-ico" }, icon(ic, "ico sm")), h("span", null, label));
-    out.append(splitAura(owed, owe, total, top, ava, act));
+    const orb = people.filter(p => Math.abs(net.get(p.id)) > 0.004).sort((p, q) => Math.abs(net.get(q.id)) - Math.abs(net.get(p.id))).slice(0, 9).map(p => ({ n: p.name, i: String(p.name || "?").trim().charAt(0).toUpperCase(), v: Math.round(net.get(p.id) * 100) / 100, m: money(Math.abs(net.get(p.id)), { whole: true }) }));
+    out.append(splitAura(owed, owe, total, orb, act));
     out.append(groupsCard());
     const grid = h("div", { class: "sp-grid" }, people.map((p, i) => {
       const v = bal.get(p.id) || 0, n = net.get(p.id) || 0, d = theyOwe(p, v) ? dueInfo(p) : null;
