@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.78.2";
+  const VERSION = "3.78.3";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2088,7 +2088,7 @@
   document.addEventListener("pointerdown", e => {
     if (RM.matches) return;
     const b = e.target.closest && e.target.closest(".btn, .pf-cta, .key, .set-tile");
-    if (!b || b.disabled) return;
+    if (!b || b.disabled || b.closest(".top")) return;
     const r = b.getBoundingClientRect(), d = Math.max(r.width, r.height) * 2.2;
     const sp = document.createElement("span");
     sp.className = "fx-ripple";
@@ -3017,6 +3017,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.78.3", items: [
+      ["", "Bell count clipped", "The header keys share the .key class with the keypad, which sets overflow: hidden for the ripple, so the red count on the bell was cut by the round button. Header keys now have overflow visible and no ripple (they already shrink on tap)."]
+    ] },
     { v: "3.78.2", items: [
       ["", "Announce text", "Announce this version skipped the first item, so a release with one item gave an empty \"New: .\" text. It now uses all items, or the item's own sentence when there is only one."]
     ] },

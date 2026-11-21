@@ -2369,3 +2369,4 @@ html[lang="ar"] .top:has(.tool.keys) h1 { font-size: 22px; }
 .top .ask-pill { flex: none; width: auto; }
 .ask-tx { overflow: visible; }
 @container keys (max-width: 250px) { .top .ask-pill { width: 40px; padding: 0; justify-content: center; } .top .ask-tx { display: none; } }
+.top .key { overflow: visible; } .top .bell-badge { z-index: 1; }
