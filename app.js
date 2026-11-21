@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.86.0";
+  const VERSION = "3.86.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3130,6 +3130,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.86.1", items: [
+      ["", "New admin dashboard", "Command center card on top: total users with new this week, a live pulse with active today and this week, a 14-day app opens sparkline and health lights for the reminder timer, the push server and app errors, plus a refresh button. Four sticky tabs split the rest: Overview (6 KPI tiles, Announce this version and Send a notification as big actions, newest users), People (search by email, users sorted by last activity with a green ring when active in the last day, Admin and Blocked badges), Growth (usage and all insight cards) and Messages (send and history). Nothing removed."]
+    ] },
     { v: "3.86.0", items: [
       ["", "Split and Settings redesign", "Split: emerald hero card (net with people in gold foil, avatar stack of the top 5 balances with green or coral rings, owed vs owe beam, two balance buttons that jump to People, three actions: Split a bill, Lend or borrow, By item); groups as a horizontal rail of colored cards (color from the name, member avatars, your balance, approvals badge, invites with Accept and Decline); people as a 2-column tile grid with a ring showing each person's share and a late badge; fresh users still get the intro. Settings: profile as a member card (entries, accounts, member since, sync status), quick switches with a mini toggle, Money and App sections as gradient tiles, the rest as lists with glossy icons, and a footer with the logo, version and policy links."]
     ] },
@@ -7242,58 +7245,89 @@
   const whenText = iso => iso ? ago(iso) : "never";
   const isBlocked = u => !!u.banned_until && new Date(u.banned_until) > new Date();
 
+  function spark(vals, w = 300, hgt = 64) {
+    const NS = "http://www.w3.org/2000/svg", max = Math.max(1, ...vals), n = Math.max(1, vals.length - 1);
+    const pts = vals.map((v, i) => [i / n * w, hgt - 6 - v / max * (hgt - 14)]);
+    const line = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+    const svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("viewBox", `0 0 ${w} ${hgt}`); svg.setAttribute("preserveAspectRatio", "none"); svg.setAttribute("class", "adm-spark"); svg.setAttribute("aria-hidden", "true");
+    const mk = (tag, at) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); return e; };
+    const gid = "asg" + Math.random().toString(36).slice(2, 7);
+    const defs = mk("defs", {}), lg = mk("linearGradient", { id: gid, x1: "0", y1: "0", x2: "0", y2: "1" });
+    lg.append(mk("stop", { offset: "0", "stop-color": "#3ee8a5", "stop-opacity": ".45" }), mk("stop", { offset: "1", "stop-color": "#3ee8a5", "stop-opacity": "0" }));
+    defs.append(lg);
+    svg.append(defs, mk("path", { d: `${line} L${w} ${hgt} L0 ${hgt} Z`, fill: `url(#${gid})` }), mk("path", { d: line, fill: "none", stroke: "#f5c451", "stroke-width": "2.5", "stroke-linecap": "round", "stroke-linejoin": "round", "vector-effect": "non-scaling-stroke" }));
+    const last = pts[pts.length - 1];
+    svg.append(mk("circle", { cx: last[0].toFixed(1), cy: last[1].toFixed(1), r: "4", fill: "#fff" }));
+    return svg;
+  }
+
   function viewAdmin() {
-    const out = h("div", { class: "stack" });
+    const out = h("div", { class: "stack adm" });
     if (!ADMIN.allowed) { out.append(h("p", { class: "empty" }, "This area is for the admin only.")); return out; }
     if (!ADMIN.data && !ADMIN.loading && !ADMIN.error) loadAdmin();
-    out.append(h("div", { class: "btn-row" },
-      h("button", { type: "button", class: "btn alt", on: { click: () => go("settings") } }, icon("back", "ico sm"), "Settings"),
-      h("button", { type: "button", class: "btn alt", disabled: ADMIN.loading, on: { click: loadAdmin } }, icon("sync", "ico sm"), ADMIN.loading ? "Loading…" : "Refresh")));
-    if (ADMIN.error) { out.append(h("div", { class: "alert bad" }, icon("warn"), h("span", null, ADMIN.error))); return out; }
+    out.append(h("button", { type: "button", class: "back-row", on: { click: () => go("settings") } }, icon("back", "ico"), h("span", null, "Settings")));
+    if (ADMIN.error) { out.append(h("div", { class: "alert bad" }, icon("warn"), h("span", null, ADMIN.error)), h("button", { type: "button", class: "btn", on: { click: loadAdmin } }, "Try again")); return out; }
     const d = ADMIN.data;
-    if (!d) { out.append(h("p", { class: "empty" }, "Loading the dashboard…")); return out; }
-    const t = d.totals || {};
-    out.append(h("div", { class: "tiles" },
-      h("div", { class: "tile" }, h("small", null, "Users"), h("strong", null, String(t.users ?? 0))),
-      h("div", { class: "tile" }, h("small", null, "Entries"), h("strong", null, String(t.transactions ?? 0))),
-      h("div", { class: "tile" }, h("small", null, "Reminders on"), h("strong", null, String(t.reminders_on ?? 0)))));
-    out.append(h("div", { class: "tiles" },
-      h("div", { class: "tile" }, h("small", null, "Loan contacts"), h("strong", null, String(t.people ?? 0))),
-      h("div", { class: "tile" }, h("small", null, "Loan entries"), h("strong", null, String(t.loan_entries ?? 0))),
-      h("div", { class: "tile" }, h("small", null, "Shared pages"), h("strong", null, String(t.shared_links ?? 0)))));
-
-    const cron = d.cron;
-    const calls = d.reminder_calls || {};
+    if (!d) { out.append(h("div", { class: "adm-hero adm-skel" }, h("span", { class: "hero-label" }, "Loading the dashboard…"))); return out; }
+    const t = d.totals || {}, u = USAGE.data || {}, act = u.active || {};
+    const weekAgo = Date.now() - 7 * 864e5;
+    const fresh = d.users.filter(x => new Date(x.created_at).getTime() > weekAgo).length;
+    const byDay = new Map((u.days || []).map(x => [x.day, x]));
+    const opens = Array.from({ length: 14 }, (_, i) => byDay.get(ymd(new Date(Date.now() - (13 - i) * 864e5)))?.opens || 0);
+    const cron = d.cron, calls = d.reminder_calls || {};
     const cronOk = cron && cron.status === "succeeded" && (Date.now() - new Date(cron.at).getTime()) < 15 * 60000;
-    out.append(h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Server health")),
-      h("div", { class: "row" }, h("span", { class: "dot " + (cronOk ? "ok" : "bad") }, icon(cronOk ? "check" : "warn", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Reminder timer"), h("span", { class: "row-sub" }, cron ? `Last run ${whenText(cron.at)} · ${cron.status}` : "Hasn't run yet"))),
-      h("div", { class: "row" }, h("span", { class: "dot " + (calls.failed ? "bad" : "ok") }, icon(calls.failed ? "warn" : "check", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Reminder server, last 24 h"), h("span", { class: "row-sub" }, `${calls.ok ?? 0} OK · ${calls.failed ?? 0} failed`)))));
-
-    out.append(usageCard(), ...insightsCards());
-    const latest = CHANGES[0];
-    const annTitle = `Version ${latest.v} is here`;
-    const announced = INBOX.items.some(n => n.title === annTitle);
-    const annBody = (latest.items.length === 1 ? latest.items[0][2] : `New: ${latest.items.map(x => x[1]).join(", ")}. Open the app to see what changed.`).slice(0, 180);
-    out.append(h("section", { class: "card" + (announced ? "" : " announce") },
-      h("div", { class: "row" }, h("span", { class: "dot " + (announced ? "ok" : "gold") }, icon(announced ? "check" : "star", "ico sm")),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, `Version ${latest.v}`), h("span", { class: "row-sub wrap" }, announced ? "Announced to everyone." : "Not announced yet. Tell your users what's new."))),
-      announced ? null : h("button", { type: "button", class: "btn", on: { click: () => notifySheet(null, { title: annTitle, body: annBody }) } }, icon("bell", "ico sm"), "Announce this version")));
-    out.append(h("button", { type: "button", class: "btn", on: { click: () => notifySheet(null) } }, icon("bell", "ico sm"), "Send a notification to everyone"));
-    if (!INBOX.at) loadInbox(true);
-    out.append(sentCard());
-    const list = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, `Users (${d.users.length})`)));
-    for (const u of [...d.users].sort((a, b) => String(b.last_sign_in_at || "").localeCompare(String(a.last_sign_in_at || "")))) {
-      const st = u.stats || {};
-      const tags = [u.is_me ? "You · admin" : null, isBlocked(u) ? "Blocked" : null].filter(Boolean).join(" · ");
-      list.append(h("button", { type: "button", class: "row", on: { click: () => adminUserSheet(u) } },
-        h("span", { class: "dot " + (isBlocked(u) ? "bad" : u.is_me ? "gold" : "neutral") }, (u.email || "?").charAt(0).toUpperCase()),
-        h("span", { class: "row-main" }, h("span", { class: "row-title" }, u.email || "No email"), h("span", { class: "row-sub" }, [tags, `${st.transactions ?? 0} entries`, (USAGE.data?.per_user || {})[u.id]?.last ? `active ${ago(USAGE.data.per_user[u.id].last)}` : `seen ${whenText(u.last_sign_in_at)}`].filter(Boolean).join(" · "))),
-        icon("fwd")));
+    const led = (ok, label, sub) => h("span", { class: "adm-led" + (ok ? " ok" : " bad"), title: sub }, h("i"), label);
+    out.append(h("section", { class: "adm-hero" },
+      h("div", { class: "adm-hero-top" },
+        h("div", null, h("span", { class: "hero-label" }, "Command center"),
+          h("strong", { class: "adm-big num" }, String(t.users ?? d.users.length)),
+          h("small", null, `${tr("users")} · ${fresh ? `+${fresh} ${tr("this week")}` : tr("no new users this week")}`)),
+        h("button", { type: "button", class: "adm-refresh" + (ADMIN.loading ? " spin" : ""), "aria-label": "Refresh", disabled: ADMIN.loading, on: { click: loadAdmin } }, icon("sync", "ico sm"))),
+      h("div", { class: "adm-live" }, h("span", { class: "adm-pulse" }), h("b", { class: "num" }, String(act.today ?? 0)), h("span", null, "active today"), h("span", { class: "adm-sep" }), h("b", { class: "num" }, String(act.week ?? 0)), h("span", null, "this week")),
+      spark(opens),
+      h("small", { class: "adm-cap" }, `${tr("App opens, last 14 days")} · ${opens.reduce((a, b) => a + b, 0)}`),
+      h("div", { class: "adm-leds" }, led(cronOk, "Reminder timer", cron ? `${whenText(cron.at)} · ${cron.status}` : "never"), led(!calls.failed, "Push server", `${calls.ok ?? 0} OK · ${calls.failed ?? 0} failed`), led(!(INSIGHTS.data?.errors || []).length, "App errors", `${(INSIGHTS.data?.errors || []).length}`))));
+    const TABS = [["overview", "Overview"], ["people", "People"], ["growth", "Growth"], ["messages", "Messages"]];
+    const tab = TABS.some(x => x[0] === S.adminTab) ? S.adminTab : "overview";
+    out.append(h("div", { class: "adm-tabs", role: "tablist" }, TABS.map(([k, label]) => h("button", { type: "button", role: "tab", class: "adm-tab" + (tab === k ? " on" : ""), "aria-selected": String(tab === k), on: { click: () => { S.adminTab = k; render(); } } }, label))));
+    if (tab === "overview") {
+      const kpi = (ic, c, label, v) => h("div", { class: "adm-kpi", style: { "--c": c } }, h("span", { class: "set-ico big" }, icon(ic, "ico sm")), h("strong", { class: "num" }, String(v ?? 0)), h("small", null, label));
+      out.append(h("div", { class: "adm-kpis" },
+        kpi("users", "#3b74d0", "Users", t.users), kpi("list", "#12916f", "Entries", t.transactions), kpi("bell", "#e0534a", "Reminders on", t.reminders_on),
+        kpi("people", "#7a5cd6", "Loan contacts", t.people), kpi("up", "#c99a1c", "Loan entries", t.loan_entries), kpi("link", "#1f9bb0", "Shared pages", t.shared_links)));
+      const latest = CHANGES[0], annTitle = `Version ${latest.v} is here`, announced = INBOX.items.some(n => n.title === annTitle);
+      const annBody = (latest.items.length === 1 ? latest.items[0][2] : `New: ${latest.items.map(x => x[1]).join(", ")}. Open the app to see what changed.`).slice(0, 180);
+      out.append(h("div", { class: "adm-acts" },
+        h("button", { type: "button", class: "adm-act" + (announced ? " done" : " hot"), disabled: announced, on: { click: () => notifySheet(null, { title: annTitle, body: annBody }) } }, h("span", { class: "adm-act-ico" }, icon(announced ? "check" : "star", "ico sm")), h("strong", null, announced ? `v${latest.v} ${tr("announced")}` : `${tr("Announce")} v${latest.v}`), h("small", null, announced ? "Everyone has been told" : "Tell everyone what's new")),
+        h("button", { type: "button", class: "adm-act", on: { click: () => notifySheet(null) } }, h("span", { class: "adm-act-ico" }, icon("bell", "ico sm")), h("strong", null, "Send a notification"), h("small", null, "To every user"))));
+      const recent = [...d.users].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 4);
+      out.append(h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Newest users"), h("button", { type: "button", class: "link-btn", on: { click: () => { S.adminTab = "people"; render(); } } }, "See all")), recent.map(userRow)));
+    } else if (tab === "people") {
+      const q = (S.adminQ || "").trim().toLowerCase();
+      const list = [...d.users].filter(x => !q || String(x.email || "").toLowerCase().includes(q)).sort((a, b) => String(((USAGE.data?.per_user || {})[b.id] || {}).last || b.last_sign_in_at || "").localeCompare(String(((USAGE.data?.per_user || {})[a.id] || {}).last || a.last_sign_in_at || "")));
+      out.append(h("label", { class: "set-search" }, icon("search", "ico sm"), h("input", { id: "adm-q", type: "search", class: "set-q", placeholder: tr("Search by email"), autocomplete: "off", value: S.adminQ || "", on: { input: e => { S.adminQ = e.target.value; render(); } } })),
+        h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, `${tr("Users")} (${list.length})`)), list.length ? list.map(userRow) : h("p", { class: "empty" }, "No user matches that.")),
+        h("p", { class: "hint" }, "To stop new people from creating accounts, turn off “Allow new users to sign up” in Supabase → Authentication → Sign In / Providers."));
+    } else if (tab === "growth") {
+      out.append(usageCard(), ...insightsCards());
+    } else {
+      if (!INBOX.at) loadInbox(true);
+      out.append(h("button", { type: "button", class: "btn", on: { click: () => notifySheet(null) } }, icon("bell", "ico sm"), "Send a notification to everyone"), sentCard());
     }
-    out.append(list, h("p", { class: "hint" }, "To stop new people from creating accounts, turn off “Allow new users to sign up” in Supabase → Authentication → Sign In / Providers."));
     return out;
+  }
+  function userRow(u) {
+    const st = u.stats || {}, us = (USAGE.data?.per_user || {})[u.id] || {};
+    const last = us.last || u.last_sign_in_at;
+    const hot = last && Date.now() - new Date(last).getTime() < 864e5;
+    const i = [...String(u.email || "?")].reduce((a, c) => a + c.charCodeAt(0), 0);
+    return h("button", { type: "button", class: "row adm-user", on: { click: () => adminUserSheet(u) } },
+      h("span", { class: "sp-ava" + (hot ? " live" : ""), style: { "--c": COLORS[i % COLORS.length] } }, (u.email || "?").charAt(0).toUpperCase()),
+      h("span", { class: "row-main" }, h("span", { class: "row-title" }, u.email || "No email"),
+        h("span", { class: "row-sub" }, [`${st.transactions ?? 0} ${tr("entries")}`, last ? ago(last) : tr("never"), DEVICE_NAMES[us.device] || null].filter(Boolean).join(" · "))),
+      u.is_me ? h("span", { class: "adm-badge gold" }, "Admin") : isBlocked(u) ? h("span", { class: "adm-badge bad" }, "Blocked") : null,
+      icon("fwd"));
   }
 
   function adminUserSheet(u) {
