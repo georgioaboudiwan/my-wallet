@@ -212,6 +212,7 @@ Update this list with every app change, so the listing, screenshots and privacy 
 | 3.82.0 | Gio adds entries from a sentence; split a receipt by item; budget alerts; weekly cash count; repeating payments; year in review | Add these to the full description; consider screenshots of split by item and year in review; privacy policy updated (Gio sees category, account and people names) |
 | 3.83.0 | Notifications: delete, clear all, grouped by day; Gio sphere | No listing change needed |
 | 3.84.0 | Receipts shared as images; Gio sphere bar in chat | Mention "share your monthly receipt" in the description |
+| 3.85.0 | Up to 4 daily reminders | In the native app, schedule these as local notifications too |
 
 ## Save for the native app
 

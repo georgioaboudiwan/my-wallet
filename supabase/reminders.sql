@@ -45,3 +45,10 @@ grant select on public.transactions to service_role;
 create index if not exists push_subs_user_id_idx on public.push_subs (user_id);
 grant select on public.rules, public.categories to service_role;
 alter table public.push_subs add column if not exists last_status integer;
+
+alter table public.push_subs add column if not exists extra_times text[] not null default '{}';
+alter table public.push_subs add column if not exists sent_slots text[] not null default '{}';
+alter table public.push_subs drop constraint if exists push_subs_extra_times_check;
+alter table public.push_subs add constraint push_subs_extra_times_check check (cardinality(extra_times) <= 3 and array_to_string(extra_times, ',') ~ '^((([01][0-9]|2[0-3]):[0-5][0-9])(,([01][0-9]|2[0-3]):[0-5][0-9])*)?$');
+alter table public.push_subs drop constraint if exists push_subs_sent_slots_check;
+alter table public.push_subs add constraint push_subs_sent_slots_check check (cardinality(sent_slots) <= 8);

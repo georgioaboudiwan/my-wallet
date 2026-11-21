@@ -65,7 +65,7 @@ export async function vapidAuth(endpoint: string, publicKey: string, privateJwk:
 }
 
 type Keys = { public_key: string; private_jwk: JsonWebKey; cron_secret: string };
-type Sub = { id: string; user_id: string; endpoint: string; p256dh: string; auth: string; remind_at: string; tz: string; last_sent: string | null };
+type Sub = { id: string; user_id: string; endpoint: string; p256dh: string; auth: string; remind_at: string; tz: string; last_sent: string | null; extra_times?: string[]; sent_slots?: string[] };
 
 async function loadKeys(): Promise<Keys> {
   const { data, error } = await sb.from("push_keys").select("public_key, private_jwk, cron_secret").eq("id", 1).single();
@@ -165,20 +165,27 @@ Deno.serve(async req => {
       const statuses = await Promise.all(((subs ?? []) as Sub[]).map(sub => push(keys, sub, msg).catch(() => 0)));
       return json({ sent: statuses.filter(s => s >= 200 && s < 300).length });
     }
-    const { data: subs } = await sb.from("push_subs").select("id, user_id, endpoint, p256dh, auth, remind_at, tz, last_sent").eq("enabled", true);
+    const { data: subs } = await sb.from("push_subs").select("id, user_id, endpoint, p256dh, auth, remind_at, tz, last_sent, extra_times, sent_slots").eq("enabled", true);
     let sent = 0;
+    const toMin = (t: string) => { const [h, m] = t.slice(0, 5).split(":").map(Number); return h * 60 + m; };
     for (const sub of (subs ?? []) as Sub[]) {
       let now;
       try { now = localNow(sub.tz); } catch { continue; }
-      const [h, m] = sub.remind_at.split(":").map(Number);
-      const due = h * 60 + m;
-      if (now.minutes < due || now.minutes - due > 180 || sub.last_sent === now.date) continue;
-      await sb.from("push_subs").update({ last_sent: now.date }).eq("id", sub.id);
+      const main = sub.remind_at.slice(0, 5);
+      const times = [main, ...(sub.extra_times ?? [])].filter((t, i, a) => /^\d{2}:\d{2}$/.test(t) && a.indexOf(t) === i);
+      const done = new Set((sub.sent_slots ?? []).filter(x => x.startsWith(now.date)));
+      if (sub.last_sent === now.date) done.add(`${now.date} ${main}`);
+      const due = times.filter(t => now.minutes >= toMin(t) && now.minutes - toMin(t) <= 180 && !done.has(`${now.date} ${t}`));
+      if (!due.length) continue;
+      for (const t of due) done.add(`${now.date} ${t}`);
+      const patch: Record<string, unknown> = { sent_slots: [...done].slice(-8) };
+      if (due.includes(main)) patch.last_sent = now.date;
+      await sb.from("push_subs").update(patch).eq("id", sub.id);
       let status = 0;
       try { status = await push(keys, sub, await reminderFor(sub, now.date)); } catch (e) { console.error("push failed", String((e as Error)?.message || e).slice(0, 200)); }
       if (status >= 200 && status < 300) sent++; else console.error("push status", status, new URL(sub.endpoint).host);
       await sb.from("push_subs").update({ last_status: status }).eq("id", sub.id);
-      try { const bill = await billsFor(sub.user_id, now.date); if (bill) await push(keys, sub, bill); } catch (e) { console.error("bills", String((e as Error)?.message || e).slice(0, 200)); }
+      if (due.includes(main)) { try { const bill = await billsFor(sub.user_id, now.date); if (bill) await push(keys, sub, bill); } catch (e) { console.error("bills", String((e as Error)?.message || e).slice(0, 200)); } }
     }
     return json({ sent });
   }

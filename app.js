@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.84.0";
+  const VERSION = "3.85.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1884,7 +1884,7 @@
       const known = store.get("pushState", null);
       loadPushState();
       if (!known) return null;
-      PUSH.state = known.state; PUSH.time = known.time;
+      PUSH.state = known.state; PUSH.time = known.time; PUSH.extra = Array.isArray(known.extra) ? known.extra : [];
     }
     if (PUSH.state !== "off" && PUSH.state !== "install") return null;
     const later = h("button", { type: "button", class: "btn alt", on: { click: () => { store.set("remindAsk", "no"); render(); toast("You can turn it on later in Settings."); } } }, "Not now");
@@ -1919,7 +1919,7 @@
     };
     return h("button", { type: "button", class: "remind-pill" + (on ? " on" : ""), on: { click: act } },
       h("span", { class: "dot " + (on ? "neutral" : "gold") }, icon("bell", "ico sm")),
-      h("span", { class: "row-main" }, h("span", { class: "row-title" }, on ? "Daily reminder is on" : "Turn on the daily reminder"), h("span", { class: "row-sub" }, on ? `Every day at ${PUSH.time || "21:00"}` : "Get a notification to log what you spent.")),
+      h("span", { class: "row-main" }, h("span", { class: "row-title" }, on ? "Daily reminder is on" : "Turn on the daily reminder"), h("span", { class: "row-sub" }, on ? `${tr("Every day at")} ${[PUSH.time || "21:00", ...(PUSH.extra || [])].sort().join(", ")}` : "Get a notification to log what you spent.")),
       on ? icon("fwd") : h("span", { class: "pill-cta" }, "Turn on"));
   }
 
@@ -3130,6 +3130,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.85.0", items: [
+      ["", "Multiple daily reminders", "push_subs gets extra_times (up to 3 HH:MM, checked by a constraint) and sent_slots (today's sent times). The cron sends one push per run for any due time within 3 hours that wasn't sent today; bill reminders still go only with the first time. Settings → Notifications lists the extra times (Also at) with remove buttons and Add another reminder; they are saved per device. send-reminder version 18."]
+    ] },
     { v: "3.84.0", items: [
       ["", "Receipt images and Gio bar", "Receipts are drawn on a 1080 px canvas (paper with torn edges, brand, dotted lines, bars, totals, barcode) and shared as a PNG file through the share sheet, or downloaded when file sharing isn't available. Share receipt under the monthly receipt in Insights and in Year in review (which used to share text only). Gio chat keeps a sticky bar with a live sphere and status once the conversation starts; the sphere spins fast while Gio is thinking and on tap."]
     ] },
@@ -3341,6 +3344,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.85.0", items: [
+      ["bell", "Several reminders a day", "Add up to 4 daily reminders, for example after lunch and before bed, in Settings → Notifications."]
+    ] },
     { v: "3.84.0", items: [
       ["share", "Share your receipt", "Your monthly receipt and your year in review are now shared as a real receipt image, ready to send."]
     ] },
@@ -8020,7 +8026,7 @@
     if (!id || !ID_RE.test(id)) { id = "dev-" + newId(); try { localStorage.setItem("wallet:device", id); } catch { } }
     return id;
   };
-  const PUSH = { state: null, time: null, busy: false, loading: false };
+  const PUSH = { state: null, time: null, extra: [], busy: false, loading: false };
 
   async function loadPushState() {
     if (PUSH.loading) return;
@@ -8036,15 +8042,16 @@
         const sub = reg ? await reg.pushManager.getSubscription() : null;
         if (reg && !sub) state = "off";
         else if (sub) {
-          const { data, error } = await sb.from("push_subs").select("enabled, remind_at").eq("id", deviceId()).maybeSingle();
+          const { data, error } = await sb.from("push_subs").select("enabled, remind_at, extra_times").eq("id", deviceId()).maybeSingle();
           if (!error) {
             if (data && data.remind_at) time = String(data.remind_at).slice(0, 5);
+            if (data && Array.isArray(data.extra_times)) PUSH.extra = data.extra_times.filter(t => /^\d{2}:\d{2}$/.test(t)).slice(0, 3);
             state = data && data.enabled ? "on" : "off";
           }
         }
       }
     } catch { }
-    if (state === "on" || state === "off") store.set("pushState", { state, time });
+    if (state === "on" || state === "off") store.set("pushState", { state, time, extra: PUSH.extra || [] });
     PUSH.state = state; PUSH.time = time; PUSH.loading = false;
     if (S.view === "settings" || S.view === "home") render();
   }
@@ -8078,7 +8085,7 @@
       const j = sub.toJSON();
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Beirut";
       await sb.from("push_subs").delete().eq("endpoint", j.endpoint).neq("id", deviceId());
-      const { error: e2 } = await sb.from("push_subs").upsert({ id: deviceId(), user_id: S.uid, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, remind_at: time, tz, enabled: true, last_sent: null }, { onConflict: "id" });
+      const { error: e2 } = await sb.from("push_subs").upsert({ id: deviceId(), user_id: S.uid, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, remind_at: time, extra_times: (PUSH.extra || []).filter(t => t !== time).slice(0, 3), tz, enabled: true, last_sent: null }, { onConflict: "id" });
       if (e2) return toast("Couldn't save the reminder. Try again.", "error");
       PUSH.state = "on"; PUSH.time = time; store.set("pushState", { state: "on", time });
       toast(`Reminder set for ${time} every day.`);
@@ -8112,6 +8119,17 @@
     if (PUSH.state !== "on") return;
     const { error } = await sb.from("push_subs").update({ remind_at: time, last_sent: null }).eq("id", deviceId());
     toast(error ? "Couldn't change the time. Try again." : `Reminder moved to ${time}.`, error ? "error" : undefined);
+  }
+
+  async function setPushExtra(list) {
+    const next = [...new Set(list.filter(t => /^\d{2}:\d{2}$/.test(t) && t !== (PUSH.time || "21:00")))].sort().slice(0, 3);
+    const prev = PUSH.extra || [];
+    PUSH.extra = next;
+    render();
+    if (PUSH.state !== "on") return;
+    const { error } = await sb.from("push_subs").update({ extra_times: next }).eq("id", deviceId());
+    if (error) { PUSH.extra = prev; render(); toast("Couldn't save the reminder. Try again.", "error"); }
+    else toast(next.length ? `${tr("Reminders at")} ${[PUSH.time || "21:00", ...next].sort().join(", ")}.` : tr("One reminder a day."));
   }
 
   async function testPush() {
@@ -8194,14 +8212,18 @@
       on: { click: () => on ? disablePush() : enablePush(document.getElementById("s-remind").value || time) } }, h("span", { class: "knob" }));
     const timeIn = h("input", { id: "s-remind", class: "input time-input", type: "time", value: time, "aria-label": "Reminder time", on: { change: e => setPushTime(e.target.value) } });
     const sub = st === null ? "Checking…"
-      : on ? `Every day at ${time}. Tells you if nothing is logged yet.`
+      : on ? `${tr("Every day at")} ${[time, ...(PUSH.extra || [])].sort().join(", ")}. ${tr("Tells you if nothing is logged yet.")}`
       : st === "install" ? "Add BudgetSplit to your Home Screen first, then open it from there."
       : st === "denied" ? "Notifications are blocked. Allow them in iPhone Settings → Notifications → Wallet."
       : st === "unsupported" ? "This browser can't show notifications."
       : "Get a notification to log what you spent.";
     return group("Daily reminder",
       h("div", { class: "row" }, h("span", { class: "dot gold" }, icon("bell", "ico sm")), h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Remind me every day"), h("span", { class: "row-sub wrap" }, sub)), sw),
-      h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("cal", "ico sm")), h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Time")), timeIn),
+      h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("cal", "ico sm")), h("span", { class: "row-main" }, h("span", { class: "row-title" }, (PUSH.extra || []).length ? "First reminder" : "Time")), timeIn),
+      (PUSH.extra || []).map((t, i) => h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("bell", "ico sm")), h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Also at")),
+        h("input", { class: "input time-input", type: "time", value: t, "aria-label": `${tr("Reminder")} ${i + 2}`, on: { change: e => { const l = [...PUSH.extra]; l[i] = e.target.value; setPushExtra(l); } } }),
+        h("button", { type: "button", class: "icon-btn", "aria-label": "Remove this reminder", on: { click: () => setPushExtra(PUSH.extra.filter((_, k) => k !== i)) } }, icon("close", "ico sm")))),
+      (PUSH.extra || []).length < 3 && st !== "install" && st !== "unsupported" ? h("button", { type: "button", class: "row-btn", disabled: PUSH.busy, on: { click: () => { const used = new Set([time, ...(PUSH.extra || [])]); const pick = ["09:00", "13:00", "18:00", "22:00", "07:30"].find(t => !used.has(t)) || "12:00"; setPushExtra([...(PUSH.extra || []), pick]); } } }, icon("plus", "ico sm"), "Add another reminder") : null,
       on ? h("button", { type: "button", class: "row-btn", disabled: PUSH.busy, on: { click: testPush } }, PUSH.busy ? "Sending…" : "Send a test notification") : null);
   }
 

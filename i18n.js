@@ -1832,6 +1832,17 @@ Object.assign(window.WALLET_I18N.words, {
   "Couldn't share the receipt. Try again.": ["Impossible de partager le reçu. Réessayez.", "تعذّرت مشاركة الإيصال. حاول مجددًا."],
   "Share your receipt": ["Partagez votre reçu", "شارك إيصالك"],
   "Your monthly receipt and your year in review are now shared as a real receipt image, ready to send.": ["Votre reçu du mois et votre bilan de l'année se partagent maintenant en vraie image de reçu, prête à envoyer.", "إيصالك الشهري وحصاد سنتك يُشاركان الآن كصورة إيصال حقيقية جاهزة للإرسال."],
+  "Every day at": ["Chaque jour à", "كل يوم عند"],
+  "Tells you if nothing is logged yet.": ["Vous prévient si rien n'est encore saisi.", "يُعلمك إن لم تُسجّل شيئًا بعد."],
+  "Reminders at": ["Rappels à", "تذكيرات عند"],
+  "One reminder a day.": ["Un rappel par jour.", "تذكير واحد يوميًا."],
+  "First reminder": ["Premier rappel", "التذكير الأول"],
+  "Reminder": ["Rappel", "تذكير"],
+  "Remove this reminder": ["Retirer ce rappel", "أزل هذا التذكير"],
+  "Add another reminder": ["Ajouter un autre rappel", "أضف تذكيرًا آخر"],
+  "Several reminders a day": ["Plusieurs rappels par jour", "عدة تذكيرات يوميًا"],
+  "Add up to 4 daily reminders, for example after lunch and before bed, in Settings → Notifications.": ["Ajoutez jusqu'à 4 rappels par jour, par exemple après le déjeuner et avant de dormir, dans Réglages → Notifications.", "أضف حتى 4 تذكيرات يوميًا، مثلًا بعد الغداء وقبل النوم، من الإعدادات ← الإشعارات."],
+  "Also at": ["Aussi à", "وأيضًا عند"],
   "Ask AI, for free": ["Demandez à l'IA, gratuitement", "اسأل الذكاء الاصطناعي مجانًا"],
   "Tap the gold star at the top to ask anything about your money: how much you spent, where you can save, who owes you, or how the app works. 30 free questions a day.": ["Touchez l'étoile dorée en haut pour poser n'importe quelle question sur votre argent : combien vous avez dépensé, où économiser, qui vous doit, ou comment marche l'app. 30 questions gratuites par jour.", "اضغط النجمة الذهبية في الأعلى لتسأل أي شيء عن أموالك: كم صرفت، أين توفّر، من يدين لك، أو كيف يعمل التطبيق. 30 سؤالًا مجانيًا يوميًا."]
 });
