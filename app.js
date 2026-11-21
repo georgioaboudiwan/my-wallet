@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.76.1";
+  const VERSION = "3.77.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -171,7 +171,7 @@
   };
   const brandMark = () => { const [a, b] = LANG === "ar" ? ["ميزانية ", "وتقسيم"] : ["Budget", "Split"]; return [document.createTextNode(a), h("span", { class: "brand-split" }, document.createTextNode(b))]; };
   const dateLocale = () => LANG === "fr" ? "fr-FR" : LANG === "ar" ? "ar-LB-u-nu-latn" : "en-GB";
-  const applyLang = () => { document.documentElement.lang = LANG; document.documentElement.dir = LANG === "ar" ? "rtl" : "ltr"; };
+  const applyLang = () => { document.documentElement.lang = LANG; document.documentElement.dir = "ltr"; };
   const setLang = v => { if (!LANGS[v] || v === LANG) return; LANG = v; trCache.clear(); try { localStorage.setItem("wallet:lang", v); } catch { } applyLang(); shell = null; render(); };
   const toTop = () => { window.scrollTo(0, 0); if (document.scrollingElement) document.scrollingElement.scrollTop = 0; if (shell && shell.main) shell.main.scrollTop = 0; };
   const langChosen = () => { try { return !!LANGS[localStorage.getItem("wallet:lang")]; } catch { return true; } };
@@ -224,6 +224,8 @@
     if ((tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") && document.activeElement !== old && old.value !== neu.value) old.value = neu.value;
   }
 
+  const AR_RE = /[\u0600-\u06FF]/;
+  const rtlText = t => { if (LANG !== "ar" || !AR_RE.test(t)) return t; const b = document.createElement("bdi"); b.dir = "rtl"; b.textContent = t; return b; };
   const h = (tag, props, ...kids) => {
     const el = document.createElement(tag);
     if (props) {
@@ -238,7 +240,7 @@
     }
     for (const kid of kids.flat(Infinity)) {
       if (kid == null || kid === false) continue;
-      el.append(kid instanceof Node ? kid : tr(String(kid)));
+      el.append(kid instanceof Node ? kid : rtlText(tr(String(kid))));
     }
     return el;
   };
@@ -1101,7 +1103,7 @@
     const ORDER = ["home", "activity", null, "insights", "people"];
     let drag = null, dragEnd = 0;
     const dragStop = () => { tabsEl.classList.remove("dragging"); tabs.forEach(t => t.classList.remove("over")); drag = null; };
-    const snap = near => { const i = LANG === "ar" ? 4 - near : near; return ORDER[i] ? i : (S.view === "activity" || near < 2 ? 1 : 3); };
+    const snap = near => { const i = near; return ORDER[i] ? i : (S.view === "activity" || near < 2 ? 1 : 3); };
     tabsEl.addEventListener("pointerdown", e => {
       if (window.innerWidth >= 900 || (e.pointerType === "mouse" && e.button !== 0) || e.target.closest(".tab-add")) return;
       const r = tabsEl.getBoundingClientRect();
@@ -1113,7 +1115,7 @@
       if (!drag.moved) { drag.moved = true; try { tabsEl.setPointerCapture(e.pointerId); } catch { } tabsEl.classList.add("dragging"); }
       const pos = Math.max(0, Math.min(4 * drag.w, e.clientX - drag.left - drag.w / 2));
       drag.pos = pos;
-      lens.style.transform = `translateX(${LANG === "ar" ? pos - 4 * drag.w : pos}px)`;
+      lens.style.transform = `translateX(${pos}px)`;
       const idx = snap(Math.round(pos / drag.w));
       tabs.forEach(t => t.classList.toggle("over", t.dataset.view === ORDER[idx]));
     });
@@ -1196,7 +1198,7 @@
     for (const t of shell.tabs) t.setAttribute("aria-current", t.dataset.view === S.view ? "page" : "false");
     const tabIndex = ["home", "activity", null, "insights", "people"].indexOf(S.view === "plan" ? "insights" : S.view);
     shell.lens.style.opacity = tabIndex < 0 ? "0" : "1";
-    if (tabIndex >= 0) shell.lens.style.transform = `translateX(${LANG === "ar" ? -tabIndex * 100 : tabIndex * 100}%)`;
+    if (tabIndex >= 0) shell.lens.style.transform = `translateX(${tabIndex * 100}%)`;
     paintSplitBadge();
     renderStatus();
     paintBell();
@@ -2999,6 +3001,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.77.0", items: [
+      ["", "No mirroring in Arabic", "The page is always dir=ltr, so in Arabic every button, tab, swipe and card keeps the same place as in English (right-hand reach). Arabic text from h() is wrapped in <bdi dir=rtl> so words, numbers and punctuation read in the right order; inputs use unicode-bidi: plaintext. Removed the tab, lens, segment and swipe mirroring in JS and all [dir=rtl] CSS; text-align start/end became left/right. Arabic font and zero letter-spacing now keyed on html[lang=ar]; receipt uses the UI font for Arabic words."]
+    ] },
     { v: "3.76.1", items: [
       ["", "Avatar on the right", "Header order is now Ask AI, eye, bell, then the avatar (Settings) at the end; mirrored in Arabic."]
     ] },
@@ -3174,6 +3179,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.77.0", items: [
+      ["globe", "Same layout in Arabic", "In Arabic, buttons and menus now stay in the same place as in English, so they are just as easy to reach with your right hand. Only the words change."]
+    ] },
     { v: "3.76.0", items: [
       ["bubble", "A new header", "Ask AI now has its own bar at the top so it is easy to find. Your initial opens settings, and the eye and bell sit next to it. Portfolio lives on your Home screen."]
     ] },
@@ -6789,13 +6797,13 @@
 
   const seg = (options, value, onPick, label) => {
     const idx = Math.max(0, options.findIndex(o => o[0] === value));
-    const thumb = h("span", { class: "seg-thumb", "aria-hidden": "true", style: { width: `calc((100% - 6px) / ${options.length})`, transform: `translateX(${(LANG === "ar" ? -1 : 1) * idx * 100}%)` } });
+    const thumb = h("span", { class: "seg-thumb", "aria-hidden": "true", style: { width: `calc((100% - 6px) / ${options.length})`, transform: `translateX(${idx * 100}%)` } });
     const el = h("div", { class: "seg", role: "group", "aria-label": label }, thumb,
       options.map(([k, l, disabled], i) => h("button", { type: "button", "aria-pressed": String(value === k), disabled: !!disabled, on: { click: e => {
         if (k === value) return;
         const live = e.currentTarget.parentElement || el;
         const liveThumb = live.querySelector(".seg-thumb") || thumb;
-        liveThumb.style.transform = `translateX(${(LANG === "ar" ? -1 : 1) * i * 100}%)`;
+        liveThumb.style.transform = `translateX(${i * 100}%)`;
         live.querySelectorAll("button").forEach((b, j) => b.setAttribute("aria-pressed", String(j === i)));
         setTimeout(() => onPick(k), 170);
       } } }, l)));
