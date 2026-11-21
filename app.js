@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.72.3";
+  const VERSION = "3.73.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1079,7 +1079,7 @@
     const status = h("button", { type: "button", class: "status", on: { click: () => sync() } });
     const bell = h("button", { type: "button", class: "icon-btn bell-btn", "aria-label": "Notifications", on: { click: inboxSheet } }, icon("bell"), h("span", { class: "bell-badge" }));
     const eye = h("button", { type: "button", class: "icon-btn eye-btn", on: { click: () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); } } });
-    const help = h("button", { type: "button", class: "icon-btn help-btn", "aria-label": "Help", on: { click: helpSheet } }, icon("help"));
+    const help = h("button", { type: "button", class: "icon-btn help-btn ai-btn", "aria-label": "Ask AI", on: { click: assistantSheet } }, icon("star"));
     const gear = h("button", { type: "button", class: "icon-btn gear-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, icon("gear"));
     const gem = h("button", { type: "button", class: "icon-btn gem-btn", "aria-label": "Portfolio", on: { click: () => portfolioSheet() } }, icon("gem"));
     const main = h("main", { class: "view" });
@@ -2885,7 +2885,7 @@
       [".quick", "Quick add", "Your most used categories. Tap one to add an expense already filed in that category."],
       [".remind-pill, .remind", "Daily reminder", "A notification every evening so no expense is forgotten."],
       [".dock .tabs", "Sections", "Home, Activity for every entry, Insights for where your money goes, Split for loans and shared expenses. Tap a tab or slide your finger along the bar."],
-      [".help-btn", "Help anytime", "Tap the question mark to replay this tour or read what each screen does."]
+      [".help-btn", "Ask AI anytime", "Tap the star to ask questions about your money, or to replay this tour."]
     ],
     activity: [
       [".search", "Search", "Find any entry by its note, category or amount."],
@@ -2996,6 +2996,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.73.0", items: [
+      ["", "AI assistant (Groq)", "AI assistant: new edge function assistant (own auth via getUser, CORS to the app origin, 30 questions per user per day via assistant_usage + assistant_take, max 8 messages of 1,200 chars, 25 s timeout, no logging of content) calling Groq llama-3.3-70b-versatile with a system prompt limited to the user's summary, no investment advice and prompt-injection guard. The phone builds the summary only when a question is asked (month totals incl. loans, last month, plan, categories with budgets, account balances, people balances, next 30 days bills, investments, last 25 entries); nothing is stored. First use shows a consent card. Entry points: the top-bar star (replaces the ? button; How it works and the tour are linked inside) and an Ask AI card in Insights. Needs the GROQ_API_KEY secret on Supabase, until then users see that the assistant isn't switched on yet. On phones 350px or narrower the Portfolio gem hides instead of the AI button."]
+    ] },
     { v: "3.72.3", items: [
       ["", "Person history titles", "History entries without a note now read You gave NAME or NAME gave you as the title, with You gave/You got, the account and the date underneath, the same layout as entries with a note."]
     ] },
@@ -3156,6 +3159,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.73.0", items: [
+      ["star", "Ask AI, for free", "Tap the gold star at the top to ask anything about your money: how much you spent, where you can save, who owes you, or how the app works. 30 free questions a day."]
+    ] },
     { v: "3.72.0", items: [
       ["cal", "Coming up on Home", "Your next bills and scheduled payments now show near the top of Home, with how much is due this week and in the next 30 days. Tap See all for the next 3 months."]
     ] },
@@ -3393,6 +3399,91 @@
       startTour(v);
     };
     TOUR.timer = setTimeout(attempt, 900);
+  }
+
+  const AI = { msgs: [], busy: false };
+  function aiContext() {
+    const m = thisMonth(), s = monthStats(m), ps = monthStats(shiftMonth(m, -1));
+    const M = v => fmt(v, mainCur(), { show: true });
+    const L = [];
+    L.push(`Main currency: ${mainCur()}. Today: ${today()}.`);
+    L.push(`This month (${monthName(m)}): spent ${M(s.spent)}${s.loanOut ? ` (incl. ${M(s.loanOut)} given to people)` : ""}, came in ${M(s.income)}${s.loanIn ? ` (incl. ${M(s.loanIn)} from people)` : ""}, left over ${M(s.income - s.spent)}. Last month spent ${M(ps.spent)}, came in ${M(ps.income)}.`);
+    const plan = planFor(m);
+    if (plan.base > 0) L.push(`Month plan: ${M(plan.base)}, ${M(plan.base - s.spent)} left.`);
+    const cats = [...s.byCat].filter(e => e[1] > 0).sort((p, q) => q[1] - p[1]).slice(0, 15);
+    if (cats.length) L.push("Spending by category this month: " + cats.map(([id, v]) => { const c = cat(id); const b = c && Number(c.budget) > 0 ? ` of budget ${M(Number(c.budget))}` : ""; return `${c ? tr(c.name) : "Uncategorized"} ${M(v)}${b}`; }).join("; ") + ".");
+    const bal = balances();
+    const accs = rows("accounts").filter(a => !a.archived).sort(bySort);
+    if (accs.length) L.push("Accounts now: " + accs.map(a => `${a.name} (${KIND_LABEL[a.kind] || a.kind}) ${fmt(bal.get(a.id) || 0, a.currency, { show: true })}`).join("; ") + ".");
+    const t = owedTotals();
+    const lb = loanBalances();
+    const ppl = rows("people").map(p => [p, netMine(p, lb.get(p.id) || 0)]).filter(x => Math.abs(x[1]) > 0.004).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 10);
+    if (t.owed > 0.5 || t.owe > 0.5) L.push(`People: owed to you ${M(t.owed)}, you owe ${M(t.owe)}. ` + ppl.map(([p, n]) => `${p.name} ${n > 0 ? "owes you" : "you owe"} ${fmt(Math.abs(n), p.currency, { show: true })}`).join("; ") + ".");
+    const up = upcomingRules(30);
+    if (up.length) L.push("Coming up in 30 days: " + up.slice(0, 10).map(r => `${r.note || (cat(r.category_id) ? tr(cat(r.category_id).name) : "payment")} ${r.kind === "income" ? "+" : "-"}${fmt(Number(r.amount), r.currency, { show: true })} on ${r.next_on}${isBill(r) ? " (bill)" : ""}`).join("; ") + ".");
+    if (holdings().length) { const ht = holdTotals(); L.push(`Investments: worth ${M(ht.value)}${ht.cost ? `, paid ${M(ht.cost)}` : ""}.`); }
+    const recent = [...rows("transactions"), ...loanOnlyTx(m)].filter(x => monthOf(x.occurred_on) === m && x.kind !== "transfer").sort(byRecent).slice(0, 25);
+    if (recent.length) L.push("Latest entries this month: " + recent.map(x => { const c = cat(x.category_id); const what = x.kind === "loan_out" || x.kind === "loan_in" ? loanTitle(x) : c ? tr(c.name) : x.kind; return `${x.occurred_on} ${what} ${x.kind === "income" || x.kind === "loan_in" ? "+" : "-"}${fmt(Number(x.amount), x.currency, { show: true })}${x.note ? ` "${String(x.note).slice(0, 40)}"` : ""}`; }).join("; ") + ".");
+    return L.join("\n").slice(0, 7800);
+  }
+  function assistantSheet() {
+    track("assistant");
+    const list = h("div", { class: "ai-list", "aria-live": "polite" });
+    const input = h("textarea", { id: "ai-q", class: "ai-input", rows: "1", maxlength: "500", placeholder: "Ask about your money…", autocomplete: "off", "aria-label": "Your question" });
+    const send = h("button", { type: "submit", class: "ai-send", "aria-label": "Send" }, icon("up", "ico sm"));
+    const form = h("form", { class: "ai-form", novalidate: true }, input, send);
+    const SUGG = ["How much did I spend this month?", "Where can I save money?", "Who owes me money?", "What bills are coming up?", "How do I split a bill?"];
+    const bubble = (role, text, cls = "") => h("div", { class: `ai-msg ${role} ${cls}` }, document.createTextNode(String(text).replace(/\*\*(.+?)\*\*/g, "$1").replace(/^#+\s*/gm, "")));
+    const paint = () => {
+      const kids = [];
+      if (!store.get("aiOk", false)) {
+        kids.push(h("div", { class: "ai-consent" },
+          h("span", { class: "ai-badge" }, icon("star", "ico sm")),
+          h("strong", null, "Your money assistant"),
+          h("p", null, "Ask anything about your spending, bills, loans or how the app works. To answer, a short summary of your numbers (this month's totals, categories, balances, people and bills) is sent with your question to an AI service. Nothing is stored, and it can make mistakes."),
+          h("button", { type: "button", class: "btn", on: { click: () => { store.set("aiOk", true); paint(); input.focus(); } } }, "Got it, let's start")));
+      } else if (!AI.msgs.length) {
+        kids.push(h("div", { class: "ai-hello" }, h("span", { class: "ai-badge" }, icon("star", "ico sm")), h("strong", null, "Hi! What would you like to know?"), h("small", null, "Free · 30 questions a day")),
+          h("div", { class: "ai-sugg" }, SUGG.map(q => h("button", { type: "button", class: "chip", on: { click: () => ask(tr(q)) } }, q))));
+      }
+      for (const mm of AI.msgs) kids.push(bubble(mm.role, mm.content, mm.err ? "err" : ""));
+      if (AI.busy) kids.push(h("div", { class: "ai-msg assistant typing" }, h("i"), h("i"), h("i")));
+      list.replaceChildren(...kids);
+      form.hidden = !store.get("aiOk", false);
+      requestAnimationFrame(() => { const sb2 = list.closest(".sheet-body"); if (sb2) sb2.scrollTop = sb2.scrollHeight; });
+    };
+    const ERR = { not_configured: "The assistant isn't switched on yet. Try again later.", limit: "You've used today's 30 free questions. Come back tomorrow.", busy: "The assistant is busy right now. Try again in a minute.", auth: "Please sign in again.", offline: "You're offline. Connect to ask a question." };
+    const ask = async q => {
+      q = String(q || "").trim().slice(0, 500);
+      if (!q || AI.busy) return;
+      AI.msgs.push({ role: "user", content: q });
+      AI.busy = true; input.value = ""; paint();
+      let reply = null, err = null;
+      if (!navigator.onLine || !sb) err = "offline";
+      else {
+        try {
+          const { data, error } = await sb.functions.invoke("assistant", { body: { lang: LANG, context: aiContext(), messages: AI.msgs.filter(x => !x.err).slice(-8).map(x => ({ role: x.role, content: x.content })) } });
+          if (error) {
+            let code = "busy";
+            try { const b = await error.context.json(); if (b && b.error) code = b.error; } catch { }
+            err = code;
+          } else reply = data && data.reply;
+        } catch { err = "busy"; }
+      }
+      AI.busy = false;
+      if (reply) AI.msgs.push({ role: "assistant", content: reply });
+      else AI.msgs.push({ role: "assistant", content: tr(ERR[err] || ERR.busy), err: true });
+      if (AI.msgs.length > 40) AI.msgs.splice(0, AI.msgs.length - 40);
+      paint();
+    };
+    form.addEventListener("submit", e => { e.preventDefault(); ask(input.value); });
+    input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(input.value); } });
+    input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = Math.min(120, input.scrollHeight) + "px"; });
+    const body = h("div", { class: "ai-sheet" }, list,
+      h("button", { type: "button", class: "link-btn ai-help", on: { click: () => { closeSheet(); setTimeout(helpSheet, 300); } } }, icon("help", "ico sm"), "How the app works and the tour"));
+    paint();
+    openSheet("Ask AI", body, form, { fill: true, headBtn: AI.msgs.length ? h("button", { type: "button", class: "link-btn", on: { click: () => { AI.msgs = []; paint(); } } }, "New chat") : null });
+    if (store.get("aiOk", false)) setTimeout(() => input.focus(), 350);
   }
 
   function helpSheet() {
@@ -4106,6 +4197,7 @@
       h("button", { type: "button", class: "tile tap", on: { click: () => monthKindSheet(m, "income") } }, h("small", null, "Came in"), h("strong", null, money(s.income, { whole: true })), s.loanIn ? h("span", { class: "loan-flag" }, `${tr("incl.")} ${money(s.loanIn, { whole: true })} ${tr("loans")}`) : null, icon("fwd", "ico sm tile-go")),
       h("button", { type: "button", class: "tile tap " + (left >= 0 ? "good" : "bad"), on: { click: () => monthKindSheet(m, "both") } }, h("small", null, left >= 0 ? "Left over" : "Overspent"), h("strong", null, money(Math.abs(left), { whole: true })), icon("fwd", "ico sm tile-go"))));
     if (s.count) out.append(h("button", { type: "button", class: "btn alt", on: { click: () => recapSheet(m) } }, `${monthName(m)} summary`));
+    out.append(h("button", { type: "button", class: "ai-cta", on: { click: assistantSheet } }, h("span", { class: "ai-badge" }, icon("star", "ico sm")), h("span", null, h("strong", null, "Ask AI about your money"), h("small", null, "\"Where can I save?\" · \"Who owes me?\"")), icon("fwd", "ico sm")));
     const rc = spendReceipt(m, s);
     out.append(rc || h("section", { class: "card" }, h("p", { class: "empty" }, `No spending in ${monthName(m)}.`)));
 
