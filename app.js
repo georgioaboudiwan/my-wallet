@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.75.0";
+  const VERSION = "3.76.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1079,8 +1079,8 @@
     const title = h("h1");
     const status = h("button", { type: "button", class: "status", on: { click: () => sync() } });
     const bell = h("button", { type: "button", class: "key bell-btn", "aria-label": "Notifications", on: { click: inboxSheet } }, icon("bell"), h("span", { class: "bell-badge" }));
-    const eye = h("button", { type: "button", class: "eye-btn priv", role: "switch", on: { click: () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); } } }, h("span", { class: "priv-track" }, h("span", { class: "priv-knob" })));
-    const help = h("button", { type: "button", class: "key help-btn ai-btn", "aria-label": "Ask AI", on: { click: assistantSheet } }, icon("bubble"), h("span", { class: "ai-tag", "aria-hidden": "true" }, document.createTextNode("AI")));
+    const eye = h("button", { type: "button", class: "key eye-btn", role: "switch", on: { click: () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); } } }, h("span", { class: "priv-knob" }));
+    const help = h("button", { type: "button", class: "help-btn ask-pill", "aria-label": "Ask AI", on: { click: assistantSheet } }, h("span", { class: "ask-ic", "aria-hidden": "true" }, icon("bubble"), h("span", { class: "ai-tag" }, document.createTextNode("AI"))), h("span", { class: "ask-tx" }, "Ask AI anything"));
     const gear = h("button", { type: "button", class: "key gear-btn me-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, h("span", { class: "me-init" }));
     const main = h("main", { class: "view" });
     const tab = (view, label, ic) => h("button", { type: "button", class: "tab", "data-view": view, on: { click: () => go(view) } }, icon(ic), h("span", null, label));
@@ -1130,7 +1130,7 @@
     tabsEl.addEventListener("pointercancel", dragDone);
     tabsEl.addEventListener("click", e => { if (Date.now() - dragEnd < 400) { e.stopPropagation(); e.preventDefault(); } }, true);
     const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, tabsEl);
-    const top = h("header", { class: "top" }, title, h("div", { class: "tool keys" }, status, help, eye, bell, gear));
+    const top = h("header", { class: "top" }, title, h("div", { class: "tool keys" }, gear, help, status, eye, bell));
     const ptr = h("div", { class: "ptr", "aria-hidden": "true" }, icon("sync"));
     root.replaceChildren(h("div", { class: "shell" }, top, ptr, main, nav));
     shell = { title, status, eye, bell, gear, main, tabs: [...tabs, sideSettings], top, ptr, lens, lastView: null };
@@ -2888,7 +2888,7 @@
       [".quick", "Quick add", "Your most used categories. Tap one to add an expense already filed in that category."],
       [".remind-pill, .remind", "Daily reminder", "A notification every evening so no expense is forgotten."],
       [".dock .tabs", "Sections", "Home, Activity for every entry, Insights for where your money goes, Split for loans and shared expenses. Tap a tab or slide your finger along the bar."],
-      [".help-btn", "Ask AI anytime", "Tap the AI bubble to ask questions about your money, or to replay this tour."]
+      [".help-btn", "Ask AI anytime", "Tap Ask AI to ask questions about your money, or to replay this tour."]
     ],
     activity: [
       [".search", "Search", "Find any entry by its note, category or amount."],
@@ -2999,6 +2999,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.76.0", items: [
+      ["", "New header", "Header is now two rows: big page title on top, then avatar (Settings), an Ask AI pill with a slow emerald-gold border sheen, eye and bell. The header sticks at top: -46px so the title scrolls away and the controls row stays, title fades when scrolled, solid background when scrolled. Replaces the 3.75 dock. Eye turns dark when amounts are hidden. Desktop: pill capped at 460px, avatar hidden. Sheen off with reduced motion."]
+    ] },
     { v: "3.75.0", items: [
       ["", "Top bar dock", "3.74 keys replaced by one emerald and gold dock (user picked it from 3 mockups): AI is a chat bubble with an AI tag, eye toggle, bell with badge, initial for Settings, gold dividers, RTL-aware. Portfolio button removed from the bar; when the Portfolio teaser was dismissed and there are no holdings, Home now shows a slim Portfolio row instead of nothing. Hover only on hover devices; Settings key hidden on desktop like before. Removed orb, coin, switch track, cog badge and bell ring."]
     ] },
@@ -3168,8 +3171,8 @@
     ] }
   ];
   const CHANGES = [
-    { v: "3.75.0", items: [
-      ["bubble", "A cleaner top bar", "The buttons at the top now sit together in one emerald and gold bar. The AI chat has its own bubble, and Portfolio lives on your Home screen."]
+    { v: "3.76.0", items: [
+      ["bubble", "A new header", "Ask AI now has its own bar at the top so it is easy to find. Your initial opens settings, and the eye and bell sit next to it. Portfolio lives on your Home screen."]
     ] },
     { v: "3.73.0", items: [
       ["star", "Ask AI, for free", "Tap the gold star at the top to ask anything about your money: how much you spent, where you can save, who owes you, or how the app works. 30 free questions a day."]

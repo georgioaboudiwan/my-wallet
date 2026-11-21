@@ -1708,10 +1708,11 @@ Object.assign(window.WALLET_I18N.words, {
   "New chat": ["Nouvelle discussion", "محادثة جديدة"],
   "Ask AI about your money": ["Demandez à l'IA sur votre argent", "اسأل الذكاء الاصطناعي عن أموالك"],
   "Ask AI anytime": ["Demandez à l'IA à tout moment", "اسأل الذكاء الاصطناعي في أي وقت"],
-  "A cleaner top bar": ["Une barre du haut plus nette", "شريط علوي أنظف"],
-  "The buttons at the top now sit together in one emerald and gold bar. The AI chat has its own bubble, and Portfolio lives on your Home screen.": ["Les boutons du haut sont maintenant réunis dans une barre émeraude et or. Le chat IA a sa propre bulle, et le portefeuille est sur votre écran d'accueil.", "الأزرار في الأعلى أصبحت معًا في شريط واحد بلون الزمرد والذهب. لمحادثة الذكاء الاصطناعي فقاعتها الخاصة، والمحفظة الاستثمارية أصبحت في الشاشة الرئيسية."],
-  "Tap the AI bubble to ask questions about your money, or to replay this tour.": ["Touchez la bulle IA pour poser des questions sur votre argent, ou pour revoir cette visite.", "اضغط على فقاعة الذكاء الاصطناعي لتسأل عن أموالك، أو لإعادة هذه الجولة."],
   "Gold, crypto, stocks": ["Or, crypto, actions", "ذهب، عملات رقمية، أسهم"],
+  "A new header": ["Un nouvel en-tête", "رأس صفحة جديد"],
+  "Ask AI now has its own bar at the top so it is easy to find. Your initial opens settings, and the eye and bell sit next to it. Portfolio lives on your Home screen.": ["Demander à l'IA a maintenant sa propre barre en haut, facile à trouver. Votre initiale ouvre les réglages, l'œil et la cloche sont à côté. Le portefeuille est sur votre écran d'accueil.", "أصبح لـ«اسأل الذكاء الاصطناعي» شريطه الخاص في الأعلى ليسهل إيجاده. حرفك الأول يفتح الإعدادات، والعين والجرس بجانبه. المحفظة الاستثمارية في الشاشة الرئيسية."],
+  "Tap Ask AI to ask questions about your money, or to replay this tour.": ["Touchez Demander à l'IA pour poser des questions sur votre argent, ou pour revoir cette visite.", "اضغط «اسأل الذكاء الاصطناعي» لتسأل عن أموالك، أو لإعادة هذه الجولة."],
+  "Ask AI anything": ["Demandez à l'IA", "اسأل الذكاء الاصطناعي"],
   "Ask AI, for free": ["Demandez à l'IA, gratuitement", "اسأل الذكاء الاصطناعي مجانًا"],
   "Tap the gold star at the top to ask anything about your money: how much you spent, where you can save, who owes you, or how the app works. 30 free questions a day.": ["Touchez l'étoile dorée en haut pour poser n'importe quelle question sur votre argent : combien vous avez dépensé, où économiser, qui vous doit, ou comment marche l'app. 30 questions gratuites par jour.", "اضغط النجمة الذهبية في الأعلى لتسأل أي شيء عن أموالك: كم صرفت، أين توفّر، من يدين لك، أو كيف يعمل التطبيق. 30 سؤالًا مجانيًا يوميًا."]
 });
