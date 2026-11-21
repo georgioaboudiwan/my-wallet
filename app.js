@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.83.0";
+  const VERSION = "3.84.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3130,6 +3130,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.84.0", items: [
+      ["", "Receipt images and Gio bar", "Receipts are drawn on a 1080 px canvas (paper with torn edges, brand, dotted lines, bars, totals, barcode) and shared as a PNG file through the share sheet, or downloaded when file sharing isn't available. Share receipt under the monthly receipt in Insights and in Year in review (which used to share text only). Gio chat keeps a sticky bar with a live sphere and status once the conversation starts; the sphere spins fast while Gio is thinking and on tap."]
+    ] },
     { v: "3.83.0", items: [
       ["", "Notifications and Gio sphere", "Inbox grouped into Today, This week and Earlier with an icon per kind (gold for everyone, blue for split invites, green for personal), relative times, an unread dot, a ✕ per item and Clear all (tap twice) in the sheet header, and a caught-up empty state with a link to notification settings. Deleting hides the notification for that user only: ids are kept in the synced, encrypted settings (inboxHidden, pruned to ids still on the server, max 300), so broadcasts stay for everyone else and admin history is unchanged. Gio's consent and hello screens use the particle sphere (drag to spin, tap to pop) with the Gio logo in the middle, and a small fast-spinning sphere while Gio is thinking. Consent text now says names are sent and that the app does not save the chat."]
     ] },
@@ -3338,6 +3341,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.84.0", items: [
+      ["share", "Share your receipt", "Your monthly receipt and your year in review are now shared as a real receipt image, ready to send."]
+    ] },
     { v: "3.83.0", items: [
       ["bell", "Cleaner notifications", "Notifications are grouped by day with clear icons. Delete one with ✕, or clear them all at once. And Gio now has its own sphere you can spin."]
     ] },
@@ -3667,6 +3673,9 @@
   function assistantSheet() {
     track("assistant");
     const list = h("div", { class: "ai-list", "aria-live": "polite" });
+    const barOrb = orb(58, "bar-orb");
+    const barTxt = h("small");
+    const bar = h("div", { class: "gio-bar", hidden: true }, h("span", { class: "gio-bar-orb", on: { click: () => { const o = barOrb.__orb; if (o) { o.vy = 6; orbKick(); } } } }, barOrb, gioMark("gio gio-bar-core")), h("span", null, h("strong", null, "Gio"), barTxt));
     const input = h("textarea", { id: "ai-q", class: "ai-input", rows: "1", maxlength: "500", placeholder: "Ask, or say “coffee 5 dollars”…", autocomplete: "off", "aria-label": "Your question" });
     const send = h("button", { type: "submit", class: "ai-send", "aria-label": "Send" }, icon("up", "ico sm"));
     const form = h("form", { class: "ai-form", novalidate: true }, input, send);
@@ -3685,10 +3694,13 @@
           h("div", { class: "ai-sugg" }, SUGG.map(q => h("button", { type: "button", class: "chip", on: { click: () => ask(tr(q)) } }, q))));
       }
       for (const mm of AI.msgs) kids.push(mm.action ? aiActionCard(mm.action) : bubble(mm.role, mm.content, mm.err ? "err" : ""));
-      if (AI.busy) kids.push(h("div", { class: "ai-typing" }, h("span", { class: "gio-mini-orb" }, orb(44, "think-orb")), h("div", { class: "ai-msg assistant typing" }, h("i"), h("i"), h("i"))));
+      if (AI.busy) kids.push(h("div", { class: "ai-msg assistant typing" }, h("i"), h("i"), h("i")));
       list.replaceChildren(...kids);
+      bar.hidden = !AI.msgs.length;
+      barTxt.textContent = tr(AI.busy ? "Thinking…" : "Ask me anything, or tell me what to add");
+      bar.classList.toggle("busy", !!AI.busy);
       queueFx();
-      for (const c of list.querySelectorAll("canvas.think-orb")) requestAnimationFrame(() => { if (c.__orb) { c.__orb.auto = 3.2; c.__orb.vy = 3.2; } });
+      requestAnimationFrame(() => { const o = barOrb.__orb; if (o) { o.auto = AI.busy ? 3.4 : 0.5; if (AI.busy) o.vy = 3.4; orbKick(); } });
       form.hidden = !store.get("aiOk", false);
       requestAnimationFrame(() => { const sb2 = list.closest(".sheet-body"); if (sb2) sb2.scrollTop = sb2.scrollHeight; });
     };
@@ -3721,7 +3733,7 @@
     form.addEventListener("submit", e => { e.preventDefault(); ask(input.value); });
     input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(input.value); } });
     input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = Math.min(120, input.scrollHeight) + "px"; });
-    const body = h("div", { class: "ai-sheet" }, list,
+    const body = h("div", { class: "ai-sheet" }, bar, list,
       h("button", { type: "button", class: "link-btn ai-help", on: { click: () => { closeSheet(); setTimeout(helpSheet, 300); } } }, icon("help", "ico sm"), "How the app works and the tour"));
     paint();
     openSheet("Gio", body, form, { fill: true, headBtn: AI.msgs.length ? h("button", { type: "button", class: "link-btn", on: { click: () => { AI.msgs = []; paint(); } } }, "New chat") : null });
@@ -4138,7 +4150,8 @@
           h("div", { class: "rcpt-sub" }, h("span", null, left >= 0 ? "Left over" : "Overspent"), h("span", { class: "num" + (left < 0 ? " neg" : "") }, money(Math.abs(left)))),
           h("div", { class: "rcpt-rule" }),
           h("div", { class: "rcpt-code", "aria-hidden": "true" }),
-          h("p", { class: "rcpt-thanks" }, "Thank you for tracking your money"))));
+          h("p", { class: "rcpt-thanks" }, "Thank you for tracking your money"))),
+      h("button", { type: "button", class: "link-btn rcpt-share", on: { click: () => shareReceipt({ brand: brandPair(), title: `${tr("Receipt")} · ${monthName(m)}`, sub: `#${no}`, lines: cats.map(([id, v]) => { const c = cat(id); return { name: c ? tr(c.name) : tr("Uncategorized"), val: money(v, { show: true }), pct: s.spent ? v / s.spent * 100 : 0, color: c ? c.color : "#5b7083" }; }), subs: [[tr("Came in"), money(s.income, { show: true })], [tr(left >= 0 ? "Left over" : "Overspent"), money(Math.abs(left), { show: true })]], total: [tr("Total spent"), money(s.spent, { show: true })], thanks: tr("Thank you for tracking your money") }, `budgetsplit-${m}.png`, `${tr("Receipt")} · ${monthName(m)}`) } }, icon("share", "ico sm"), "Share receipt"));
   }
 
   function viewHome() {
@@ -4494,6 +4507,70 @@
         h("button", { type: "button", class: "icon-btn", "aria-label": "Not repeating", on: { click: () => { store.set("repSkip:" + r.note.toLowerCase(), true); render(); } } }, icon("close", "ico sm"))); }));
   }
 
+  async function receiptImage(d) {
+    const W = 1080, P = 72, mono = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace', sans = '-apple-system, "Segoe UI", Roboto, "Noto Sans Arabic", sans-serif';
+    const lineH = 92, H = 520 + d.lines.length * lineH + d.subs.length * 56 + 330;
+    const c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    const x = c.getContext("2d");
+    x.fillStyle = "#0b3a2d"; x.fillRect(0, 0, W, H);
+    const top = 40, bottom = H - 40, L = 40, Rr = W - 40;
+    x.fillStyle = "#fbf8ef";
+    x.beginPath(); x.moveTo(L, top);
+    for (let i = L; i < Rr; i += 24) { x.lineTo(i + 12, top + 12); x.lineTo(i + 24, top); }
+    x.lineTo(Rr, bottom);
+    for (let i = Rr; i > L; i -= 24) { x.lineTo(i - 12, bottom - 12); x.lineTo(i - 24, bottom); }
+    x.closePath(); x.fill();
+    const ink = "#2b2a24", mut = "#77735f";
+    x.textAlign = "center"; x.fillStyle = "#0d1a14"; x.font = `800 64px ${sans}`;
+    const b1 = d.brand[0], b2 = d.brand[1], w1 = x.measureText(b1).width, w2 = x.measureText(b2).width;
+    x.textAlign = "left"; x.fillText(b1, W / 2 - (w1 + w2) / 2, top + 130); x.fillStyle = "#b8862a"; x.fillText(b2, W / 2 - (w1 + w2) / 2 + w1, top + 130);
+    x.textAlign = "center"; x.fillStyle = ink; x.font = `500 30px ${mono}`; x.fillText(d.title.toUpperCase().split("").join(" ").replace(/ {3}/g, "  "), W / 2, top + 190);
+    x.fillStyle = mut; x.font = `400 26px ${mono}`; x.fillText(d.sub, W / 2, top + 234);
+    const rule = y => { x.strokeStyle = "#c9c3ad"; x.setLineDash([10, 8]); x.lineWidth = 2; x.beginPath(); x.moveTo(L + P - 20, y); x.lineTo(Rr - P + 20, y); x.stroke(); x.setLineDash([]); };
+    let y = top + 290; rule(y); y += 70;
+    const dots = (fromX, toX, yy) => { x.fillStyle = "#b9b39c"; for (let i = fromX; i < toX; i += 14) x.fillRect(i, yy - 6, 4, 4); };
+    for (const ln of d.lines) {
+      x.font = `600 34px ${mono}`; x.fillStyle = ink; x.textAlign = "left";
+      let name = ln.name; while (x.measureText(name).width > 560 && name.length > 4) name = name.slice(0, -2);
+      if (name !== ln.name) name += "…";
+      x.fillText(name, L + P - 20, y);
+      const nw = x.measureText(name).width;
+      x.textAlign = "right"; x.font = `800 36px ${mono}`; x.fillText(ln.val, Rr - P + 20, y);
+      const vw = x.measureText(ln.val).width;
+      dots(L + P - 20 + nw + 16, Rr - P + 20 - vw - 16, y);
+      const bw = (Rr - L - 2 * P) * 0.62;
+      x.fillStyle = "#e7e2cf"; x.fillRect(L + P - 20, y + 20, bw, 8);
+      x.fillStyle = ln.color || "#2e9e6b"; x.fillRect(L + P - 20, y + 20, Math.max(8, bw * Math.min(1, ln.pct / 100)), 8);
+      x.textAlign = "right"; x.fillStyle = mut; x.font = `400 24px ${mono}`; x.fillText(`${Math.round(ln.pct)}%`, Rr - P + 20, y + 32);
+      y += lineH;
+    }
+    y -= 20; rule(y); y += 60;
+    for (const [k, v] of d.subs) { x.textAlign = "left"; x.fillStyle = mut; x.font = `400 28px ${mono}`; x.fillText(k, L + P - 20, y); x.textAlign = "right"; x.fillText(v, Rr - P + 20, y); y += 56; }
+    y -= 10; rule(y); y += 80;
+    x.textAlign = "left"; x.fillStyle = ink; x.font = `700 32px ${mono}`; x.fillText(d.total[0].toUpperCase(), L + P - 20, y);
+    x.textAlign = "right"; x.font = `800 56px ${sans}`; x.fillText(d.total[1], Rr - P + 20, y + 6);
+    y += 50;
+    let bx = L + P + 10, seed = 7;
+    x.fillStyle = ink;
+    while (bx < Rr - P - 10) { seed = (seed * 9301 + 49297) % 233280; const wv = 2 + (seed % 5); x.fillRect(bx, y, wv, 90); bx += wv + 3 + (seed % 4); }
+    y += 140; x.textAlign = "center"; x.fillStyle = mut; x.font = `500 24px ${mono}`; x.fillText(d.thanks.toUpperCase(), W / 2, y);
+    return await new Promise(res => c.toBlob(res, "image/png"));
+  }
+  async function shareReceipt(d, name, text) {
+    try {
+      const blob = await receiptImage(d);
+      if (!blob) throw 0;
+      const file = new File([blob], name, { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text }); track("view", "share_receipt"); return; }
+      const url = URL.createObjectURL(blob), a = document.createElement("a");
+      a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast("Receipt saved as an image.");
+    } catch (e) { if (!e || e.name !== "AbortError") toast("Couldn't share the receipt. Try again.", "error"); }
+  }
+  const brandPair = () => LANG === "ar" ? ["ميزانية ", "وتقسيم"] : ["Budget", "Split"];
+
   function yearSheet(y) {
     track("view", "year_review");
     const last = Math.min(12, y < Number(today().slice(0, 4)) ? 12 : Number(today().slice(5, 7)));
@@ -4542,7 +4619,10 @@
     const nav = yrs.length > 1 ? h("div", { class: "chips wrap yir-years" }, yrs.map(v => h("button", { type: "button", class: "chip", "aria-pressed": String(v === y), on: { click: () => { closeSheet(); setTimeout(() => yearSheet(v), 300); } } }, String(v)))) : null;
     if (nav) body.prepend(nav);
     const text = `${tr("My year with BudgetSplit")} ${y}: ${tr("spent")} ${money(spent, { whole: true, show: true })}, ${tr("came in")} ${money(income, { whole: true, show: true })}${cats[0] ? `. ${tr("Top")}: ${tr((cat(cats[0][0]) || {}).name || "")}` : ""}.`;
-    const btn = count ? h("button", { type: "button", class: "btn", on: { click: async () => { try { if (navigator.share) await navigator.share({ text }); else { await navigator.clipboard.writeText(text); toast("Copied."); } } catch { } } } }, icon("share", "ico sm"), "Share") : null;
+    const shareData = () => ({ brand: brandPair(), title: `${tr("Year in review")} · ${y}`, sub: `${count} ${tr("entries")}`, lines: cats.map(([id, v]) => { const c = cat(id); return { name: c ? tr(c.name) : tr("Uncategorized"), val: money(v, { whole: true, show: true }), pct: spent ? v / spent * 100 : 0, color: c ? c.color : "#5b7083" }; }),
+      subs: [hi ? [tr("Biggest month"), `${monthName(hi[0])} · ${money(hi[1], { whole: true, show: true })}`] : null, lo && lo !== hi ? [tr("Lightest month"), `${monthName(lo[0])} · ${money(lo[1], { whole: true, show: true })}`] : null, [tr("Came in"), money(income, { whole: true, show: true })], [tr(saved >= 0 ? "Saved" : "Overspent"), money(Math.abs(saved), { whole: true, show: true })]].filter(Boolean),
+      total: [tr("Total spent"), money(spent, { show: true })], thanks: tr("Thank you for tracking your money") });
+    const btn = count ? h("button", { type: "button", class: "btn", on: { click: () => shareReceipt(shareData(), `budgetsplit-${y}.png`, text) } }, icon("share", "ico sm"), "Share receipt") : null;
     openSheet(`${tr("Year in review")} ${y}`, body, btn, { fill: true });
   }
 

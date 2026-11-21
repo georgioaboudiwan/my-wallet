@@ -1825,6 +1825,13 @@ Object.assign(window.WALLET_I18N.words, {
   "Notification settings": ["Réglages des notifications", "إعدادات الإشعارات"],
   "Cleaner notifications": ["Des notifications plus claires", "إشعارات أوضح"],
   "Notifications are grouped by day with clear icons. Delete one with ✕, or clear them all at once. And Gio now has its own sphere you can spin.": ["Les notifications sont groupées par jour avec des icônes claires. Supprimez-en une avec ✕, ou effacez-les toutes. Et Gio a maintenant sa propre sphère à faire tourner.", "الإشعارات مجمّعة حسب اليوم مع أيقونات واضحة. احذف واحدًا بـ ✕ أو امسحها كلها دفعة واحدة. ولجيو الآن كرة خاصة يمكنك تدويرها."],
+  "Thinking…": ["Réflexion…", "يفكّر…"],
+  "Ask me anything, or tell me what to add": ["Demandez-moi tout, ou dites-moi quoi ajouter", "اسألني أي شيء، أو قل لي ماذا أضيف"],
+  "Share receipt": ["Partager le reçu", "شارك الإيصال"],
+  "Receipt saved as an image.": ["Reçu enregistré en image.", "حُفظ الإيصال كصورة."],
+  "Couldn't share the receipt. Try again.": ["Impossible de partager le reçu. Réessayez.", "تعذّرت مشاركة الإيصال. حاول مجددًا."],
+  "Share your receipt": ["Partagez votre reçu", "شارك إيصالك"],
+  "Your monthly receipt and your year in review are now shared as a real receipt image, ready to send.": ["Votre reçu du mois et votre bilan de l'année se partagent maintenant en vraie image de reçu, prête à envoyer.", "إيصالك الشهري وحصاد سنتك يُشاركان الآن كصورة إيصال حقيقية جاهزة للإرسال."],
   "Ask AI, for free": ["Demandez à l'IA, gratuitement", "اسأل الذكاء الاصطناعي مجانًا"],
   "Tap the gold star at the top to ask anything about your money: how much you spent, where you can save, who owes you, or how the app works. 30 free questions a day.": ["Touchez l'étoile dorée en haut pour poser n'importe quelle question sur votre argent : combien vous avez dépensé, où économiser, qui vous doit, ou comment marche l'app. 30 questions gratuites par jour.", "اضغط النجمة الذهبية في الأعلى لتسأل أي شيء عن أموالك: كم صرفت، أين توفّر، من يدين لك، أو كيف يعمل التطبيق. 30 سؤالًا مجانيًا يوميًا."]
 });
