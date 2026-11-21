@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.87.1";
+  const VERSION = "3.88.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2233,7 +2233,7 @@
       for (const r of document.querySelectorAll(".acc-rail")) if (!r.__rail) railInit(r); else r.__rail();
       for (const c of document.querySelectorAll("canvas.tank")) if (!c.__tank) tankInit(c); else c.__tank.read();
       for (const r of document.querySelectorAll(".rcpt-card")) if (!r.__seen) { r.__seen = true; if (RM.matches || !("IntersectionObserver" in window)) { r.__done = true; r.classList.add("printing", "printed"); } else { const io = new IntersectionObserver(es => { if (es.some(en => en.isIntersecting)) { io.disconnect(); r.__done = true; r.classList.add("printing"); setTimeout(() => r.classList.add("printed"), 1700); } }, { threshold: 0.2 }); io.observe(r); } } else if (r.__done) r.classList.add("printing", "printed");
-      for (const el of document.querySelectorAll(".wallet > .hero, .pf-card:not(.pf-empty), .pf-hero, .login-card")) if (!el.__tilt) tiltInit(el);
+      for (const el of document.querySelectorAll(".wallet > .hero, .pf-card:not(.pf-empty), .pf-hero, .login-card, .sp-aura")) if (!el.__tilt) tiltInit(el);
       const a = document.querySelector(".wallet > .hero .hero-total"); if (a) countUp(a, "home");
       const b = document.querySelector(".pf-card .pf-total"); if (b) countUp(b, "pf");
       const c = document.querySelector(".pf-hero .pf-total"); if (c) countUp(c, "pfs");
@@ -3130,6 +3130,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.88.0", items: [
+      ["", "Aurora card on Split", "The balance scale is replaced by an aurora glass card: a slowly drifting mesh of emerald, teal, violet, coral and gold under a dark sheen, 3D tilt with a glare that follows the finger (the same tilt as the balance card, and the mesh highlights move with it), net balance in large white type, a glowing owed vs owe bar and two frosted glass amounts. Actions moved below the card as light tiles. CSS only, no animation frames; reduced motion stops the drift."]
+    ] },
     { v: "3.87.1", items: [
       ["", "No more null in split by item", "Before any price was typed, the Who pays what card was null and replaceChildren printed it as the word null. Empty parts are now filtered out."]
     ] },
@@ -3356,8 +3359,10 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.88.0", items: [
+      ["people", "A colorful balance card", "Split now opens with a vivid card of shifting colors. Move your finger on it and the light follows."]
+    ] },
     { v: "3.87.0", items: [
-      ["people", "A balance you can play with", "The Split page now shows a real scale: the side that's owed more goes down. Drag it and watch it swing."],
       ["note", "A better split by item", "Tap faces to pick who had what, choose a tip in one tap, and see who pays what on a colored bar."]
     ] },
     { v: "3.86.0", items: [
@@ -6668,57 +6673,25 @@
     } catch { toast("Couldn't join the group. Open the link again.", "error"); }
   }
 
-  function splitScale(owed, owe, total, top, ava, act) {
-    const NS = "http://www.w3.org/2000/svg";
-    const mk = (tag, at, ...kids) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); e.append(...kids); return e; };
-    const span = Math.max(owed, owe, 1);
-    const target = Math.max(-16, Math.min(16, (owe - owed) / span * 16));
-    const coins = v => Math.max(v > 0.5 ? 1 : 0, Math.min(7, Math.round(v / span * 7)));
-    const stack = (n, x, cls) => mk("g", { class: "sc-coins " + cls }, ...Array.from({ length: n }, (_, i) => mk("g", { class: "sc-coin", style: `--i:${i}` }, mk("ellipse", { cx: x, cy: 0 - i * 9, rx: 22, ry: 7, class: "sc-c-side" }), mk("ellipse", { cx: x, cy: -4 - i * 9, rx: 22, ry: 7, class: "sc-c-top" }))));
-    const L = 52, R = 268, PY = 70, CX = 160;
-    const panL = mk("g", { class: "sc-pan in" }, mk("line", { x1: L - 26, y1: 0, x2: L, y2: -58, class: "sc-rope" }), mk("line", { x1: L + 26, y1: 0, x2: L, y2: -58, class: "sc-rope" }), mk("path", { d: `M${L - 38} 0 Q${L} 26 ${L + 38} 0 Z`, class: "sc-dish" }), stack(coins(owed), L, "in"));
-    const panR = mk("g", { class: "sc-pan out" }, mk("line", { x1: R - 26, y1: 0, x2: R, y2: -58, class: "sc-rope" }), mk("line", { x1: R + 26, y1: 0, x2: R, y2: -58, class: "sc-rope" }), mk("path", { d: `M${R - 38} 0 Q${R} 26 ${R + 38} 0 Z`, class: "sc-dish" }), stack(coins(owe), R, "out"));
-    const beam = mk("g", { class: "sc-beam" }, mk("rect", { x: L - 6, y: PY - 5, width: R - L + 12, height: 10, rx: 5, class: "sc-bar" }), mk("circle", { cx: L, cy: PY, r: 6, class: "sc-end" }), mk("circle", { cx: R, cy: PY, r: 6, class: "sc-end" }));
-    const svg = mk("svg", { viewBox: "0 0 320 200", class: "sc-svg", role: "img", "aria-label": `${tr("Owed to you")} ${money(owed, { whole: true })}, ${tr("You owe")} ${money(owe, { whole: true })}` },
-      mk("defs", {}, mk("linearGradient", { id: "scGold", x1: "0", y1: "0", x2: "0", y2: "1" }, mk("stop", { offset: "0", "stop-color": "#ffe9a8" }), mk("stop", { offset: ".55", "stop-color": "#f2b93b" }), mk("stop", { offset: "1", "stop-color": "#b87d17" }))),
-      mk("ellipse", { cx: CX, cy: 188, rx: 70, ry: 7, class: "sc-shadow" }),
-      mk("path", { d: `M${CX - 34} 186 L${CX} 150 L${CX + 34} 186 Z`, class: "sc-base" }),
-      mk("rect", { x: CX - 5, y: PY, width: 10, height: 84, rx: 5, class: "sc-post" }),
-      panL, panR, beam,
-      mk("circle", { cx: CX, cy: PY, r: 11, class: "sc-pivot" }), mk("circle", { cx: CX, cy: PY, r: 4, class: "sc-pivot-in" }));
-    let ang = RM.matches ? target : 0, vel = 0, raf = 0, drag = null;
-    const place = () => {
-      const r = ang * Math.PI / 180, dy = Math.sin(r) * (CX - L), dx = (1 - Math.cos(r)) * (CX - L);
-      beam.setAttribute("transform", `rotate(${ang.toFixed(2)} ${CX} ${PY})`);
-      panL.setAttribute("transform", `translate(${dx.toFixed(2)} ${(PY + 58 - dy).toFixed(2)})`);
-      panR.setAttribute("transform", `translate(${(-dx).toFixed(2)} ${(PY + 58 + dy).toFixed(2)})`);
-    };
-    const step = () => {
-      raf = 0;
-      if (!svg.isConnected) return;
-      if (!drag) { vel += (target - ang) * 0.06; vel *= 0.88; ang += vel; }
-      place();
-      if (drag || Math.abs(vel) > 0.01 || Math.abs(target - ang) > 0.02) raf = requestAnimationFrame(step);
-    };
-    const kick = v => { if (RM.matches) return; vel += v; if (!raf) raf = requestAnimationFrame(step); };
-    place();
-    svg.addEventListener("pointerdown", e => { if (RM.matches) return; drag = { x: e.clientX, a: ang }; try { svg.setPointerCapture(e.pointerId); } catch { } if (!raf) raf = requestAnimationFrame(step); });
-    svg.addEventListener("pointermove", e => { if (!drag) return; ang = Math.max(-28, Math.min(28, drag.a + (e.clientX - drag.x) / 4)); });
-    const up = () => { if (!drag) return; const moved = Math.abs(ang - drag.a) > 1; drag = null; if (!moved) kick(ang > target ? -6 : 6); else kick(0); };
-    svg.addEventListener("pointerup", up); svg.addEventListener("pointercancel", up);
-    requestAnimationFrame(() => kick(0));
+  function splitAura(owed, owe, total, top, ava, act) {
+    const span = owed + owe || 1;
     const goPeople = () => document.getElementById("sp-people")?.scrollIntoView({ behavior: RM.matches ? "auto" : "smooth" });
-    return h("section", { class: "sp-scale" },
-      h("span", { class: "sc-blob a", "aria-hidden": "true" }), h("span", { class: "sc-blob b", "aria-hidden": "true" }), h("span", { class: "sc-blob c", "aria-hidden": "true" }),
-      h("div", { class: "sc-head" },
-        h("div", null, h("small", null, "Who's ahead"), h("strong", { class: "num" }, Math.abs(total) < 0.5 ? tr("All settled") : (total > 0 ? "+" : "−") + money(Math.abs(total), { whole: true })), h("span", null, Math.abs(total) < 0.5 ? tr("Nobody owes anything") : total > 0 ? tr("More is owed to you than you owe") : tr("You owe more than you're owed"))),
-        top.length ? h("div", { class: "sp-stack", "aria-hidden": "true" }, top.map((p, i) => ava(p.name, p.sort || i, owesMe(p) === (loanBalances().get(p.id) > 0) ? "in" : "out"))) : null),
-      svg,
-      h("div", { class: "sc-sides" },
-        h("button", { type: "button", class: "sc-side in", on: { click: goPeople } }, h("small", null, "Owed to you"), h("b", { class: "num" }, money(owed, { whole: true }))),
-        h("small", { class: "sc-hint" }, "Drag the scale"),
-        h("button", { type: "button", class: "sc-side out", on: { click: goPeople } }, h("small", null, "You owe"), h("b", { class: "num" }, money(owe, { whole: true })))),
-      h("div", { class: "sp-acts" },
+    return h("div", { class: "aura-wrap" },
+      h("section", { class: "sp-aura" },
+        h("span", { class: "aura-mesh", "aria-hidden": "true" }),
+        h("span", { class: "aura-sheen", "aria-hidden": "true" }),
+        h("span", { class: "fx-glare", "aria-hidden": "true" }),
+        h("div", { class: "aura-top" },
+          h("span", { class: "aura-label" }, "Balance with people"),
+          top.length ? h("div", { class: "sp-stack", "aria-hidden": "true" }, top.map((p, i) => ava(p.name, p.sort || i, owesMe(p) === (loanBalances().get(p.id) > 0) ? "in" : "out"))) : null),
+        h("div", { class: "aura-mid" },
+          h("strong", { class: "aura-net num" }, Math.abs(total) < 0.5 ? tr("All settled") : (total > 0 ? "+" : "−") + money(Math.abs(total), { whole: true })),
+          h("span", { class: "aura-sub" }, Math.abs(total) < 0.5 ? tr("Nobody owes anything") : total > 0 ? tr("More is owed to you than you owe") : tr("You owe more than you're owed"))),
+        h("div", { class: "aura-bar", "aria-hidden": "true" }, h("span", { class: "in", style: { "--w": (owed / span * 100).toFixed(1) + "%" } }), h("span", { class: "out", style: { "--w": (owe / span * 100).toFixed(1) + "%" } })),
+        h("div", { class: "aura-sides" },
+          h("button", { type: "button", class: "aura-side", on: { click: goPeople } }, h("small", null, h("i", { class: "dot-in" }), tr("Owed to you")), h("b", { class: "num" }, money(owed, { whole: true }))),
+          h("button", { type: "button", class: "aura-side", on: { click: goPeople } }, h("small", null, h("i", { class: "dot-out" }), tr("You owe")), h("b", { class: "num" }, money(owe, { whole: true }))))),
+      h("div", { class: "sp-acts aura-acts" },
         act("people", "Split a bill", newGroupSheet, "main"),
         act("up", "Lend or borrow", () => personSheet(null)),
         act("note", "By item", itemSplitSheet)));
@@ -6741,7 +6714,7 @@
     const top = people.filter(p => Math.abs(net.get(p.id)) > 0.004).sort((p, q) => Math.abs(net.get(q.id)) - Math.abs(net.get(p.id))).slice(0, 5);
     const ava = (name, i, cls = "") => h("span", { class: "sp-ava " + cls, style: { "--c": COLORS[i % COLORS.length] } }, String(name || "?").trim().charAt(0).toUpperCase());
     const act = (ic, label, fn, cls = "") => h("button", { type: "button", class: "sp-act " + cls, on: { click: fn } }, h("span", { class: "sp-act-ico" }, icon(ic, "ico sm")), h("span", null, label));
-    out.append(splitScale(owed, owe, total, top, ava, act));
+    out.append(splitAura(owed, owe, total, top, ava, act));
     out.append(groupsCard());
     const grid = h("div", { class: "sp-grid" }, people.map((p, i) => {
       const v = bal.get(p.id) || 0, n = net.get(p.id) || 0, d = theyOwe(p, v) ? dueInfo(p) : null;
