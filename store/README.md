@@ -56,11 +56,19 @@ SEE WHERE IT GOES
 SPLIT BILLS AND TRACK LOANS
 • Split a dinner, the rent or a trip
 • Track money you lent and borrowed, person by person
+• Split a receipt by item: everyone pays for what they had
 • Share a read-only page so they always see the same history
 
 ASK GIO, YOUR AI ASSISTANT
 • "How much did I spend this month?" "Who owes me money?"
+• Say "coffee 5 dollars" and Gio fills in the entry for you
 • Free, 30 questions a day, answers from your own numbers
+
+STAY ON TRACK
+• Budget alerts at 80% and 100%
+• A weekly cash count and a month-end check
+• Repeating payments spotted and turned into bills
+• Your year in review, as one receipt
 
 PRIVATE BY DESIGN
 • Your names, amounts and notes are encrypted on your phone before they are saved
@@ -201,3 +209,13 @@ Update this list with every app change, so the listing, screenshots and privacy 
 | 3.80.0 | Privacy, terms, delete-account and support pages; store images | Use these URLs and images |
 | 3.81.0 | Worldwide defaults (currency from device region, LBP only if chosen); no brand names; generic e-wallet | Listing says "any currency"; screenshots regenerated |
 | 3.81.1 | Number pad layout fix on the add screen; neutral demo and placeholder names | Screenshots regenerated with neutral names |
+| 3.82.0 | Gio adds entries from a sentence; split a receipt by item; budget alerts; weekly cash count; repeating payments; year in review | Add these to the full description; consider screenshots of split by item and year in review; privacy policy updated (Gio sees category, account and people names) |
+
+## Save for the native app
+
+These need the store version, so they wait until we package the app:
+
+- Home screen widget: today's spending and a quick add button.
+- Quick add from the lock screen or the share sheet.
+- Budget alerts and reminders when the app is closed: local notifications scheduled on the phone (today they show only while the app is open, or through web push for the daily reminder).
+- Face ID or fingerprint for the app lock through the native API.

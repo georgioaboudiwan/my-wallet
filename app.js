@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.81.1";
+  const VERSION = "3.82.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -88,6 +88,7 @@
     bag: "M6 7h12l1 13H5zM9 7a3 3 0 0 1 6 0",
     star: "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z",
     gift: "M3 9h18v4H3zM5 13v8h14v-8M12 9v12M12 9S10 4 7.5 4a2.5 2.5 0 0 0 0 5M12 9s2-5 4.5-5a2.5 2.5 0 0 1 0 5",
+    share: "M12 15V3M7.5 7.5 12 3l4.5 4.5M5 12v8h14v-8",
     cash: "M2.5 6.5h19v11h-19zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM6 9.5v5M18 9.5v5",
     card: "M2.5 5.5h19v13h-19zM2.5 10h19M6.5 15h4",
     phone: "M7 2.5h10a1 1 0 0 1 1 1v17a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-17a1 1 0 0 1 1-1zM10.5 18.5h3M9 7.5h6M9 11h6",
@@ -894,8 +895,40 @@
         h("button", { type: "button", class: "btn sm", on: { click: () => monthEndSheet(m) } }, "Check now"),
         h("button", { type: "button", class: "link-btn", on: { click: () => { store.set("mcheckSnooze", today()); render(); } } }, "Later")));
   }
+  const weekKey = () => { const d = new Date(today() + "T12:00:00"); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymd(d); };
+  const cashAccounts = () => rows("accounts").filter(a => !a.archived && a.kind === "cash").sort(bySort);
+  function cashCheckCard() {
+    if (storedSettings().cashCheckOff) return null;
+    const dow = new Date(today() + "T12:00:00").getDay();
+    if (dow !== 0 && dow !== 1) return null;
+    const wk = weekKey(), list = cashAccounts();
+    if (!list.length || store.get("ccheck", "") === wk || store.get("ccheckSnooze", "") === today()) return null;
+    const since = ymd(new Date(Date.now() - 7 * 864e5));
+    const ids = new Set(list.map(a => a.id));
+    if (!rows("transactions").some(x => x.occurred_on >= since && (ids.has(x.account_id) || ids.has(x.to_account_id)))) return null;
+    return h("section", { class: "payday mcheck" },
+      h("span", { class: "payday-ico" }, icon("cash")),
+      h("div", { class: "payday-main" },
+        h("strong", null, "Quick cash count"),
+        h("small", null, "Does the cash in the app match what's in your pocket? It takes 10 seconds and keeps your balance right.")),
+      h("div", { class: "payday-acts" },
+        h("button", { type: "button", class: "btn sm", on: { click: cashCheckSheet } }, "Count now"),
+        h("button", { type: "button", class: "link-btn", on: { click: () => { store.set("ccheckSnooze", today()); render(); } } }, "Later")));
+  }
+  function cashCheckSheet() {
+    const done = () => { store.set("ccheck", weekKey()); track("add", "cash_check"); render(); };
+    const bal = balances();
+    const body = h("div", { class: "form" },
+      h("p", { class: "hint" }, "Count the cash you have. If it's different, tap Fix and enter the real amount."),
+      h("div", { class: "card flush" }, cashAccounts().map(a => h("div", { class: "row" },
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, a.name), h("span", { class: "row-sub num" }, fmt(bal.get(a.id) || 0, a.currency, { show: true }))),
+        h("button", { type: "button", class: "btn sm alt mcheck-fix", on: { click: () => { done(); closeSheet(); setTimeout(() => balanceSheet(a), 320); } } }, "Fix")))),
+      h("button", { type: "button", class: "link-btn mcheck-off", on: { click: () => { saveSettings({ cashCheckOff: true }); closeSheet(); toast("Weekly cash count turned off. Turn it on again in Settings, Entries and defaults."); } } }, "Don't ask me every week"));
+    const btn = h("button", { type: "button", class: "btn", on: { click: () => { done(); closeSheet(); toast("Great, your cash is right."); } } }, "It matches");
+    openSheet("Cash count", body, btn);
+  }
   function monthEndSheet(m) {
-    const done = () => { store.set("mcheck:" + m, true); track("add", "month_check"); render(); };
+    const done = () => { store.set("mcheck:" + m, true); store.set("ccheck", weekKey()); track("add", "month_check"); render(); };
     const list = rows("accounts").filter(a => !a.archived).sort(bySort);
     const bal = balances();
     const left = leftOver(m);
@@ -1232,6 +1265,28 @@
     el.replaceChildren(icon(ic), ...(text ? [h("span", null, text)] : []));
   }
 
+  let budgetVer = -1, budgetBoot = true;
+  function budgetWatch() {
+    if (budgetVer === ver || !S.uid) return;
+    budgetVer = ver;
+    const m = thisMonth(), st = monthStats(m), hits = [];
+    for (const c of rows("categories")) {
+      const b = Number(c.budget) || 0;
+      if (c.kind !== "expense" || b <= 0) continue;
+      const pct = (st.byCat.get(c.id) || 0) / b * 100, lvl = pct >= 100 ? 100 : pct >= 80 ? 80 : 0;
+      const key = `bAlert:${m}:${c.id}`;
+      if (lvl && store.get(key, 0) < lvl) { store.set(key, lvl); hits.push({ c, lvl, spent: st.byCat.get(c.id) || 0, b }); }
+    }
+    const boot = budgetBoot;
+    budgetBoot = false;
+    if (!hits.length || storedSettings().budgetAlertsOff) return;
+    const top = hits.sort((p, q) => q.lvl - p.lvl)[0];
+    const title = top.lvl >= 100 ? `${tr(top.c.name)}: over budget` : `${tr(top.c.name)}: 80% of budget used`;
+    const body = `${money(top.spent, { show: true })} ${tr("of")} ${money(top.b, { show: true })} ${tr("this month")}`;
+    toast(`${tr(title)} · ${body}`, top.lvl >= 100 ? "error" : undefined);
+    if (!boot && document.visibilityState !== "visible" && "Notification" in window && Notification.permission === "granted" && navigator.serviceWorker) navigator.serviceWorker.ready.then(r => r.showNotification(tr(title), { body, tag: "budget-" + top.c.id, icon: "icons/icon-192-b.png" })).catch(() => { });
+  }
+
   function render() {
     if (!CFG.supabaseUrl || !CFG.supabaseAnonKey) return renderSetup();
     if (!langChosen()) return renderLangPick();
@@ -1271,6 +1326,7 @@
     maybeTour();
     maybeWhatsNew();
     maybeMonthlyReport();
+    budgetWatch();
     queueQuickSummary();
     queueQuickLists();
     queueFx(!sameView);
@@ -1701,11 +1757,12 @@
     ? [["Generator", "generator", "bolt"], ["Electricity (EDL)", "generator", "bolt"], ["Internet", "bills", "wifi"], ["Phone", "bills", "wifi"], ["Rent", "home", "home"], ["School fees", null, "work"], ["Water", "bills", "home"]]
     : [["Rent", "home", "home"], ["Electricity", "bills", "bolt"], ["Internet", "bills", "wifi"], ["Phone", "bills", "wifi"], ["School fees", null, "work"], ["Water", "bills", "home"]]);
 
-  function billSheet(r) {
+  function billSheet(r, draft) {
     const accounts = rows("accounts").filter(a => !a.archived).sort(bySort);
     if (!accounts.length) { toast("Add an account first."); return; }
     const f = r
       ? { name: r.note || "", amount: String(Number(r.amount)), day: String(r.day), account: r.account_id, category: r.category_id, remind: r.remind ?? 3, auto: !!r.active }
+      : draft ? { name: draft.note, amount: String(draft.amount), day: String(draft.day), account: acc(draft.account_id) ? draft.account_id : accounts[0].id, category: draft.category_id, remind: 3, auto: false }
       : { name: "", amount: "", day: "", account: (accounts.find(a => a.kind === "cash") || accounts[0]).id, category: null, remind: 3, auto: false };
     const body = h("form", { class: "form", id: "bill-form", novalidate: true });
     const err = h("p", { class: "form-err", role: "alert" });
@@ -3073,6 +3130,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.82.0", items: [
+      ["", "Six new features", "Gio actions: the assistant prompt now answers add requests with one line ADD {type, amount, currency, category, account, person, note, date}; the function validates it and returns {action}. The phone matches names to its own categories, accounts and people (context now lists their names) and opens the entry sheet on the details step for review; nothing is saved without a tap. Split by item: people chips (existing or new name), item rows with per-item people, tax/service/tip shared in proportion, receipt scan uses the existing OCR plus a line-item parser; saves my part as an expense and each other part as a loan (loan_out from the paying account, shared links respected). Budget alerts: checked once per data change, flag per category per month at 80 and 100, toast in app and a system notification only when the page is hidden and permission is granted. Weekly cash count: Sunday and Monday card when cash accounts moved in the last 7 days, done per week. Repeating payments: expenses with the same note and category in at least two months within 15% and 6 days, not already a bill, memoized per data version, Make it a bill pre-fills the bill sheet. Year in review: receipt for any year with totals, top 8 categories, biggest and lightest month, average and most frequent note, Share. New Settings group Checks and alerts with three switches. Function version 5."]
+    ] },
     { v: "3.81.1", items: [
       ["", "Number pad fixed", "The header buttons' .key styles (3.76) were global and squeezed the add screen's number pad into small circles. They are now scoped to the header. Placeholders and examples use neutral names (Alex, Sam, Ski trip) instead of real ones."]
     ] },
@@ -3275,6 +3335,14 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.82.0", items: [
+      ["star", "Tell Gio to add it", "Type “coffee 5 dollars” or “I gave Alex 50” to Gio. It fills in the entry for you to check and save."],
+      ["note", "Split a receipt by item", "In Split, scan or type a receipt, tap who had what, and tax and tip are shared fairly. Everyone's part is saved as a loan."],
+      ["bell", "Budget alerts", "When a category reaches 80% or 100% of its budget, the app tells you."],
+      ["cash", "Weekly cash count", "Every Sunday, a 10-second check that your cash in the app matches your pocket."],
+      ["repeat", "Repeating payments", "Insights spots payments that come back every month and turns them into bills with reminders."],
+      ["chart", "Year in review", "Your whole year as one receipt: totals, top categories, biggest and lightest month."]
+    ] },
     { v: "3.79.0", items: [
       ["piggy", "Your month-end check", "At the end of each month the app asks if your money is still right. Fix an account in one tap, or move what's left to savings. You can turn it off in Settings."]
     ] },
@@ -3552,15 +3620,45 @@
     if (holdings().length) { const ht = holdTotals(); L.push(`Investments: worth ${M(ht.value)}${ht.cost ? `, paid ${M(ht.cost)}` : ""}.`); }
     const recent = [...rows("transactions"), ...loanOnlyTx(m)].filter(x => monthOf(x.occurred_on) === m && x.kind !== "transfer").sort(byRecent).slice(0, 25);
     if (recent.length) L.push("Latest entries this month: " + recent.map(x => { const c = cat(x.category_id); const what = x.kind === "loan_out" || x.kind === "loan_in" ? loanTitle(x) : c ? tr(c.name) : x.kind; return `${x.occurred_on} ${what} ${x.kind === "income" || x.kind === "loan_in" ? "+" : "-"}${fmt(Number(x.amount), x.currency, { show: true })}${x.note ? ` "${String(x.note).slice(0, 40)}"` : ""}`; }).join("; ") + ".");
+    const names = k => rows("categories").filter(c => c.kind === k).sort(bySort).map(c => tr(c.name)).join(", ");
+    L.push(`Expense categories: ${names("expense")}. Income categories: ${names("income")}.`);
+    if (accs.length) L.push("Account names: " + accs.map(a => a.name).join(", ") + ".");
+    if (rows("people").length) L.push("People: " + rows("people").map(p => p.name).join(", ") + ".");
     return L.join("\n").slice(0, 7800);
+  }
+  const byName = (list, name, label) => { const n = String(name || "").trim().toLowerCase(); if (!n) return null; return list.find(o => label(o).toLowerCase() === n) || list.find(o => label(o).toLowerCase().includes(n) || n.includes(label(o).toLowerCase())) || null; };
+  function aiPreset(a) {
+    const accounts = rows("accounts").filter(o => !o.archived).sort(bySort);
+    const cur = a.currency || mainCur();
+    let account = byName(accounts, a.account, o => o.name);
+    if (!account || account.currency !== cur) account = (account && account.currency === cur ? account : null) || accounts.find(o => o.currency === cur && o.kind === "cash") || accounts.find(o => o.currency === cur) || account;
+    const amount = String(roundCur(account && account.currency !== cur ? convert(a.amount, cur, account.currency) : a.amount, account ? account.currency : cur));
+    const date = DATE_RE.test(a.date || "") && a.date <= today() ? a.date : today();
+    if (a.type === "gave" || a.type === "got") {
+      const p = byName(rows("people"), a.person, o => o.name);
+      return { kind: "loan", amount, account: account ? account.id : null, person: p ? p.id : null, lmode: a.type === "got" ? "in" : "out", note: a.note || "", date, who: p ? p.name : a.person };
+    }
+    const kind = a.type === "income" ? "income" : "expense";
+    const c = byName(rows("categories").filter(o => o.kind === kind), a.category, o => tr(o.name)) || byName(rows("categories").filter(o => o.kind === kind), a.category, o => o.name);
+    return { kind, amount, account: account ? account.id : null, category: c ? c.id : null, note: a.note || "", date };
+  }
+  function aiActionCard(a) {
+    const pr = aiPreset(a);
+    const ac = acc(pr.account), c = pr.category ? cat(pr.category) : null;
+    const what = pr.kind === "loan" ? (pr.lmode === "in" ? `${pr.who || tr("Someone")} ${tr("gave me")}` : `${tr("I gave")} ${pr.who || tr("someone")}`) : c ? tr(c.name) : tr(pr.kind === "income" ? "Income" : "Expense");
+    const sign = pr.kind === "income" || (pr.kind === "loan" && pr.lmode === "in") ? "+" : "−";
+    return h("div", { class: "ai-msg assistant ai-act" },
+      h("span", { class: "ai-act-top" }, h("strong", null, what), h("b", { class: "num" }, `${sign}${fmt(Number(pr.amount), ac ? ac.currency : (a.currency || mainCur()), { show: true })}`)),
+      h("small", null, [pr.note, ac ? ac.name : null, pr.date === today() ? tr("Today") : pr.date].filter(Boolean).join(" · ")),
+      h("button", { type: "button", class: "btn sm", on: { click: () => { track("add", "gio_add"); closeSheet(); setTimeout(() => txnSheet(null, pr), 320); } } }, icon("check", "ico sm"), "Review and save"));
   }
   function assistantSheet() {
     track("assistant");
     const list = h("div", { class: "ai-list", "aria-live": "polite" });
-    const input = h("textarea", { id: "ai-q", class: "ai-input", rows: "1", maxlength: "500", placeholder: "Ask about your money…", autocomplete: "off", "aria-label": "Your question" });
+    const input = h("textarea", { id: "ai-q", class: "ai-input", rows: "1", maxlength: "500", placeholder: "Ask, or say “coffee 5 dollars”…", autocomplete: "off", "aria-label": "Your question" });
     const send = h("button", { type: "submit", class: "ai-send", "aria-label": "Send" }, icon("up", "ico sm"));
     const form = h("form", { class: "ai-form", novalidate: true }, input, send);
-    const SUGG = ["How much did I spend this month?", "Where can I save money?", "Who owes me money?", "What bills are coming up?", "How do I split a bill?"];
+    const SUGG = ["How much did I spend this month?", "Add 5 dollars for coffee", "Where can I save money?", "Who owes me money?", "What bills are coming up?"];
     const bubble = (role, text, cls = "") => h("div", { class: `ai-msg ${role} ${cls}` }, document.createTextNode(String(text).replace(/\*\*(.+?)\*\*/g, "$1").replace(/^#+\s*/gm, "")));
     const paint = () => {
       const kids = [];
@@ -3574,7 +3672,7 @@
         kids.push(h("div", { class: "ai-hello" }, gioMark("gio gio-lg"), h("strong", null, "Hi, I'm Gio. What would you like to know?"), h("small", null, "Free · 30 questions a day")),
           h("div", { class: "ai-sugg" }, SUGG.map(q => h("button", { type: "button", class: "chip", on: { click: () => ask(tr(q)) } }, q))));
       }
-      for (const mm of AI.msgs) kids.push(bubble(mm.role, mm.content, mm.err ? "err" : ""));
+      for (const mm of AI.msgs) kids.push(mm.action ? aiActionCard(mm.action) : bubble(mm.role, mm.content, mm.err ? "err" : ""));
       if (AI.busy) kids.push(h("div", { class: "ai-typing" }, gioMark("gio gio-sm gio-think"), h("div", { class: "ai-msg assistant typing" }, h("i"), h("i"), h("i"))));
       list.replaceChildren(...kids);
       form.hidden = !store.get("aiOk", false);
@@ -3586,7 +3684,7 @@
       if (!q || AI.busy) return;
       AI.msgs.push({ role: "user", content: q });
       AI.busy = true; input.value = ""; paint();
-      let reply = null, err = null;
+      let reply = null, err = null, action = null;
       if (!navigator.onLine || !sb) err = "offline";
       else {
         try {
@@ -3595,11 +3693,13 @@
             let code = "busy";
             try { const b = await error.context.json(); if (b && b.error) code = b.error; } catch { }
             err = code;
-          } else reply = data && data.reply;
+          } else if (data && data.action) action = data.action;
+          else reply = data && data.reply;
         } catch { err = "busy"; }
       }
       AI.busy = false;
-      if (reply) AI.msgs.push({ role: "assistant", content: reply });
+      if (action) AI.msgs.push({ role: "assistant", content: `ADD ${JSON.stringify(action)}`, action });
+      else if (reply) AI.msgs.push({ role: "assistant", content: reply });
       else AI.msgs.push({ role: "assistant", content: tr(ERR[err] || ERR.busy), err: true });
       if (AI.msgs.length > 40) AI.msgs.splice(0, AI.msgs.length - 40);
       paint();
@@ -4035,7 +4135,7 @@
 
     const pay = paydayCard();
     if (pay) out.append(pay);
-    const mEnd = pay ? null : monthEndCard();
+    const mEnd = pay ? null : monthEndCard() || cashCheckCard();
     if (mEnd) out.append(mEnd);
     const coming = upcomingCard();
     if (coming && !coming.classList.contains("bill-teaser")) out.append(coming);
@@ -4306,6 +4406,103 @@
     openSheet(title, body, null, { fill: true });
   }
 
+  let repMemo = { ver: -1, value: [] };
+  function findRepeating() {
+    if (repMemo.ver === ver) return repMemo.value;
+    const since = ymd(new Date(Date.now() - 125 * 864e5));
+    const ruleNotes = new Set(rows("rules").map(r => String(r.note || "").trim().toLowerCase()).filter(Boolean));
+    const groups = new Map();
+    for (const x of rows("transactions")) {
+      if (x.kind !== "expense" || x.rule_id || x.occurred_on < since) continue;
+      const note = String(x.note || "").trim().toLowerCase();
+      if (note.length < 2 || ruleNotes.has(note)) continue;
+      const k = note + "|" + (x.category_id || "");
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(x);
+    }
+    const out = [];
+    for (const list of groups.values()) {
+      const months = new Map();
+      for (const x of list) { const m = monthOf(x.occurred_on); if (!months.has(m)) months.set(m, x); }
+      if (months.size < 2 || list.length > months.size + 1) continue;
+      const pick = [...months.values()].sort((p, q) => p.occurred_on < q.occurred_on ? -1 : 1);
+      const vals = pick.map(x => txMain(x)).sort((p, q) => p - q), mid = vals[Math.floor(vals.length / 2)];
+      if (!(mid > 0) || vals.some(v => Math.abs(v - mid) > mid * 0.15)) continue;
+      const days = pick.map(x => Number(x.occurred_on.slice(8)));
+      if (Math.max(...days) - Math.min(...days) > 6) continue;
+      const last = pick[pick.length - 1];
+      out.push({ note: String(last.note).trim(), category_id: last.category_id, account_id: last.account_id, amount: Number(last.amount), currency: last.currency, day: Math.min(28, days[days.length - 1]), monthly: mid, count: months.size });
+    }
+    out.sort((p, q) => q.monthly - p.monthly);
+    repMemo = { ver, value: out };
+    return out;
+  }
+  function repeatCard() {
+    const list = findRepeating().filter(r => !store.get("repSkip:" + r.note.toLowerCase(), false));
+    if (!list.length) return null;
+    const yearly = list.reduce((t, r) => t + r.monthly * 12, 0);
+    return h("section", { class: "card rep-card" },
+      h("div", { class: "card-head" }, h("h2", null, "Repeating payments"), h("span", { class: "hint num" }, `${money(yearly, { whole: true })} ${tr("a year")}`)),
+      h("p", { class: "hint" }, "These look like they come back every month. Make them bills to get a reminder before each one."),
+      list.slice(0, 5).map(r => { const c = cat(r.category_id); return h("div", { class: "row" },
+        h("span", { class: "dot", style: { background: c ? c.color : "#5b7083" } }, icon(c ? catIconName(c) || "repeat" : "repeat", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, r.note), h("span", { class: "row-sub wrap num" }, `${fmt(r.amount, r.currency, { show: true })} ${tr("a month, around the")} ${r.day}`)),
+        h("button", { type: "button", class: "btn sm alt mcheck-fix", on: { click: () => billSheet(null, r) } }, "Make it a bill"),
+        h("button", { type: "button", class: "icon-btn", "aria-label": "Not repeating", on: { click: () => { store.set("repSkip:" + r.note.toLowerCase(), true); render(); } } }, icon("close", "ico sm"))); }));
+  }
+
+  function yearSheet(y) {
+    track("view", "year_review");
+    const last = Math.min(12, y < Number(today().slice(0, 4)) ? 12 : Number(today().slice(5, 7)));
+    const months = Array.from({ length: last }, (_, i) => `${y}-${String(i + 1).padStart(2, "0")}`);
+    const by = new Map(), per = [];
+    let spent = 0, income = 0, count = 0;
+    for (const m of months) {
+      const st = monthStats(m);
+      spent += st.spent; income += st.income; count += st.count;
+      per.push([m, st.spent]);
+      for (const [id, v] of st.byCat) if (v > 0) by.set(id, (by.get(id) || 0) + v);
+    }
+    const notes = new Map();
+    for (const x of rows("transactions")) if (x.kind === "expense" && x.occurred_on.slice(0, 4) === String(y) && x.note) { const k = x.note.trim(); notes.set(k, (notes.get(k) || 0) + 1); }
+    const fav = [...notes].sort((p, q) => q[1] - p[1])[0];
+    const used = per.filter(e => e[1] > 0);
+    const hi = used.slice().sort((p, q) => q[1] - p[1])[0], lo = used.slice().sort((p, q) => p[1] - q[1])[0];
+    const cats = [...by].sort((p, q) => q[1] - p[1]).slice(0, 8);
+    const saved = income - spent;
+    const body = h("div", { class: "form yir" });
+    if (!count) {
+      body.append(h("p", { class: "empty" }, `${tr("No entries in")} ${y}.`));
+    } else {
+      body.append(
+        h("div", { class: "yir-hero" },
+          h("div", null, h("small", null, "Spent"), h("strong", { class: "num" }, money(spent, { whole: true, show: true }))),
+          h("div", null, h("small", null, "Came in"), h("strong", { class: "num" }, money(income, { whole: true, show: true }))),
+          h("div", null, h("small", null, saved >= 0 ? "Saved" : "Overspent"), h("strong", { class: "num" + (saved < 0 ? " neg" : " pos") }, money(Math.abs(saved), { whole: true, show: true })))),
+        h("section", { class: "rcpt-card printed" }, h("div", { class: "rcpt-clip" }, h("div", { class: "rcpt" },
+          h("div", { class: "rcpt-head" }, h("strong", null, ...brandMark()), h("span", null, `${tr("Year in review")} · ${y}`), h("small", { class: "num" }, `${count} ${tr("entries")}`)),
+          h("div", { class: "rcpt-rule" }),
+          h("ul", { class: "rcpt-items" }, cats.map(([id, v], i) => { const c = cat(id), pct = spent ? v / spent * 100 : 0; return h("li", { style: { "--c": c ? c.color : "#5b7083", "--p": pct.toFixed(1) + "%", "--i": String(i) } }, h("div", null,
+            h("span", { class: "rcpt-line" }, h("span", { class: "rcpt-name" }, c ? tr(c.name) : tr("Uncategorized")), h("i", { class: "rcpt-dots" }), h("b", { class: "num" }, money(v, { whole: true, show: true }))),
+            h("span", { class: "rcpt-meta num" }, h("span", { class: "rcpt-bar" }), `${Math.round(pct)}%`))); })),
+          h("div", { class: "rcpt-rule" }),
+          hi ? h("div", { class: "rcpt-sub" }, h("span", null, "Biggest month"), h("span", { class: "num" }, `${monthName(hi[0])} · ${money(hi[1], { whole: true, show: true })}`)) : null,
+          lo && lo !== hi ? h("div", { class: "rcpt-sub" }, h("span", null, "Lightest month"), h("span", { class: "num" }, `${monthName(lo[0])} · ${money(lo[1], { whole: true, show: true })}`)) : null,
+          h("div", { class: "rcpt-sub" }, h("span", null, "Monthly average"), h("span", { class: "num" }, money(spent / Math.max(1, used.length), { whole: true, show: true }))),
+          fav && fav[1] > 2 ? h("div", { class: "rcpt-sub" }, h("span", null, "Most often"), h("span", null, `${fav[0]} · ${fav[1]}×`)) : null,
+          h("div", { class: "rcpt-rule" }),
+          h("div", { class: "rcpt-total" }, h("span", null, "Total spent"), h("b", { class: "num" }, money(spent, { show: true }))),
+          h("div", { class: "rcpt-code", "aria-hidden": "true" }),
+          h("p", { class: "rcpt-thanks" }, "Thank you for tracking your money")))));
+    }
+    const yrs = [...new Set(rows("transactions").map(x => Number(String(x.occurred_on).slice(0, 4))).filter(Boolean))].sort();
+    const nav = yrs.length > 1 ? h("div", { class: "chips wrap yir-years" }, yrs.map(v => h("button", { type: "button", class: "chip", "aria-pressed": String(v === y), on: { click: () => { closeSheet(); setTimeout(() => yearSheet(v), 300); } } }, String(v)))) : null;
+    if (nav) body.prepend(nav);
+    const text = `${tr("My year with BudgetSplit")} ${y}: ${tr("spent")} ${money(spent, { whole: true, show: true })}, ${tr("came in")} ${money(income, { whole: true, show: true })}${cats[0] ? `. ${tr("Top")}: ${tr((cat(cats[0][0]) || {}).name || "")}` : ""}.`;
+    const btn = count ? h("button", { type: "button", class: "btn", on: { click: async () => { try { if (navigator.share) await navigator.share({ text }); else { await navigator.clipboard.writeText(text); toast("Copied."); } } catch { } } } }, icon("share", "ico sm"), "Share") : null;
+    openSheet(`${tr("Year in review")} ${y}`, body, btn, { fill: true });
+  }
+
   function viewInsights() {
     const m = S.month || thisMonth();
     const s = monthStats(m);
@@ -4328,6 +4525,9 @@
       h("button", { type: "button", class: "tile tap " + (left >= 0 ? "good" : "bad"), on: { click: () => monthKindSheet(m, "both") } }, h("small", null, left >= 0 ? "Left over" : "Overspent"), h("strong", null, money(Math.abs(left), { whole: true })), icon("fwd", "ico sm tile-go"))));
     if (s.count) out.append(h("button", { type: "button", class: "btn alt", on: { click: () => recapSheet(m) } }, `${monthName(m)} summary`));
     out.append(h("button", { type: "button", class: "ai-cta", on: { click: assistantSheet } }, gioMark("gio gio-md"), h("span", null, h("strong", null, "Ask Gio about your money"), h("small", null, "\"Where can I save?\" · \"Who owes me?\"")), icon("fwd", "ico sm")));
+    const rep = repeatCard();
+    if (rep) out.append(rep);
+    out.append(h("button", { type: "button", class: "yir-cta", on: { click: () => yearSheet(Number(today().slice(0, 4)) - (today().slice(5, 7) === "01" ? 1 : 0)) } }, h("span", { class: "yir-badge" }, icon("star", "ico sm")), h("span", null, h("strong", null, "Year in review"), h("small", null, "Your year as one receipt: totals, top categories, best month")), icon("fwd", "ico sm")));
     const rc = spendReceipt(m, s);
     out.append(rc || h("section", { class: "card" }, h("p", { class: "empty" }, `No spending in ${monthName(m)}.`)));
 
@@ -4695,10 +4895,16 @@
       h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("mail", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Monthly report by email"), h("span", { class: "row-sub wrap" }, storedSettings().reportOff ? "Off" : "A summary of last month, sent when you open the app on or after the 1st")),
         h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(!storedSettings().reportOff), "aria-label": "Monthly report by email", on: { click: () => saveSettings({ reportOff: !storedSettings().reportOff }) } }, h("span", { class: "knob" })))));
-    out.append(group("Month end",
+    out.append(group("Checks and alerts",
       h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("piggy", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Month-end check"), h("span", { class: "row-sub wrap" }, storedSettings().monthCheckOff ? "Off" : "At the end of each month, ask if your money is still right and offer to move what's left to savings")),
-        h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(!storedSettings().monthCheckOff), "aria-label": "Month-end check", on: { click: () => saveSettings({ monthCheckOff: !storedSettings().monthCheckOff }) } }, h("span", { class: "knob" })))));
+        h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(!storedSettings().monthCheckOff), "aria-label": "Month-end check", on: { click: () => saveSettings({ monthCheckOff: !storedSettings().monthCheckOff }) } }, h("span", { class: "knob" }))),
+      h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("cash", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Weekly cash count"), h("span", { class: "row-sub wrap" }, storedSettings().cashCheckOff ? "Off" : "Every Sunday, a quick check that the cash in the app matches your pocket")),
+        h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(!storedSettings().cashCheckOff), "aria-label": "Weekly cash count", on: { click: () => saveSettings({ cashCheckOff: !storedSettings().cashCheckOff }) } }, h("span", { class: "knob" }))),
+      h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("bell", "ico sm")),
+        h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Budget alerts"), h("span", { class: "row-sub wrap" }, storedSettings().budgetAlertsOff ? "Off" : "Tell me when a category reaches 80% and 100% of its budget")),
+        h("button", { type: "button", class: "switch", role: "switch", "aria-checked": String(!storedSettings().budgetAlertsOff), "aria-label": "Budget alerts", on: { click: () => saveSettings({ budgetAlertsOff: !storedSettings().budgetAlertsOff }) } }, h("span", { class: "knob" })))));
     out.append(group("Entries",
       h("div", { class: "row" }, h("span", { class: "dot neutral" }, icon("note", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Note is required"), h("span", { class: "row-sub wrap" }, settings().noteRequired ? "Asked for every category except the ones ticked below" : "Notes are optional")),
@@ -4786,7 +4992,7 @@
       { id: "language", t: "Language", ic: "globe", c: "#0d7a59", keys: ["Language"], v: LANGS[LANG], sec: "App" },
       { id: "notifications", t: "Notifications", ic: "bell", c: "#e0534a", keys: ["Daily reminder", "Email"], v: pushOn ? (PUSH.time || "21:00") : tr("Off"), sec: "App" },
       { id: "quick", t: "Add without opening the app", ic: "plus", c: "#0f8a6c", fn: () => quickSheet(), v: store.get("quickToken", null) ? tr("On") : "", sec: "App" },
-      { id: "entries", t: "Entries and defaults", ic: "note", c: "#5b7083", keys: ["Entries", "Defaults"], sec: "App" },
+      { id: "entries", t: "Entries and defaults", ic: "note", c: "#5b7083", keys: ["Checks and alerts", "Entries", "Defaults"], sec: "App" },
       { id: "security", t: "Security", ic: "shield", c: "#1f7a5c", keys: ["Security"], v: lockOn ? tr("Locked") : "", sec: "Privacy and data" },
       { id: "data", t: "Sync and backup", ic: "sync", c: "#3b74d0", keys: ["Sync", "Your data"], v: S.outbox.length ? `${S.outbox.length} ${tr("waiting")}` : tr(navigator.onLine ? "Synced" : "Offline"), sec: "Privacy and data" },
       { id: "privacy", t: "Privacy", ic: "eye", c: "#5b7083", fn: privacySheet, sec: "Privacy and data" },
@@ -5464,12 +5670,140 @@
       ...items.map(x => x.el));
   }
 
+  const ITEM_SKIP = /total|subtotal|sub-total|tax|vat|tva|tip|service|change|cash|card|visa|master|amount|balance|paid|due|rounding|discount/i;
+  function parseItems(text) {
+    const out = [];
+    for (const raw of String(text || "").split(/\r?\n/)) {
+      const line = raw.replace(/\s+/g, " ").trim();
+      const m = line.match(/^(?:\d+\s*[x×]\s*)?(.*?[A-Za-z؀-ۿ].*?)\s+[$€£]?\s?(\d{1,6}[.,]\d{2})\s*[A-Z]?$/);
+      if (!m || ITEM_SKIP.test(m[1])) continue;
+      const price = Number(m[2].replace(",", "."));
+      if (price > 0) out.push({ name: m[1].replace(/[.:\-]+$/, "").trim().slice(0, 40), price: String(price) });
+    }
+    return out.slice(0, 40);
+  }
+  function itemSplitSheet() {
+    track("view", "item_split");
+    const accounts = rows("accounts").filter(a => !a.archived).sort(bySort);
+    if (!accounts.length) { toast("Add an account first."); return; }
+    const ME = "me";
+    const f = { who: new Set([ME]), items: [{ name: "", price: "", who: null }], extra: "", account: store.get("lastAcc:expense", null) || accounts[0].id, category: `${S.uid}:cat:eating`, note: "", newName: "" };
+    if (!acc(f.account)) f.account = accounts[0].id;
+    if (!cat(f.category)) f.category = (rows("categories").find(c => c.kind === "expense") || {}).id || null;
+    const fresh = [];
+    const people = () => [...rows("people").sort(bySort), ...fresh];
+    const label = id => id === ME ? tr("Me") : (people().find(p => p.id === id) || {}).name || "?";
+    const body = h("div", { class: "form isplit" });
+    const err = h("p", { class: "form-err", role: "alert" });
+    let scanning = false;
+    const cur = () => (acc(f.account) || accounts[0]).currency;
+    const num = v => { const n = parseAmt(v); return n > 0 ? n : 0; };
+    const shares = () => {
+      const t = new Map([...f.who].map(id => [id, 0]));
+      let base = 0;
+      for (const it of f.items) {
+        const pr = num(it.price), who = [...(it.who || f.who)].filter(id => f.who.has(id));
+        if (!pr || !who.length) continue;
+        base += pr;
+        for (const id of who) t.set(id, t.get(id) + pr / who.length);
+      }
+      const extra = num(f.extra), k = base ? (base + extra) / base : 1;
+      for (const [id, v] of t) t.set(id, roundCur(v * k, cur()));
+      return { t, total: roundCur(base + extra, cur()) };
+    };
+    const scanInput = h("input", { type: "file", accept: "image/*", hidden: true, on: { change: async e => {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = "";
+      if (!file || scanning) return;
+      scanning = true; draw();
+      try {
+        const T = await loadOcr();
+        const worker = await T.createWorker("eng", 1, { workerPath: "vendor/ocr/worker.min.js", corePath: "vendor/ocr", langPath: "vendor/ocr", gzip: true, workerBlobURL: false });
+        let text = "";
+        try { text = ((await worker.recognize(file)).data || {}).text || ""; } finally { worker.terminate().catch(() => { }); }
+        const found = parseItems(text);
+        const shop = parseReceipt(text).shop;
+        if (shop && !f.note) f.note = shop;
+        if (found.length) { f.items = found.map(x => ({ ...x, who: null })); toast(`${found.length} items found. Check them before saving.`); }
+        else toast("Couldn't find items on the receipt. Type them in.", "error");
+      } catch { toast("Couldn't read the receipt. Type the items in.", "error"); }
+      scanning = false; draw();
+    } } });
+    const whoChip = (id, on, click, small) => h("button", { type: "button", class: "chip" + (small ? " sm" : "") + (on ? " on" : ""), "aria-pressed": String(on), on: { click } }, label(id));
+    const draw = () => {
+      const { t, total } = shares();
+      const sel = [...f.who];
+      keepFocus(() => body.replaceChildren(
+        h("div", { class: "field" }, h("span", { class: "label" }, "Who was there?"),
+          h("div", { class: "chips wrap" },
+            [ME, ...people().map(p => p.id)].map(id => whoChip(id, f.who.has(id), () => { if (id === ME) return; f.who.has(id) ? f.who.delete(id) : f.who.add(id); draw(); })),
+            h("span", { class: "isplit-new" }, h("input", { id: "is-new", class: "input", maxlength: "40", autocomplete: "off", placeholder: "Add a name", value: f.newName, on: { input: e => { f.newName = e.target.value; }, keydown: e => { if (e.key === "Enter") { e.preventDefault(); addName(); } } } }),
+              h("button", { type: "button", class: "chip", "aria-label": "Add", on: { click: addName } }, icon("plus", "ico sm"))))),
+        h("div", { class: "isplit-head" }, h("span", { class: "label" }, "Items"),
+          h("button", { type: "button", class: "link-btn", disabled: scanning, on: { click: () => scanInput.click() } }, icon("cam", "ico sm"), scanning ? "Reading…" : "Scan receipt")),
+        h("div", { class: "card flush isplit-items" }, f.items.map((it, i) => h("div", { class: "isplit-item" },
+          h("div", { class: "isplit-row" },
+            h("input", { class: "input", maxlength: "40", autocomplete: "off", placeholder: `${tr("Item")} ${i + 1}`, value: it.name, "aria-label": "Item", on: { input: e => { it.name = e.target.value; } } }),
+            h("input", { class: "input num isplit-price", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: it.price, "aria-label": "Price", on: { input: e => { it.price = e.target.value; }, change: draw } }),
+            h("button", { type: "button", class: "icon-btn", "aria-label": "Remove", on: { click: () => { f.items.splice(i, 1); if (!f.items.length) f.items.push({ name: "", price: "", who: null }); draw(); } } }, icon("close", "ico sm"))),
+          sel.length > 1 ? h("div", { class: "chips wrap" }, sel.map(id => whoChip(id, (it.who || f.who).has(id), () => { const w = new Set(it.who || f.who); w.has(id) ? w.delete(id) : w.add(id); it.who = w; draw(); }, true))) : null))),
+        h("button", { type: "button", class: "btn alt", on: { click: () => { f.items.push({ name: "", price: "", who: null }); draw(); const ins = body.querySelectorAll(".isplit-row .input:not(.isplit-price)"); if (ins.length) ins[ins.length - 1].focus(); } } }, icon("plus", "ico sm"), "Add item"),
+        h("label", { class: "field" }, h("span", null, `${tr("Tax, service and tip")} (${curSymbol(cur())})`), h("input", { id: "is-extra", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.extra, on: { input: e => { f.extra = e.target.value; }, change: draw } })),
+        h("div", { class: "card flush" }, sel.map(id => h("div", { class: "row" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, label(id)), h("span", { class: "row-sub" }, id === ME ? tr("Your part") : tr("Owes you"))), h("span", { class: "row-end num" }, fmt(t.get(id) || 0, cur(), { show: true })))),
+          h("div", { class: "row isplit-total" }, h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Total")), h("span", { class: "row-end num" }, fmt(total, cur(), { show: true })))),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Paid from"), h("div", { class: "chips wrap" }, accounts.map(a => h("button", { type: "button", class: "chip", "aria-pressed": String(f.account === a.id), on: { click: () => { f.account = a.id; draw(); } } }, h("span", { class: "chip-cur" }, curTag(a.currency)), a.name)))),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Your part goes to"), h("div", { class: "chips wrap" }, rows("categories").filter(c => c.kind === "expense").sort(bySort).map(c => h("button", { type: "button", class: "chip", "aria-pressed": String(f.category === c.id), on: { click: () => { f.category = c.id; draw(); } } }, tr(c.name))))),
+        h("label", { class: "field" }, h("span", null, "Note"), h("input", { id: "is-note", class: "input", maxlength: "200", autocomplete: "off", placeholder: "e.g. Dinner with friends", value: f.note, on: { input: e => { f.note = e.target.value; } } })),
+        err, scanInput));
+      btn.textContent = total > 0 ? `${tr("Save split")} · ${fmt(total, cur(), { show: true })}` : tr("Save split");
+    };
+    function addName() {
+      const name = f.newName.trim().replace(/\s+/g, " ").slice(0, 40);
+      if (!name) return;
+      const ex = people().find(p => p.name.toLowerCase() === name.toLowerCase());
+      if (ex) f.who.add(ex.id);
+      else { const now = new Date().toISOString(); const p = { id: newId(), name, direction: "owes_me", currency: cur(), phone: null, share_token: null, sort: rows("people").length + fresh.length, created_at: now, updated_at: now, fresh: true }; fresh.push(p); f.who.add(p.id); }
+      f.newName = ""; draw();
+      const n = document.getElementById("is-new"); if (n) n.focus();
+    }
+    const btn = h("button", { type: "button", class: "btn", on: { click: () => {
+      const { t, total } = shares();
+      if (!(total > 0)) return fail(err, "Add at least one item with a price.");
+      if (f.who.size < 2) return fail(err, "Pick who was there with you.");
+      if (f.items.some(it => num(it.price) && ![...(it.who || f.who)].some(id => f.who.has(id)))) return fail(err, "Every item needs at least one person.");
+      const a = acc(f.account), now = new Date().toISOString(), day = today();
+      const note = f.note.trim().slice(0, 200) || null;
+      const newPeople = fresh.filter(p => f.who.has(p.id) && (t.get(p.id) || 0) > 0).map(({ fresh: _, ...p }) => ({ t: "people", r: p }));
+      if (newPeople.length) putMany(newPeople);
+      const mine = t.get(ME) || 0;
+      if (mine > 0) put("transactions", { id: newId(), kind: "expense", amount: mine, currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: f.category, note, occurred_on: day, rule_id: null, receipt: null, created_at: now });
+      let n = 0;
+      for (const [id, v] of t) {
+        if (id === ME || !(v > 0)) continue;
+        const p = S.data.people.get(id);
+        if (!p) continue;
+        const loanAmt = roundCur(convert(v, a.currency, p.currency), p.currency);
+        const eid = linkOf(p) ? sharedId() : newId();
+        saveLoan(p, { id: eid, person_id: p.id, amount: loanAmt * (owesMe(p) ? 1 : -1), note, occurred_on: day, created_at: now }, [
+          { t: "transactions", r: { id: `ln-${eid}`, kind: "loan_out", amount: v, currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: null, note, occurred_on: day, rule_id: null, receipt: null, created_at: now } }]);
+        n++;
+      }
+      store.set("lastAcc:expense", a.id);
+      track("add", "item_split");
+      closeSheet();
+      toast(`Saved. ${n} ${n === 1 ? tr("person owes you") : tr("people owe you")} ${fmt(total - mine, a.currency, { show: true })}.`);
+    } } }, "Save split");
+    draw();
+    openSheet("Split by item", body, btn, { fill: true });
+  }
+
   function splitChooser() {
     const opt = (ic, title, sub, fn) => h("button", { type: "button", class: "split-opt", on: { click: () => { closeSheet(); setTimeout(fn, 330); } } },
       h("span", { class: "split-opt-ico" }, icon(ic)), h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), h("span", { class: "row-sub wrap" }, sub)), icon("chev", "ico sm"));
     openSheet("Split", h("div", { class: "form" },
       opt("people", "Split a bill or a trip", "Rent, dinner, a trip… Add everyone, then each expense is split and the app tells who owes whom.", () => { go("people"); newGroupSheet(); }),
       opt("up", "Money with a person", "Money you gave someone or got from someone. See who owes who at a glance.", () => { go("people"); personSheet(null); }),
+      opt("note", "Split a receipt by item", "Each person pays for what they had. Tax and tip are shared fairly.", itemSplitSheet),
       h("button", { type: "button", class: "btn alt", on: { click: () => { closeSheet(); go("people"); } } }, "Open Split")));
   }
 
@@ -5485,7 +5819,8 @@
         step("3", "See who owes whom", "Settle up with one payment each.")) : null,
       h("div", { class: "split-ctas" },
         h("button", { type: "button", class: "btn", on: { click: newGroupSheet } }, icon("people", "ico sm"), "Split a bill"),
-        h("button", { type: "button", class: "btn alt", on: { click: () => personSheet(null) } }, icon("up", "ico sm"), "Money with a person")));
+        h("button", { type: "button", class: "btn alt", on: { click: () => personSheet(null) } }, icon("up", "ico sm"), "Money with a person")),
+      h("button", { type: "button", class: "link-btn split-items", on: { click: itemSplitSheet } }, icon("note", "ico sm"), "Split a receipt by item"));
   }
 
   function groupsCard() {
@@ -7057,7 +7392,7 @@
     } } });
     f.person = null;
     f.lmode = "out";
-    if (!x && preset) Object.assign(f, preset);
+    if (!x && preset) { const { who, ...rest } = preset; Object.assign(f, rest); }
     if (x && curDec(x.currency) === 0) f.amount = String(Math.round(Number(x.amount)));
     const usage = new Map();
     const cutoff = ymd(new Date(Date.now() - 90 * 864e5));
@@ -7068,6 +7403,7 @@
     let armedDelete = false;
     let panel = "none";
     let showAll = false, typeMenu = false, attn = false, step = "amt", lastStep = "amt", catQ = "";
+    if (!x && preset && preset.amount && (preset.category || (preset.kind === "loan" && preset.person))) step = "det";
     const needsNote = () => noteRule(f) && !x && f.kind !== "transfer";
     const isCross = () => { const fa = acc(f.account), ft = f.kind === "transfer" ? acc(f.to) : null; return !!(fa && ft && ft.currency !== fa.currency); };
     const canSave = () => {
