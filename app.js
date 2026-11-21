@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.78.1";
+  const VERSION = "3.78.2";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3017,6 +3017,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.78.2", items: [
+      ["", "Announce text", "Announce this version skipped the first item, so a release with one item gave an empty \"New: .\" text. It now uses all items, or the item's own sentence when there is only one."]
+    ] },
     { v: "3.78.1", items: [
       ["", "One-row header", "Title and controls back on one row (smaller header): title 25px (22px Arabic) never truncated, then Ask Gio pill, eye, bell, avatar at 40px. The keys row is a size container: when it has under 250px the pill collapses to the Gio logo only (Home, Split), otherwise it shows Ask Gio (Insights). Desktop title 30px."]
     ] },
@@ -6685,7 +6688,7 @@
     const latest = CHANGES[0];
     const annTitle = `Version ${latest.v} is here`;
     const announced = INBOX.items.some(n => n.title === annTitle);
-    const annBody = `New: ${latest.items.slice(1).map(x => x[1]).join(", ")}. Open the app to see what changed.`.slice(0, 180);
+    const annBody = (latest.items.length === 1 ? latest.items[0][2] : `New: ${latest.items.map(x => x[1]).join(", ")}. Open the app to see what changed.`).slice(0, 180);
     out.append(h("section", { class: "card" + (announced ? "" : " announce") },
       h("div", { class: "row" }, h("span", { class: "dot " + (announced ? "ok" : "gold") }, icon(announced ? "check" : "star", "ico sm")),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, `Version ${latest.v}`), h("span", { class: "row-sub wrap" }, announced ? "Announced to everyone." : "Not announced yet. Tell your users what's new."))),
