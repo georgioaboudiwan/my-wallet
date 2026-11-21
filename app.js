@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.88.0";
+  const VERSION = "3.88.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3130,6 +3130,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.88.1", items: [
+      ["", "Rounded Split card on iPhone", "Safari drops the rounded clip when a 3D-transformed card has blurred and blended children, so the aurora card showed square corners. It now clips with clip-path inset round 30px plus a WebKit mask."]
+    ] },
     { v: "3.88.0", items: [
       ["", "Aurora card on Split", "The balance scale is replaced by an aurora glass card: a slowly drifting mesh of emerald, teal, violet, coral and gold under a dark sheen, 3D tilt with a glare that follows the finger (the same tilt as the balance card, and the mesh highlights move with it), net balance in large white type, a glowing owed vs owe bar and two frosted glass amounts. Actions moved below the card as light tiles. CSS only, no animation frames; reduced motion stops the drift."]
     ] },

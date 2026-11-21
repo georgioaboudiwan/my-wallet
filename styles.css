@@ -2707,3 +2707,4 @@ html[lang="ar"] .top:has(.tool.keys) h1 { font-size: 22px; }
 .aura-acts .sp-act.main { color: #03140e; background: var(--neon-grad); border: 0; }
 .aura-acts .sp-act.main .sp-act-ico { background: rgb(3 20 14 / .14); color: #03140e; }
 @media (prefers-reduced-motion: reduce) { .aura-mesh { animation: none; } }
+.sp-aura { clip-path: inset(0 round 30px); -webkit-mask-image: -webkit-radial-gradient(white, black); }
