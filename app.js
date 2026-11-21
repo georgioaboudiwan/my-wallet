@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.76.0";
+  const VERSION = "3.76.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1130,7 +1130,7 @@
     tabsEl.addEventListener("pointercancel", dragDone);
     tabsEl.addEventListener("click", e => { if (Date.now() - dragEnd < 400) { e.stopPropagation(); e.preventDefault(); } }, true);
     const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, tabsEl);
-    const top = h("header", { class: "top" }, title, h("div", { class: "tool keys" }, gear, help, status, eye, bell));
+    const top = h("header", { class: "top" }, title, h("div", { class: "tool keys" }, help, status, eye, bell, gear));
     const ptr = h("div", { class: "ptr", "aria-hidden": "true" }, icon("sync"));
     root.replaceChildren(h("div", { class: "shell" }, top, ptr, main, nav));
     shell = { title, status, eye, bell, gear, main, tabs: [...tabs, sideSettings], top, ptr, lens, lastView: null };
@@ -2999,6 +2999,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.76.1", items: [
+      ["", "Avatar on the right", "Header order is now Ask AI, eye, bell, then the avatar (Settings) at the end; mirrored in Arabic."]
+    ] },
     { v: "3.76.0", items: [
       ["", "New header", "Header is now two rows: big page title on top, then avatar (Settings), an Ask AI pill with a slow emerald-gold border sheen, eye and bell. The header sticks at top: -46px so the title scrolls away and the controls row stays, title fades when scrolled, solid background when scrolled. Replaces the 3.75 dock. Eye turns dark when amounts are hidden. Desktop: pill capped at 460px, avatar hidden. Sheen off with reduced motion."]
     ] },
