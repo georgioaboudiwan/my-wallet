@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.77.0";
+  const VERSION = "3.78.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -253,6 +253,22 @@
     path.setAttribute("d", ICONS[name]);
     svg.append(path);
     return svg;
+  };
+
+  let GIO_N = 0;
+  const gioMark = (cls = "gio") => {
+    const id = "gio" + (++GIO_N);
+    const el = (tag, at, ...kids) => { const n = document.createElementNS(SVGNS, tag); for (const [k, v] of Object.entries(at)) n.setAttribute(k, v); n.append(...kids); return n; };
+    const stop = (o, c) => el("stop", { offset: o, "stop-color": c });
+    return el("svg", { viewBox: "0 0 32 32", class: cls, "aria-hidden": "true" },
+      el("defs", {},
+        el("linearGradient", { id: id + "b", x1: "0", y1: "0", x2: "1", y2: "1" }, stop("0", "#3ee8a5"), stop(".55", "#0f9d74"), stop("1", "#09523e")),
+        el("linearGradient", { id: id + "g", x1: "0", y1: "0", x2: "1", y2: "1" }, stop("0", "#fff4cc"), stop(".5", "#f5c451"), stop("1", "#c98a1e"))),
+      el("rect", { x: "3", y: "3", width: "26", height: "26", rx: "9.5", fill: `url(#${id}b)` }),
+      el("ellipse", { cx: "11.5", cy: "8.6", rx: "5.5", ry: "3", fill: "#fff", opacity: ".22", transform: "rotate(-28 11.5 8.6)" }),
+      el("circle", { cx: "16", cy: "16", r: "9.4", fill: "none", stroke: `url(#${id}g)`, "stroke-width": "1.2", opacity: ".75" }),
+      el("path", { class: "gio-spark", d: "M16 8.6Q16.9 15.1 23.4 16Q16.9 16.9 16 23.4Q15.1 16.9 8.6 16Q15.1 15.1 16 8.6Z", fill: `url(#${id}g)` }),
+      el("path", { class: "gio-mini", d: "M24.4 4.4Q24.7 7.1 27.4 7.4Q24.7 7.7 24.4 10.4Q24.1 7.7 21.4 7.4Q24.1 7.1 24.4 4.4Z", fill: "#fff" }));
   };
 
   const pad = n => String(n).padStart(2, "0");
@@ -1082,7 +1098,7 @@
     const status = h("button", { type: "button", class: "status", on: { click: () => sync() } });
     const bell = h("button", { type: "button", class: "key bell-btn", "aria-label": "Notifications", on: { click: inboxSheet } }, icon("bell"), h("span", { class: "bell-badge" }));
     const eye = h("button", { type: "button", class: "key eye-btn", role: "switch", on: { click: () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); } } }, h("span", { class: "priv-knob" }));
-    const help = h("button", { type: "button", class: "help-btn ask-pill", "aria-label": "Ask AI", on: { click: assistantSheet } }, h("span", { class: "ask-ic", "aria-hidden": "true" }, icon("bubble"), h("span", { class: "ai-tag" }, document.createTextNode("AI"))), h("span", { class: "ask-tx" }, "Ask AI anything"));
+    const help = h("button", { type: "button", class: "help-btn ask-pill", "aria-label": "Ask Gio", on: { click: assistantSheet } }, gioMark("gio ask-gio"), h("span", { class: "ask-tx" }, "Ask Gio anything"));
     const gear = h("button", { type: "button", class: "key gear-btn me-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, h("span", { class: "me-init" }));
     const main = h("main", { class: "view" });
     const tab = (view, label, ic) => h("button", { type: "button", class: "tab", "data-view": view, on: { click: () => go(view) } }, icon(ic), h("span", null, label));
@@ -2890,7 +2906,7 @@
       [".quick", "Quick add", "Your most used categories. Tap one to add an expense already filed in that category."],
       [".remind-pill, .remind", "Daily reminder", "A notification every evening so no expense is forgotten."],
       [".dock .tabs", "Sections", "Home, Activity for every entry, Insights for where your money goes, Split for loans and shared expenses. Tap a tab or slide your finger along the bar."],
-      [".help-btn", "Ask AI anytime", "Tap Ask AI to ask questions about your money, or to replay this tour."]
+      [".help-btn", "Ask Gio anytime", "Tap Ask Gio to ask questions about your money, or to replay this tour."]
     ],
     activity: [
       [".search", "Search", "Find any entry by its note, category or amount."],
@@ -3001,6 +3017,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.78.0", items: [
+      ["", "Gio", "The assistant is now called Gio: header pill, sheet title, consent, hello, Insights card, tour and error texts; the system prompt says it is Gio. New gioMark() SVG logo (emerald rounded tile, gold coin ring, gold four-point spark, small white spark) with a slow twinkle, faster while thinking; reduced motion off. Fix for busy answers: Groq retired llama-3.3-70b-versatile (logs showed 404 model_not_found), so models are now openai/gpt-oss-120b, then gpt-oss-20b, then llama-3.1-8b-instant, with reasoning_effort low and include_reasoning false; empty replies are logged. Function version 4."]
+    ] },
     { v: "3.77.0", items: [
       ["", "No mirroring in Arabic", "The page is always dir=ltr, so in Arabic every button, tab, swipe and card keeps the same place as in English (right-hand reach). Arabic text from h() is wrapped in <bdi dir=rtl> so words, numbers and punctuation read in the right order; inputs use unicode-bidi: plaintext. Removed the tab, lens, segment and swipe mirroring in JS and all [dir=rtl] CSS; text-align start/end became left/right. Arabic font and zero letter-spacing now keyed on html[lang=ar]; receipt uses the UI font for Arabic words."]
     ] },
@@ -3179,6 +3198,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.78.0", items: [
+      ["star", "Meet Gio", "Your money assistant now has a name and its own logo. Tap Ask Gio at the top to ask about your spending, bills, loans or how the app works."]
+    ] },
     { v: "3.77.0", items: [
       ["globe", "Same layout in Arabic", "In Arabic, buttons and menus now stay in the same place as in English, so they are just as easy to reach with your right hand. Only the words change."]
     ] },
@@ -3464,21 +3486,21 @@
       const kids = [];
       if (!store.get("aiOk", false)) {
         kids.push(h("div", { class: "ai-consent" },
-          h("span", { class: "ai-badge" }, icon("star", "ico sm")),
-          h("strong", null, "Your money assistant"),
+          gioMark("gio gio-lg"),
+          h("strong", null, "Meet Gio, your money assistant"),
           h("p", null, "Ask anything about your spending, bills, loans or how the app works. To answer, a short summary of your numbers (this month's totals, categories, balances, people and bills) is sent with your question to an AI service. Nothing is stored, and it can make mistakes."),
           h("button", { type: "button", class: "btn", on: { click: () => { store.set("aiOk", true); paint(); input.focus(); } } }, "Got it, let's start")));
       } else if (!AI.msgs.length) {
-        kids.push(h("div", { class: "ai-hello" }, h("span", { class: "ai-badge" }, icon("star", "ico sm")), h("strong", null, "Hi! What would you like to know?"), h("small", null, "Free · 30 questions a day")),
+        kids.push(h("div", { class: "ai-hello" }, gioMark("gio gio-lg"), h("strong", null, "Hi, I'm Gio. What would you like to know?"), h("small", null, "Free · 30 questions a day")),
           h("div", { class: "ai-sugg" }, SUGG.map(q => h("button", { type: "button", class: "chip", on: { click: () => ask(tr(q)) } }, q))));
       }
       for (const mm of AI.msgs) kids.push(bubble(mm.role, mm.content, mm.err ? "err" : ""));
-      if (AI.busy) kids.push(h("div", { class: "ai-msg assistant typing" }, h("i"), h("i"), h("i")));
+      if (AI.busy) kids.push(h("div", { class: "ai-typing" }, gioMark("gio gio-sm gio-think"), h("div", { class: "ai-msg assistant typing" }, h("i"), h("i"), h("i"))));
       list.replaceChildren(...kids);
       form.hidden = !store.get("aiOk", false);
       requestAnimationFrame(() => { const sb2 = list.closest(".sheet-body"); if (sb2) sb2.scrollTop = sb2.scrollHeight; });
     };
-    const ERR = { not_configured: "The assistant isn't switched on yet. Try again later.", limit: "You've used today's 30 free questions. Come back tomorrow.", busy: "The assistant is busy right now. Try again in a minute.", auth: "Please sign in again.", offline: "You're offline. Connect to ask a question." };
+    const ERR = { not_configured: "Gio isn't switched on yet. Try again later.", limit: "You've used today's 30 free questions. Come back tomorrow.", busy: "Gio is busy right now. Try again in a minute.", auth: "Please sign in again.", offline: "You're offline. Connect to ask a question." };
     const ask = async q => {
       q = String(q || "").trim().slice(0, 500);
       if (!q || AI.busy) return;
@@ -3508,7 +3530,7 @@
     const body = h("div", { class: "ai-sheet" }, list,
       h("button", { type: "button", class: "link-btn ai-help", on: { click: () => { closeSheet(); setTimeout(helpSheet, 300); } } }, icon("help", "ico sm"), "How the app works and the tour"));
     paint();
-    openSheet("Ask AI", body, form, { fill: true, headBtn: AI.msgs.length ? h("button", { type: "button", class: "link-btn", on: { click: () => { AI.msgs = []; paint(); } } }, "New chat") : null });
+    openSheet("Gio", body, form, { fill: true, headBtn: AI.msgs.length ? h("button", { type: "button", class: "link-btn", on: { click: () => { AI.msgs = []; paint(); } } }, "New chat") : null });
     if (store.get("aiOk", false)) setTimeout(() => input.focus(), 350);
   }
 
@@ -4223,7 +4245,7 @@
       h("button", { type: "button", class: "tile tap", on: { click: () => monthKindSheet(m, "income") } }, h("small", null, "Came in"), h("strong", null, money(s.income, { whole: true })), s.loanIn ? h("span", { class: "loan-flag" }, `${tr("incl.")} ${money(s.loanIn, { whole: true })} ${tr("loans")}`) : null, icon("fwd", "ico sm tile-go")),
       h("button", { type: "button", class: "tile tap " + (left >= 0 ? "good" : "bad"), on: { click: () => monthKindSheet(m, "both") } }, h("small", null, left >= 0 ? "Left over" : "Overspent"), h("strong", null, money(Math.abs(left), { whole: true })), icon("fwd", "ico sm tile-go"))));
     if (s.count) out.append(h("button", { type: "button", class: "btn alt", on: { click: () => recapSheet(m) } }, `${monthName(m)} summary`));
-    out.append(h("button", { type: "button", class: "ai-cta", on: { click: assistantSheet } }, h("span", { class: "ai-badge" }, icon("star", "ico sm")), h("span", null, h("strong", null, "Ask AI about your money"), h("small", null, "\"Where can I save?\" · \"Who owes me?\"")), icon("fwd", "ico sm")));
+    out.append(h("button", { type: "button", class: "ai-cta", on: { click: assistantSheet } }, gioMark("gio gio-md"), h("span", null, h("strong", null, "Ask Gio about your money"), h("small", null, "\"Where can I save?\" · \"Who owes me?\"")), icon("fwd", "ico sm")));
     const rc = spendReceipt(m, s);
     out.append(rc || h("section", { class: "card" }, h("p", { class: "empty" }, `No spending in ${monthName(m)}.`)));
 

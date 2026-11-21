@@ -5,13 +5,13 @@ const secretKeys = (() => { try { return JSON.parse(Deno.env.get("SUPABASE_SECRE
 const serviceKey = secretKeys.default || Object.values(secretKeys)[0] || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, String(serviceKey || ""), { auth: { persistSession: false, autoRefreshToken: false } });
 const GROQ_KEY = (Deno.env.get("GROQ_API_KEY") || "").trim();
-const MODELS = [Deno.env.get("GROQ_MODEL") || "llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"];
+const MODELS = [Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.1-8b-instant"];
 const DAILY = 30;
 const cors = { "Access-Control-Allow-Origin": APP_ORIGIN, "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info", "Access-Control-Allow-Methods": "POST, OPTIONS", "Vary": "Origin" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 const LANGS: Record<string, string> = { en: "English", fr: "French", ar: "Arabic" };
 
-const system = (lang: string, context: string) => `You are the money assistant inside BudgetSplit, a personal budget and bill-splitting app. Today is ${new Date().toISOString().slice(0, 10)}.
+const system = (lang: string, context: string) => `You are Gio, the money assistant inside BudgetSplit, a personal budget and bill-splitting app. If asked who you are, say you are Gio, BudgetSplit's assistant. Today is ${new Date().toISOString().slice(0, 10)}.
 Answer in ${LANGS[lang] || "English"}, short and friendly, plain words, no jargon. Use at most 6 short sentences or a short list.
 Use only the numbers in the user's summary below. Never invent amounts. If the summary does not have what is needed, say so and suggest where to look in the app.
 You can explain app features: adding entries (the + button, amount first then category), Insights (Spent, Came in, Left over, receipt), plan and budgets, Split (money with a person, groups), bills and Coming up, accounts and Change balance, Portfolio.
@@ -50,13 +50,14 @@ Deno.serve(async req => {
       const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: { "Authorization": `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, temperature: 0.3, max_tokens: 600, messages: [sys, ...messages] }),
+        body: JSON.stringify({ model, temperature: 0.3, max_tokens: 1200, messages: [sys, ...messages], ...(model.startsWith("openai/gpt-oss") ? { reasoning_effort: "low", include_reasoning: false } : {}) }),
         signal: AbortSignal.timeout(25000),
       });
       if (r.ok) {
         const d = await r.json();
         const reply = String(d?.choices?.[0]?.message?.content || "").trim().slice(0, 4000);
         if (reply) return json({ reply, left });
+        console.error(`groq ${model} empty`);
         continue;
       }
       let code = "";
