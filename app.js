@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.72.0";
+  const VERSION = "3.72.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -892,7 +892,7 @@
     for (const x of rows("transactions")) if (String(x.id).startsWith("ln-")) linked.add(String(x.id).slice(3));
     const out = [];
     for (const e of rows("loan_entries")) {
-      if (monthOf(e.occurred_on) !== m || linked.has(String(e.id))) continue;
+      if (monthOf(e.occurred_on) !== m || linked.has(String(e.id)) || e.note === "Starting balance") continue;
       const p = S.data.people.get(e.person_id); if (!p) continue;
       const a = Number(e.amount) || 0; if (!a) continue;
       const lent = owesMe(p) ? a > 0 : a < 0;
@@ -2996,6 +2996,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.72.1", items: [
+      ["", "Starting balances of people not counted", "A person's starting balance (debt that existed before they were added) was counted as money that came in or went out this month since 3.70. It is now left out of Spent, Came in and Left over; only real loans given or received during the month count."]
+    ] },
     { v: "3.72.0", items: [
       ["", "Coming up card", "Home Coming up card moved right under the balance card (and payday card): totals due this week and in the next 30 days, the next 4 bills and repeating entries with a date badge (amber within 3 days, red when due or late), status, account, and a Pay button for bills. See all opens a 90 day list with the total and Add a bill. upcomingRules now uses the requested window for bills too (was fixed 10 days) and includes active repeating entries due today. The Never miss a bill teaser stays lower on Home."]
     ] },
