@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.72.2";
+  const VERSION = "3.72.3";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2996,6 +2996,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.72.3", items: [
+      ["", "Person history titles", "History entries without a note now read You gave NAME or NAME gave you as the title, with You gave/You got, the account and the date underneath, the same layout as entries with a note."]
+    ] },
     { v: "3.72.2", items: [
       ["", "Pick the account when editing a loan entry", "Edit entry for a person now has Taken from / Put into with every account plus Don't move money. Choosing an account creates or moves the matching account entry; choosing Don't move money removes it. Lets users turn a starting balance into real money that came in."]
     ] },
@@ -6137,7 +6140,7 @@
         const editable = !e.remote && !linkOf(p) && S.data.loan_entries.has(e.id);
         hist.append(h("div", { class: "row" + (e.remote === "pending" ? " pending" : "") + (editable ? " tap" : "") },
           editable ? h("button", { type: "button", class: "loan-hit", "aria-label": "Edit entry", on: { click: () => loanEntrySheet(p, e) } }) : null,
-          h("span", { class: "row-main" }, h("span", { class: "row-title" }, e.note || label), h("span", { class: "row-sub" }, e.note ? `${label} · ${when}` : when)),
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, e.note || (gave ? `${tr("You gave")} ${p.name}` : `${p.name} ${tr("gave you")}`)), h("span", { class: "row-sub" }, `${label} · ${when}`)),
           h("span", { class: "row-end" + (gave ? " neg" : " pos") }, (gave ? "↑ " : "↓ ") + fmt(Math.abs(v), cur)),
           e.remote ? h("span", { class: "row-lock", "aria-hidden": "true" }) : h("button", { type: "button", class: "icon-btn", "aria-label": armed === e.id ? "Confirm delete" : "Delete entry", style: armed === e.id ? { color: "var(--neg)" } : null,
             on: { click: () => { if (armed !== e.id) { armed = e.id; draw(); return; } armed = null; removeRow("loan_entries", e); const linked = S.data.transactions.get(`ln-${e.id}`); if (linked) removeRow("transactions", linked); toast(linked ? "Entry deleted, and the account was corrected." : "Entry deleted."); draw(); } } }, icon(armed === e.id ? "warn" : "close"))));
