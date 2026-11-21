@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.79.0";
+  const VERSION = "3.80.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1418,9 +1418,15 @@
           h("li", null, icon("chart", "ico sm"), "Insights"),
           h("li", null, icon("plan", "ico sm"), "Budgets"),
           h("li", null, icon("people", "ico sm"), "Split bills"))),
-      panel));
+      panel,
+      legalLinks("login-legal")));
     queueFx();
   }
+
+  const legalLinks = cls => h("nav", { class: "legal-links " + cls },
+    h("a", { href: "privacy.html", target: "_blank", rel: "noopener" }, "Privacy Policy"),
+    h("a", { href: "terms.html", target: "_blank", rel: "noopener" }, "Terms of Use"),
+    h("a", { href: "support.html", target: "_blank", rel: "noopener" }, "Support"));
 
   const isLoanTx = x => x.kind === "loan_out" || x.kind === "loan_in";
   const loanOf = x => { const lid = String(x.id).replace(/^ln-/, ""); const e = S.data.loan_entries.get(lid) || (lid.startsWith("se-") ? virtualEntry(lid) : null); const p = e && S.data.people.get(e.person_id); return { e, p }; };
@@ -3061,6 +3067,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.80.0", items: [
+      ["", "Store readiness", "Public pages privacy.html, terms.html, delete-account.html and support.html (own legal.css and CSP), linked from the sign-in screen and the Privacy sheet. Privacy sheet now mentions usage events and Gio instead of saying there is no tracking. The service worker no longer caches other .html pages as the app shell. Manifest gets id, lang, dir, theme color, finance categories, five screenshots and an Ask Gio shortcut (#gio opens Gio). store/ has the listing texts in EN, FR and AR, Play data safety and form answers, PWABuilder steps for Android, Apple notes, icons, feature graphic and framed screenshots for Play (1080x1920) and the App Store (1290x2796)."]
+    ] },
     { v: "3.79.0", items: [
       ["", "Month-end check", "Home card from the second-to-last day of a month until the 7th of the next (instead of the payday card when that one shows): asks if the money is still right. Sheet lists every account with its balance and a Fix button (opens Change balance), offers Move to savings (transfer from the fullest non-savings account to the first savings account, amount = month left over capped at that balance, or the balance), Everything is right, and Don't ask me every month. Done per month in local storage, Later snoozes for the day. Setting monthCheckOff (synced) under Entries and defaults, Month end. Patterns added for the month texts."]
     ] },
@@ -7909,7 +7918,9 @@
   function privacySheet() {
     const part = (t, d) => h("div", { class: "prose-part" }, h("h3", null, t), h("p", null, d));
     openSheet("Privacy and your data", h("div", { class: "prose" },
-      part("What is stored", "Your accounts, entries, categories, plan, the people you track and their balances, your settings, and your email address for signing in. Nothing else is collected. There are no ads and no tracking."),
+      part("What is stored", "Your accounts, entries, categories, plan, the people you track and their balances, your settings, and your email address for signing in. There are no ads, and your data is never sold."),
+      part("Usage", "The app records which screens and features are used, the device type and the app version, to fix problems and improve the app. These records never include amounts, names or notes."),
+      part("Gio, the AI assistant", "Only when you ask Gio a question, the question and a short summary of your numbers are sent to Groq, an AI service, to write the answer. The app does not store the conversation."),
       part("Where it lives", "Your data is kept in the app's database and a copy stays on this device so the app works offline. It travels encrypted between your device and the server."),
       part("Who can see it", "Only you. Names, amounts, notes, balances, your plan and your settings are encrypted on your device with a key made from your password before they are saved, so the database holds only unreadable text. The app's administrator cannot read them and sees only your email, sign-in dates and record counts."),
       part("What is not encrypted", "Dates, currencies, which entry belongs to which account or category (as codes, not names) and receipt photos. Receipt photos are private to your account but stored as normal images."),
@@ -7917,7 +7928,8 @@
       part("Private pages", "A private page you create for a person shows only that person's balance and history, to anyone who has the link. Turn the link off at any time and it stops working."),
       part("Receipts and exchange rates", "Receipt photos are stored privately under your account and only you can open them. Exchange rates come from a public rate service; nothing about you is sent to it."),
       part("Notifications", "If you turn on the daily reminder, this device's notification address is stored so the reminder can be delivered. Turning it off removes it."),
-      part("Your control", "Export your entries or a full backup at any time from Settings. Deleting your account removes it and all of its data permanently.")));
+      part("Your control", "Export your entries or a full backup at any time from Settings. Deleting your account removes it and all of its data permanently."),
+      legalLinks("sheet-legal")));
   }
 
   function deleteAccountSheet() {
@@ -8259,6 +8271,7 @@
     if (S.session && VAULT.key) recoverySheet();
     if (S.session) { sync(); track("open", "start"); track("lang", LANG); setTimeout(checkAdmin, 4000); }
     if (S.session && location.hash === "#add") { history.replaceState(null, "", location.pathname); txnSheet(null); }
+    if (S.session && location.hash === "#gio") { history.replaceState(null, "", location.pathname); assistantSheet(); }
     if (S.session && location.hash === "#split") { history.replaceState(null, "", location.pathname); go("people"); }
     let reopen = null;
     try { reopen = sessionStorage.getItem("wallet:reopen"); sessionStorage.removeItem("wallet:reopen"); } catch { }

@@ -2376,3 +2376,8 @@ html[lang="ar"] .top:has(.tool.keys) h1 { font-size: 22px; }
 .mcheck-save small { color: var(--muted); font-size: 13.5px; }
 .mcheck-save .btn { grid-column: 1 / -1; }
 .mcheck-off { justify-self: center; font-size: 13.5px; }
+.legal-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; font-size: 13px; }
+.legal-links a { color: var(--muted); font-weight: 600; text-decoration: none; }
+.legal-links a:hover { text-decoration: underline; }
+.login-legal { padding: 14px 16px calc(env(safe-area-inset-bottom, 0px) + 14px); }
+.sheet-legal { margin-top: 14px; }

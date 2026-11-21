@@ -1,12 +1,22 @@
 {
+  "id": "/my-wallet/",
   "name": "BudgetSplit: Expenses & Loans",
   "short_name": "BudgetSplit",
   "description": "Budget planner and expense tracker that also splits bills, tracks loans and IOUs, and shares expenses with friends and family. Dollars, lira and more.",
+  "lang": "en",
+  "dir": "ltr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#edf2ee",
+  "theme_color": "#0b3a2d",
+  "categories": [
+    "finance",
+    "productivity",
+    "utilities"
+  ],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "icons/icon-192-b.png",
@@ -26,11 +36,60 @@
       "purpose": "maskable"
     }
   ],
+  "screenshots": [
+    {
+      "src": "store/android/1-home.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "All your money in one place"
+    },
+    {
+      "src": "store/android/2-add.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Add an expense in seconds"
+    },
+    {
+      "src": "store/android/3-insights.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "See where your money goes"
+    },
+    {
+      "src": "store/android/5-split.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Split bills, track loans"
+    },
+    {
+      "src": "store/android/6-gio.jpg",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Ask Gio, your money assistant"
+    }
+  ],
   "shortcuts": [
     {
       "name": "Add expense",
       "short_name": "Add",
       "url": "./#add",
+      "icons": [
+        {
+          "src": "icons/icon-192-b.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Ask Gio",
+      "short_name": "Gio",
+      "url": "./#gio",
       "icons": [
         {
           "src": "icons/icon-192-b.png",
