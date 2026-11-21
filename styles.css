@@ -2414,3 +2414,34 @@ html[lang="ar"] .top:has(.tool.keys) h1 { font-size: 22px; }
 .yir .rcpt-clip { margin: 0; }
 .rep-card .row { gap: 10px; }
 .rep-card .dot { color: #fff; }
+.inbox { display: grid; gap: 18px; }
+.inbox-group { display: grid; gap: 8px; }
+.inbox-day { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 4px; }
+.inbox-item { position: relative; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; padding: 14px 8px 14px 14px; border-radius: 18px; background: var(--card); box-shadow: var(--shadow); }
+.inbox-item.new { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 45%, transparent), var(--shadow); }
+.inbox-item.new::after { content: ""; position: absolute; top: 14px; left: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--card); }
+.inbox-ico { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; color: #fff; background: linear-gradient(145deg, #1a6b52, #0a2f25); }
+.inbox-item.k-all .inbox-ico { color: #3a2a06; background: linear-gradient(135deg, #f5d27a, #d39b2c); }
+.inbox-item.k-split .inbox-ico { background: linear-gradient(145deg, #3b7dd8, #24539a); }
+.inbox-main { display: grid; gap: 4px; min-width: 0; }
+.inbox-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.inbox-top h3 { font-size: 15.5px; font-weight: 750; line-height: 1.3; }
+.inbox-top time { font-size: 12px; color: var(--faint); flex: none; }
+.inbox-item p { font-size: 14.5px; line-height: 1.45; color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; }
+.inbox-go { justify-self: start; margin-top: 6px; width: auto; }
+.inbox-del { width: 34px; height: 34px; margin-top: -4px; color: var(--faint); }
+.inbox-del:hover { color: var(--neg); }
+.inbox-clear { font-size: 14px; margin-inline-start: auto; margin-inline-end: 8px; }
+.inbox-empty { display: grid; justify-items: center; gap: 8px; text-align: center; padding: 34px 16px; }
+.inbox-empty-ico { width: 64px; height: 64px; border-radius: 22px; display: grid; place-items: center; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
+.inbox-empty-ico .ico { width: 28px; height: 28px; }
+.inbox-empty strong { font-size: 17px; }
+.inbox-empty small { color: var(--muted); font-size: 14px; }
+.inbox-empty .link-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; }
+.gio-sphere { position: relative; width: 176px; height: 176px; display: grid; place-items: center; cursor: grab; margin: -6px auto 0; }
+.gio-sphere canvas.orb { position: absolute; inset: 0; }
+.gio-core { position: relative; width: 46px; height: 46px; filter: drop-shadow(0 6px 16px rgb(15 157 116 / .45)); pointer-events: none; transition: transform .25s cubic-bezier(.3,1.6,.5,1); }
+.gio-sphere.pop .gio-core { animation: gioPop .45s cubic-bezier(.3,1.6,.5,1); }
+@keyframes gioPop { 0% { transform: scale(1); } 40% { transform: scale(1.25) rotate(-8deg); } 100% { transform: scale(1); } }
+.gio-mini-orb { width: 44px; height: 44px; flex: none; display: grid; place-items: center; }
+@media (prefers-reduced-motion: reduce) { .gio-sphere.pop .gio-core { animation: none; } }

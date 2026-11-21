@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.82.0";
+  const VERSION = "3.83.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3130,6 +3130,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.83.0", items: [
+      ["", "Notifications and Gio sphere", "Inbox grouped into Today, This week and Earlier with an icon per kind (gold for everyone, blue for split invites, green for personal), relative times, an unread dot, a ✕ per item and Clear all (tap twice) in the sheet header, and a caught-up empty state with a link to notification settings. Deleting hides the notification for that user only: ids are kept in the synced, encrypted settings (inboxHidden, pruned to ids still on the server, max 300), so broadcasts stay for everyone else and admin history is unchanged. Gio's consent and hello screens use the particle sphere (drag to spin, tap to pop) with the Gio logo in the middle, and a small fast-spinning sphere while Gio is thinking. Consent text now says names are sent and that the app does not save the chat."]
+    ] },
     { v: "3.82.0", items: [
       ["", "Six new features", "Gio actions: the assistant prompt now answers add requests with one line ADD {type, amount, currency, category, account, person, note, date}; the function validates it and returns {action}. The phone matches names to its own categories, accounts and people (context now lists their names) and opens the entry sheet on the details step for review; nothing is saved without a tap. Split by item: people chips (existing or new name), item rows with per-item people, tax/service/tip shared in proportion, receipt scan uses the existing OCR plus a line-item parser; saves my part as an expense and each other part as a loan (loan_out from the paying account, shared links respected). Budget alerts: checked once per data change, flag per category per month at 80 and 100, toast in app and a system notification only when the page is hidden and permission is granted. Weekly cash count: Sunday and Monday card when cash accounts moved in the last 7 days, done per week. Repeating payments: expenses with the same note and category in at least two months within 15% and 6 days, not already a bill, memoized per data version, Make it a bill pre-fills the bill sheet. Year in review: receipt for any year with totals, top 8 categories, biggest and lightest month, average and most frequent note, Share. New Settings group Checks and alerts with three switches. Function version 5."]
     ] },
@@ -3335,6 +3338,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.83.0", items: [
+      ["bell", "Cleaner notifications", "Notifications are grouped by day with clear icons. Delete one with ✕, or clear them all at once. And Gio now has its own sphere you can spin."]
+    ] },
     { v: "3.82.0", items: [
       ["star", "Tell Gio to add it", "Type “coffee 5 dollars” or “I gave Alex 50” to Gio. It fills in the entry for you to check and save."],
       ["note", "Split a receipt by item", "In Split, scan or type a receipt, tap who had what, and tax and tip are shared fairly. Everyone's part is saved as a loan."],
@@ -3627,6 +3633,12 @@
     return L.join("\n").slice(0, 7800);
   }
   const byName = (list, name, label) => { const n = String(name || "").trim().toLowerCase(); if (!n) return null; return list.find(o => label(o).toLowerCase() === n) || list.find(o => label(o).toLowerCase().includes(n) || n.includes(label(o).toLowerCase())) || null; };
+  function gioSphere() {
+    const c = orb(176, "gio-orb");
+    const wrap = h("div", { class: "gio-sphere", role: "img", "aria-label": "Gio" }, c, gioMark("gio gio-core"));
+    wrap.addEventListener("click", () => { const o = c.__orb; if (!o || performance.now() - ORB_DRAG.at < 400) return; o.vy = 6; wrap.classList.remove("pop"); void wrap.offsetWidth; wrap.classList.add("pop"); orbKick(); });
+    return wrap;
+  }
   function aiPreset(a) {
     const accounts = rows("accounts").filter(o => !o.archived).sort(bySort);
     const cur = a.currency || mainCur();
@@ -3664,17 +3676,19 @@
       const kids = [];
       if (!store.get("aiOk", false)) {
         kids.push(h("div", { class: "ai-consent" },
-          gioMark("gio gio-lg"),
+          gioSphere(),
           h("strong", null, "Meet Gio, your money assistant"),
-          h("p", null, "Ask anything about your spending, bills, loans or how the app works. To answer, a short summary of your numbers (this month's totals, categories, balances, people and bills) is sent with your question to an AI service. Nothing is stored, and it can make mistakes."),
+          h("p", null, "Ask anything about your spending, bills, loans or how the app works, or tell Gio to add an entry. To answer, a short summary of your numbers (this month's totals, the names of your categories, accounts and people, balances and bills) is sent with your question to an AI service. The app doesn't save the chat, and Gio can make mistakes."),
           h("button", { type: "button", class: "btn", on: { click: () => { store.set("aiOk", true); paint(); input.focus(); } } }, "Got it, let's start")));
       } else if (!AI.msgs.length) {
-        kids.push(h("div", { class: "ai-hello" }, gioMark("gio gio-lg"), h("strong", null, "Hi, I'm Gio. What would you like to know?"), h("small", null, "Free · 30 questions a day")),
+        kids.push(h("div", { class: "ai-hello" }, gioSphere(), h("strong", null, "Hi, I'm Gio. What would you like to know?"), h("small", null, "Free · 30 questions a day")),
           h("div", { class: "ai-sugg" }, SUGG.map(q => h("button", { type: "button", class: "chip", on: { click: () => ask(tr(q)) } }, q))));
       }
       for (const mm of AI.msgs) kids.push(mm.action ? aiActionCard(mm.action) : bubble(mm.role, mm.content, mm.err ? "err" : ""));
-      if (AI.busy) kids.push(h("div", { class: "ai-typing" }, gioMark("gio gio-sm gio-think"), h("div", { class: "ai-msg assistant typing" }, h("i"), h("i"), h("i"))));
+      if (AI.busy) kids.push(h("div", { class: "ai-typing" }, h("span", { class: "gio-mini-orb" }, orb(44, "think-orb")), h("div", { class: "ai-msg assistant typing" }, h("i"), h("i"), h("i"))));
       list.replaceChildren(...kids);
+      queueFx();
+      for (const c of list.querySelectorAll("canvas.think-orb")) requestAnimationFrame(() => { if (c.__orb) { c.__orb.auto = 3.2; c.__orb.vy = 3.2; } });
       form.hidden = !store.get("aiOk", false);
       requestAnimationFrame(() => { const sb2 = list.closest(".sheet-body"); if (sb2) sb2.scrollTop = sb2.scrollHeight; });
     };
@@ -3773,7 +3787,9 @@
 
   const INBOX = { items: [], loading: false, ok: true, at: 0 };
   const inboxSeen = () => store.get("inboxSeen", "");
-  const myInbox = () => INBOX.items.filter(x => !x.target_user || x.target_user === S.uid);
+  const inboxHidden = () => new Set(Array.isArray(storedSettings().inboxHidden) ? storedSettings().inboxHidden : []);
+  const myInbox = () => { const hid = inboxHidden(); return INBOX.items.filter(x => (!x.target_user || x.target_user === S.uid) && !hid.has(x.id)); };
+  const hideInbox = ids => { const keep = new Set(INBOX.items.map(x => x.id)); saveSettings({ inboxHidden: [...new Set([...inboxHidden(), ...ids])].filter(id => keep.has(id)).slice(-300) }); };
   const unreadCount = () => myInbox().filter(n => n.created_at > inboxSeen()).length;
 
   function loadInbox(force) {
@@ -3809,22 +3825,49 @@
     track("inbox");
     const seen = inboxSeen();
     const box = h("div", { class: "inbox" });
-    const when = iso => new Date(iso).toLocaleString(dateLocale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-    const draw = loading => {
+    let armedAll = false, loading = navigator.onLine;
+    const kindOf = n => n.action === "split" ? ["people", "split"] : n.target_user ? ["user", "you"] : ["bell", "all"];
+    const dayKey = iso => { const d = iso.slice(0, 10), t = today(); return d === t ? "Today" : d >= ymd(new Date(Date.now() - 6 * 864e5)) ? "This week" : "Earlier"; };
+    const clearAll = h("button", { type: "button", class: "link-btn inbox-clear", on: { click: () => {
+      const mine = myInbox();
+      if (!mine.length) return;
+      if (!armedAll) { armedAll = true; clearAll.textContent = tr("Tap again to clear"); setTimeout(() => { armedAll = false; clearAll.textContent = tr("Clear all"); }, 3000); return; }
+      hideInbox(mine.map(n => n.id)); track("inbox", "clear_all"); armedAll = false; clearAll.textContent = tr("Clear all"); draw();
+    } } }, "Clear all");
+    const draw = () => {
       const mine = myInbox();
       if (mine.length) store.set("inboxSeen", mine[0].created_at);
       paintBell();
-      box.replaceChildren(...(mine.length
-        ? mine.map(n => h("article", { class: "inbox-item" + (n.created_at > seen ? " new" : "") },
-            h("div", { class: "inbox-top" }, h("h3", null, n.title), h("time", null, when(n.created_at))),
+      clearAll.hidden = !mine.length;
+      if (!mine.length) {
+        box.replaceChildren(h("div", { class: "inbox-empty" },
+          h("span", { class: "inbox-empty-ico" }, icon("bell")),
+          h("strong", null, loading ? "Loading…" : !INBOX.ok ? "Couldn't load notifications" : "You're all caught up"),
+          h("small", null, !INBOX.ok && !loading ? "Check your connection and try again." : "New messages and invites will show up here."),
+          h("button", { type: "button", class: "link-btn", on: { click: () => { closeSheet(); setTimeout(() => { go("settings"); settingsOpen("notifications"); }, 300); } } }, icon("gear", "ico sm"), "Notification settings")));
+        return;
+      }
+      const groups = new Map();
+      for (const n of mine) { const k = dayKey(n.created_at); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(n); }
+      box.replaceChildren(...[...groups].map(([k, list]) => h("section", { class: "inbox-group" },
+        h("h4", { class: "inbox-day" }, k),
+        list.map(n => { const [ic, kind] = kindOf(n), fresh = n.created_at > seen; return h("article", { class: `inbox-item k-${kind}` + (fresh ? " new" : "") },
+          h("span", { class: "inbox-ico" }, icon(ic, "ico sm")),
+          h("div", { class: "inbox-main" },
+            h("div", { class: "inbox-top" }, h("h3", null, n.title), h("time", { datetime: n.created_at, title: new Date(n.created_at).toLocaleString(dateLocale()) }, tr(ago(n.created_at)))),
             h("p", null, n.body),
-            n.action === "split" ? h("button", { type: "button", class: "btn alt", on: { click: () => { closeSheet(); go("people"); } } }, "Open the invite") : null))
-        : [h("p", { class: "empty" }, loading ? "Loading…" : !INBOX.ok ? "Couldn't load notifications. Check your connection and try again." : "No notifications yet.")]));
+            n.action === "split" ? h("button", { type: "button", class: "btn sm alt inbox-go", on: { click: () => { closeSheet(); go("people"); } } }, "Open the invite") : null),
+          h("button", { type: "button", class: "icon-btn inbox-del", "aria-label": "Delete notification", on: { click: ev => {
+            const el = ev.currentTarget.closest(".inbox-item");
+            const done = () => { hideInbox([n.id]); track("inbox", "delete"); draw(); };
+            if (RM.matches || !el.animate) return done();
+            el.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateX(40px)" }], { duration: 180, easing: "ease-in" }).onfinish = done;
+          } } }, icon("close", "ico sm"))); }))));
     };
-    draw(navigator.onLine);
-    openSheet("Notifications", box);
+    draw();
+    openSheet("Notifications", box, null, { headBtn: clearAll });
     INBOX.at = 0;
-    loadInbox(true).then(() => { draw(false); if (S.view === "home") scheduleRender(); });
+    loadInbox(true).then(() => { loading = false; draw(); if (S.view === "home") scheduleRender(); });
   }
 
   function inboxCard() {

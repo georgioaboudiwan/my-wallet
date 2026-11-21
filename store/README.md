@@ -210,6 +210,7 @@ Update this list with every app change, so the listing, screenshots and privacy 
 | 3.81.0 | Worldwide defaults (currency from device region, LBP only if chosen); no brand names; generic e-wallet | Listing says "any currency"; screenshots regenerated |
 | 3.81.1 | Number pad layout fix on the add screen; neutral demo and placeholder names | Screenshots regenerated with neutral names |
 | 3.82.0 | Gio adds entries from a sentence; split a receipt by item; budget alerts; weekly cash count; repeating payments; year in review | Add these to the full description; consider screenshots of split by item and year in review; privacy policy updated (Gio sees category, account and people names) |
+| 3.83.0 | Notifications: delete, clear all, grouped by day; Gio sphere | No listing change needed |
 
 ## Save for the native app
 
