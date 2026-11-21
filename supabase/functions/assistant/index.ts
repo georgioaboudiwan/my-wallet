@@ -4,8 +4,8 @@ const APP_ORIGIN = "https://georgioaboudiwan.github.io";
 const secretKeys = (() => { try { return JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}"); } catch { return {}; } })();
 const serviceKey = secretKeys.default || Object.values(secretKeys)[0] || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, String(serviceKey || ""), { auth: { persistSession: false, autoRefreshToken: false } });
-const GROQ_KEY = Deno.env.get("GROQ_API_KEY") || "";
-const MODEL = Deno.env.get("GROQ_MODEL") || "llama-3.3-70b-versatile";
+const GROQ_KEY = (Deno.env.get("GROQ_API_KEY") || "").trim();
+const MODELS = [Deno.env.get("GROQ_MODEL") || "llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"];
 const DAILY = 30;
 const cors = { "Access-Control-Allow-Origin": APP_ORIGIN, "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info", "Access-Control-Allow-Methods": "POST, OPTIONS", "Vary": "Origin" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" } });
@@ -44,20 +44,29 @@ Deno.serve(async req => {
   const { data: left, error: lerr } = await sb.rpc("assistant_take", { p_user: who.user.id, p_limit: DAILY });
   if (lerr) return json({ error: "unavailable" }, 500);
   if (left < 0) return json({ error: "limit" }, 429);
-  try {
-    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: MODEL, temperature: 0.3, max_tokens: 600, messages: [{ role: "system", content: system(lang, context) }, ...messages] }),
-      signal: AbortSignal.timeout(25000),
-    });
-    if (r.status === 429) return json({ error: "busy" }, 503);
-    if (!r.ok) return json({ error: "upstream" }, 502);
-    const d = await r.json();
-    const reply = String(d?.choices?.[0]?.message?.content || "").trim().slice(0, 4000);
-    if (!reply) return json({ error: "upstream" }, 502);
-    return json({ reply, left });
-  } catch {
-    return json({ error: "upstream" }, 502);
+  const sys = { role: "system", content: system(lang, context) };
+  for (const model of [...new Set(MODELS)]) {
+    try {
+      const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${GROQ_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, temperature: 0.3, max_tokens: 600, messages: [sys, ...messages] }),
+        signal: AbortSignal.timeout(25000),
+      });
+      if (r.ok) {
+        const d = await r.json();
+        const reply = String(d?.choices?.[0]?.message?.content || "").trim().slice(0, 4000);
+        if (reply) return json({ reply, left });
+        continue;
+      }
+      let code = "";
+      try { const e = await r.json(); code = String(e?.error?.code || e?.error?.type || "").slice(0, 60); } catch { }
+      console.error(`groq ${model} ${r.status} ${code}`);
+      if (r.status === 401 || r.status === 403) return json({ error: "upstream_auth" }, 502);
+      if (r.status === 429) return json({ error: "busy" }, 503);
+    } catch (e) {
+      console.error(`groq ${model} ${e instanceof Error ? e.name : "error"}`);
+    }
   }
+  return json({ error: "upstream" }, 502);
 });
