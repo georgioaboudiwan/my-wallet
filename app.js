@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.73.0";
+  const VERSION = "3.74.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -66,6 +66,7 @@
     plan: "M12 3a9 9 0 1 0 9 9h-9zM15 2.6A9 9 0 0 1 21.4 9H15z",
     plus: "M12 5v14M5 12h14",
     gear: "M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4",
+    cog: "M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z",
     eye: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
     eyeOff: "M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6",
     back: "M15 18l-6-6 6-6",
@@ -1077,11 +1078,11 @@
   function buildShell() {
     const title = h("h1");
     const status = h("button", { type: "button", class: "status", on: { click: () => sync() } });
-    const bell = h("button", { type: "button", class: "icon-btn bell-btn", "aria-label": "Notifications", on: { click: inboxSheet } }, icon("bell"), h("span", { class: "bell-badge" }));
-    const eye = h("button", { type: "button", class: "icon-btn eye-btn", on: { click: () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); } } });
-    const help = h("button", { type: "button", class: "icon-btn help-btn ai-btn", "aria-label": "Ask AI", on: { click: assistantSheet } }, icon("star"));
-    const gear = h("button", { type: "button", class: "icon-btn gear-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, icon("gear"));
-    const gem = h("button", { type: "button", class: "icon-btn gem-btn", "aria-label": "Portfolio", on: { click: () => portfolioSheet() } }, icon("gem"));
+    const bell = h("button", { type: "button", class: "key bell-btn", "aria-label": "Notifications", on: { click: inboxSheet } }, icon("bell"), h("span", { class: "bell-badge" }));
+    const eye = h("button", { type: "button", class: "eye-btn priv", role: "switch", on: { click: () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); } } }, h("span", { class: "priv-track" }, h("span", { class: "priv-knob" })));
+    const help = h("button", { type: "button", class: "key help-btn ai-btn", "aria-label": "Ask AI", on: { click: assistantSheet } }, h("span", { class: "ai-orb", "aria-hidden": "true" }), icon("star"));
+    const gear = h("button", { type: "button", class: "key gear-btn me-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, h("span", { class: "me-init" }), h("span", { class: "me-gear" }, icon("cog")));
+    const gem = h("button", { type: "button", class: "key gem-btn coin-btn", "aria-label": "Portfolio", on: { click: () => portfolioSheet() } }, icon("gem"));
     const main = h("main", { class: "view" });
     const tab = (view, label, ic) => h("button", { type: "button", class: "tab", "data-view": view, on: { click: () => go(view) } }, icon(ic), h("span", null, label));
     const tabs = [tab("home", "Home", "home"), tab("activity", "Activity", "list"), tab("insights", "Insights", "chart"), tab("people", "Split", "people")];
@@ -1130,10 +1131,10 @@
     tabsEl.addEventListener("pointercancel", dragDone);
     tabsEl.addEventListener("click", e => { if (Date.now() - dragEnd < 400) { e.stopPropagation(); e.preventDefault(); } }, true);
     const nav = h("nav", { class: "dock", "aria-label": "Sections" }, brand, sideAdd, tabsEl);
-    const top = h("header", { class: "top" }, title, h("div", { class: "tool glass" }, status, gem, bell, eye, help, gear));
+    const top = h("header", { class: "top" }, title, h("div", { class: "tool keys" }, status, help, gem, eye, bell, gear));
     const ptr = h("div", { class: "ptr", "aria-hidden": "true" }, icon("sync"));
     root.replaceChildren(h("div", { class: "shell" }, top, ptr, main, nav));
-    shell = { title, status, eye, bell, main, tabs: [...tabs, sideSettings], top, ptr, lens, lastView: null };
+    shell = { title, status, eye, bell, gear, main, tabs: [...tabs, sideSettings], top, ptr, lens, lastView: null };
   }
 
   function renderStatus() {
@@ -1174,7 +1175,10 @@
     const v = VIEWS[S.view] || VIEWS.home;
     if (v.title === "BudgetSplit") shell.title.replaceChildren(...brandMark());
     else shell.title.textContent = tr(v.title);
-    shell.eye.replaceChildren(icon(S.hidden ? "eyeOff" : "eye"));
+    shell.eye.querySelector(".priv-knob").replaceChildren(icon(S.hidden ? "eyeOff" : "eye"));
+    shell.eye.classList.toggle("on", !!S.hidden);
+    shell.eye.setAttribute("aria-checked", String(!!S.hidden));
+    { const nm = String(settings().name || (S.session && S.session.user && S.session.user.email) || "").trim(); const init = shell.gear.querySelector(".me-init"); const t = nm ? nm[0].toUpperCase() : ""; if (init.textContent !== t) init.textContent = t; if (!t && !init.firstChild) init.append(icon("user")); }
     shell.eye.setAttribute("aria-label", tr(S.hidden ? "Show amounts" : "Hide amounts"));
     const sameView = shell.lastView === S.view;
     if (sameView) { clearTimeout(shell.enterTimer); shell.main.classList.remove("enter"); }
@@ -2996,6 +3000,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.74.0", items: [
+      ["", "Top bar keys", "Top bar rebuilt as separate keys instead of one glass pill: glowing conic orb behind the AI star, gold coin for Portfolio, privacy switch with eye knob (role=switch, aria-checked), bell that rings when there are unread items, avatar with the first letter of the name (or email) plus a small cog badge for Settings. Title shrinks to fit and truncates instead of overlapping; keys shrink at 430 px and 380 px, coin hidden under 350 px. New cog icon. Animations off with reduced motion."]
+    ] },
     { v: "3.73.0", items: [
       ["", "AI assistant (Groq)", "AI assistant: new edge function assistant (own auth via getUser, CORS to the app origin, 30 questions per user per day via assistant_usage + assistant_take, max 8 messages of 1,200 chars, 25 s timeout, no logging of content) calling Groq llama-3.3-70b-versatile with a system prompt limited to the user's summary, no investment advice and prompt-injection guard. The phone builds the summary only when a question is asked (month totals incl. loans, last month, plan, categories with budgets, account balances, people balances, next 30 days bills, investments, last 25 entries); nothing is stored. First use shows a consent card. Entry points: the top-bar star (replaces the ? button; How it works and the tour are linked inside) and an Ask AI card in Insights. Needs the GROQ_API_KEY secret on Supabase, until then users see that the assistant isn't switched on yet. On phones 350px or narrower the Portfolio gem hides instead of the AI button."]
     ] },
@@ -3159,6 +3166,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.74.0", items: [
+      ["eye", "A clearer top bar", "Each button at the top now looks like what it does: a glowing AI orb, a gold coin for your portfolio, a switch to hide amounts, a bell that rings when something is new, and your initial for settings."]
+    ] },
     { v: "3.73.0", items: [
       ["star", "Ask AI, for free", "Tap the gold star at the top to ask anything about your money: how much you spent, where you can save, who owes you, or how the app works. 30 free questions a day."]
     ] },

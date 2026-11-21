@@ -1709,6 +1709,8 @@ Object.assign(window.WALLET_I18N.words, {
   "Ask AI about your money": ["Demandez à l'IA sur votre argent", "اسأل الذكاء الاصطناعي عن أموالك"],
   "Ask AI anytime": ["Demandez à l'IA à tout moment", "اسأل الذكاء الاصطناعي في أي وقت"],
   "Tap the star to ask questions about your money, or to replay this tour.": ["Touchez l'étoile pour poser des questions sur votre argent, ou revoir cette visite.", "اضغط النجمة لتسأل عن أموالك أو لإعادة هذه الجولة."],
+  "A clearer top bar": ["Une barre du haut plus claire", "شريط علوي أوضح"],
+  "Each button at the top now looks like what it does: a glowing AI orb, a gold coin for your portfolio, a switch to hide amounts, a bell that rings when something is new, and your initial for settings.": ["Chaque bouton en haut ressemble maintenant à ce qu'il fait : un orbe IA lumineux, une pièce d'or pour votre portefeuille, un interrupteur pour masquer les montants, une cloche qui sonne quand il y a du nouveau, et votre initiale pour les réglages.", "كل زر في الأعلى أصبح يشبه ما يفعله: كرة ذكاء اصطناعي مضيئة، قطعة نقود ذهبية لمحفظتك، مفتاح لإخفاء المبالغ، جرس يرن عند وجود جديد، وحرفك الأول للإعدادات."],
   "Ask AI, for free": ["Demandez à l'IA, gratuitement", "اسأل الذكاء الاصطناعي مجانًا"],
   "Tap the gold star at the top to ask anything about your money: how much you spent, where you can save, who owes you, or how the app works. 30 free questions a day.": ["Touchez l'étoile dorée en haut pour poser n'importe quelle question sur votre argent : combien vous avez dépensé, où économiser, qui vous doit, ou comment marche l'app. 30 questions gratuites par jour.", "اضغط النجمة الذهبية في الأعلى لتسأل أي شيء عن أموالك: كم صرفت، أين توفّر، من يدين لك، أو كيف يعمل التطبيق. 30 سؤالًا مجانيًا يوميًا."]
 });
