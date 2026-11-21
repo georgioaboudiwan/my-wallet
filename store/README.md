@@ -30,7 +30,7 @@ Support email: both stores also want a contact email. Use a dedicated address (f
 
 ### English
 
-**Short description** (Play, max 80): Track spending, plan a budget, split bills and loans. Dollars, lira and more.
+**Short description** (Play, max 80): Track spending, plan a budget, split bills and loans, in any currency.
 
 **Subtitle** (Apple, max 30): Budget, split bills and loans
 
@@ -39,8 +39,8 @@ Support email: both stores also want a contact email. Use a dedicated address (f
 BudgetSplit is the simple way to know where your money goes, plan your month and split costs with friends and family.
 
 ALL YOUR MONEY IN ONE PLACE
-• Cash, bank, Whish, cards and savings, each in its own currency
-• Dollars and lira side by side, with daily exchange rates
+• Cash, bank, cards, e-wallets and savings, each in its own currency
+• 20+ currencies side by side, with daily exchange rates
 • A live total balance and how it moved in the last 30 days
 
 ADD IN SECONDS
@@ -71,7 +71,7 @@ In English, French and Arabic.
 
 ### Français
 
-**Description courte** : Suivez vos dépenses, planifiez votre budget, partagez factures et prêts.
+**Description courte** : Suivez vos dépenses, planifiez votre budget, partagez factures et prêts, dans toute devise.
 
 **Sous-titre** : Budget, factures et prêts
 
@@ -80,8 +80,8 @@ In English, French and Arabic.
 BudgetSplit est la façon simple de savoir où va votre argent, de planifier votre mois et de partager les frais avec vos amis et votre famille.
 
 TOUT VOTRE ARGENT AU MÊME ENDROIT
-• Espèces, banque, Whish, cartes et épargne, chacun dans sa devise
-• Dollars et livres côte à côte, avec les taux du jour
+• Espèces, banque, cartes, portefeuilles mobiles et épargne, chacun dans sa devise
+• Plus de 20 devises côte à côte, avec les taux du jour
 • Un solde total en direct et son évolution sur 30 jours
 
 AJOUTEZ EN QUELQUES SECONDES
@@ -110,7 +110,7 @@ PRIVÉ PAR CONCEPTION
 
 ### العربية
 
-**وصف قصير**: تابع مصاريفك، خطّط ميزانيتك، وقسّم الفواتير والقروض. بالدولار والليرة.
+**وصف قصير**: تابع مصاريفك، خطّط ميزانيتك، وقسّم الفواتير والقروض، بأي عملة.
 
 **العنوان الفرعي**: ميزانية، فواتير وقروض
 
@@ -119,8 +119,8 @@ PRIVÉ PAR CONCEPTION
 ميزانية وتقسيم (BudgetSplit) هو الطريقة الأسهل لتعرف أين يذهب مالك، وتخطّط شهرك، وتقسّم المصاريف مع الأصدقاء والعائلة.
 
 كل أموالك في مكان واحد
-• نقدًا، البنك، Whish، البطاقات والادخار، كلٌّ بعملته
-• الدولار والليرة جنبًا إلى جنب مع أسعار الصرف اليومية
+• نقدًا، البنك، البطاقات، المحافظ الإلكترونية والادخار، كلٌّ بعملته
+• أكثر من 20 عملة جنبًا إلى جنب مع أسعار الصرف اليومية
 • رصيد إجمالي مباشر وتغيّره خلال 30 يومًا
 
 أضف بثوانٍ
@@ -139,7 +139,7 @@ PRIVÉ PAR CONCEPTION
 • صفحة للقراءة فقط ليرى الطرف الآخر نفس السجل
 
 اسأل جيو، مساعدك الذكي
-• "كم صرفت هذا الشهر؟" "مين بيديني مصاري؟"
+• "كم صرفت هذا الشهر؟" "من يدين لي بالمال؟"
 • مجاني، 30 سؤالًا يوميًا
 
 خصوصيتك أولًا

@@ -2,7 +2,7 @@
   "id": "/my-wallet/",
   "name": "BudgetSplit: Expenses & Loans",
   "short_name": "BudgetSplit",
-  "description": "Budget planner and expense tracker that also splits bills, tracks loans and IOUs, and shares expenses with friends and family. Dollars, lira and more.",
+  "description": "Budget planner and expense tracker that also splits bills, tracks loans and IOUs, and shares expenses with friends and family, in any currency.",
   "lang": "en",
   "dir": "ltr",
   "start_url": "./",

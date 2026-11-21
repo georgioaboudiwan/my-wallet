@@ -35,7 +35,7 @@
     ["groceries", "Groceries", "expense", "needs", "#2e9e6b"],
     ["home", "Rent & home", "expense", "needs", "#3b7dd8"],
     ["bills", "Bills & internet", "expense", "needs", "#7a5cd6"],
-    ["generator", "Generator & electricity", "expense", "needs", "#d9a521"],
+    ["generator", "Electricity & water", "expense", "needs", "#d9a521"],
     ["transport", "Fuel & transport", "expense", "needs", "#d9622b"],
     ["parking", "Parking", "expense", "needs", "#4f7cac"],
     ["health", "Health", "expense", "needs", "#d6455d"],
@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.80.0";
+  const VERSION = "3.81.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -627,6 +627,15 @@
     }
   }
 
+  const REGION_CUR = { US: "USD", GB: "GBP", CA: "CAD", AU: "AUD", CH: "CHF", JP: "JPY", CN: "CNY", IN: "INR", BR: "BRL", AE: "AED", SA: "SAR", QA: "QAR", KW: "KWD", BH: "BHD", OM: "OMR", JO: "JOD", EG: "EGP", TR: "TRY", IQ: "IQD", FR: "EUR", DE: "EUR", IT: "EUR", ES: "EUR", PT: "EUR", NL: "EUR", BE: "EUR", AT: "EUR", IE: "EUR", FI: "EUR", GR: "EUR", LU: "EUR", CY: "EUR", MT: "EUR", SK: "EUR", SI: "EUR", EE: "EUR", LV: "EUR", LT: "EUR", HR: "EUR" };
+  const guessCur = () => {
+    for (const l of [...(navigator.languages || []), navigator.language]) {
+      const r = String(l || "").split(/[-_]/)[1];
+      if (r && REGION_CUR[r.toUpperCase()]) return REGION_CUR[r.toUpperCase()];
+    }
+    return "USD";
+  };
+
   function ensureDefaults() {
     if (settings().seeded) {
       const ss = storedSettings();
@@ -653,7 +662,7 @@
         }
       }
       if (ss.v326) { items.push({ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), v346: true, v358: true } } }); TRACK.mute = true; putMany(items); TRACK.mute = false; return; }
-      items.push({ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), remit: true, whish: true, v326: true, v346: true, v358: true } } });
+      items.push({ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), remit: true, v326: true, v346: true, v358: true } } });
       const id = `${S.uid}:cat:remit`;
       const cur = S.data.categories.get(id);
       if (cur) items.unshift({ t: "categories", r: { ...cur, sort: Math.round(Number(cur.sort) || 0) } });
@@ -661,20 +670,17 @@
         const after = S.data.categories.get(`${S.uid}:cat:freelance`) || S.data.categories.get(`${S.uid}:cat:salary`);
         items.unshift({ t: "categories", r: { id, name: "Family support & remittances", kind: "income", bucket: null, color: "#0f8a6c", budget: null, sort: after ? Math.round(Number(after.sort) || 0) : rows("categories").length } });
       }
-      const wid = `${S.uid}:acc:whish`;
-      if (!S.data.accounts.has(wid) && !rows("accounts").some(a => /whish/i.test(a.name))) {
-        items.unshift({ t: "accounts", r: { id: wid, name: "Whish", currency: "USD", kind: "wallet", opening_balance: 0, sort: Math.max(-1, ...rows("accounts").map(a => Math.round(Number(a.sort) || 0))) + 1, archived: false } });
-      }
       TRACK.mute = true; putMany(items); TRACK.mute = false;
       return;
     }
     if (S.data.accounts.size || S.data.categories.size) return saveSettings({ seeded: true });
     const p = S.uid;
     const items = [];
-    [["cash-usd", "Cash (dollars)", "USD", "cash"], ["cash-lbp", "Cash (lira)", "LBP", "cash"], ["bank", "Bank account", "USD", "bank"], ["whish", "Whish", "USD", "wallet"], ["savings", "Savings", "USD", "savings"]]
+    const gc = guessCur();
+    [["cash-usd", "Cash", gc, "cash"], ["bank", "Bank account", gc, "bank"], ["savings", "Savings", gc, "savings"]]
       .forEach(([k, name, currency, kind], i) => items.push({ t: "accounts", r: { id: `${p}:acc:${k}`, name, currency, kind, opening_balance: 0, sort: i, archived: false } }));
     DEFAULT_CATS.forEach(([k, name, kind, bucket, color], i) => items.push({ t: "categories", r: { id: `${p}:cat:${k}`, name, kind, bucket, color, budget: null, sort: i } }));
-    items.push({ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), seeded: true } } });
+    items.push({ t: "settings", r: { id: settingsId(), data: { ...storedSettings(), seeded: true, remit: true, v326: true, v346: true, v358: true, v362: true } } });
     TRACK.mute = true;
     putMany(items);
     TRACK.mute = false;
@@ -1691,7 +1697,7 @@
     txnSheet(null, { kind: "expense", amount: String(Number(r.amount)), account: r.account_id, category: r.category_id, note: r.note || "", bill: r.id });
   }
 
-  const BILL_TEMPLATES = () => (mainCur() === "USD" || mainCur() === "LBP"
+  const BILL_TEMPLATES = () => (mainCur() === "LBP"
     ? [["Generator", "generator", "bolt"], ["Electricity (EDL)", "generator", "bolt"], ["Internet", "bills", "wifi"], ["Phone", "bills", "wifi"], ["Rent", "home", "home"], ["School fees", null, "work"], ["Water", "bills", "home"]]
     : [["Rent", "home", "home"], ["Electricity", "bills", "bolt"], ["Internet", "bills", "wifi"], ["Phone", "bills", "wifi"], ["School fees", null, "work"], ["Water", "bills", "home"]]);
 
@@ -1708,7 +1714,7 @@
       const a = acc(f.account) || accounts[0];
       const kids = [
         r ? null : h("div", { class: "chips wrap" }, BILL_TEMPLATES().map(([n, ck, ic]) => h("button", { type: "button", class: "chip", "aria-pressed": String(f.name === tr(n)), on: { click: () => { f.name = tr(n); const c = ck && S.data.categories.get(`${S.uid}:cat:${ck}`); f.category = c ? c.id : f.category; draw(); } } }, icon(ic, "ico sm"), n))),
-        h("label", { class: "field" }, h("span", null, "Bill name"), h("input", { id: "b-name", class: "input", maxlength: "60", autocomplete: "off", placeholder: "e.g. Generator", value: f.name, on: { input: e => { f.name = e.target.value; } } })),
+        h("label", { class: "field" }, h("span", null, "Bill name"), h("input", { id: "b-name", class: "input", maxlength: "60", autocomplete: "off", placeholder: "e.g. Internet", value: f.name, on: { input: e => { f.name = e.target.value; } } })),
         h("div", { class: "two" },
           h("label", { class: "field" }, h("span", null, `Usual amount (${curSymbol(a.currency)})`), h("input", { id: "b-amt", class: "input num", inputmode: "decimal", autocomplete: "off", placeholder: "0", value: f.amount, on: { input: e => { f.amount = e.target.value; } } })),
           h("label", { class: "field" }, h("span", null, "Due on day"), h("input", { id: "b-day", class: "input num", inputmode: "numeric", autocomplete: "off", placeholder: "1 to 28", value: f.day, on: { input: e => { f.day = e.target.value; } } }))),
@@ -1771,7 +1777,7 @@
       return h("section", { class: "bill-teaser" },
         h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("billTeaserOff", true); render(); } } }, icon("close", "ico sm")),
         h("span", { class: "bill-badge" }, icon("bell", "ico sm")),
-        h("div", null, h("strong", null, "Never miss a bill"), h("small", null, (mainCur() === "USD" || mainCur() === "LBP") ? "Generator, internet, rent, school fees… Get a reminder before each one is due." : "Rent, internet, phone, school fees… Get a reminder before each one is due.")),
+        h("div", null, h("strong", null, "Never miss a bill"), h("small", null, mainCur() === "LBP" ? "Generator, internet, rent, school fees… Get a reminder before each one is due." : "Rent, internet, phone, school fees… Get a reminder before each one is due.")),
         h("button", { type: "button", class: "btn sm", on: { click: () => billSheet(null) } }, "Add a bill"));
     }
     const due = list.filter(r => r.kind !== "income").reduce((t, r) => t + toMain(Number(r.amount), r.currency), 0);
@@ -2309,7 +2315,7 @@
           f.type === "gold" || f.type === "silver" ? h("select", { id: "h-unit", class: "input mini-select", on: { change: e => { f.unit = e.target.value; paint(); } } }, [["g", "grams"], ["oz", "ounces"], ["kg", "kilos"]].map(([u, l]) => h("option", { value: u, selected: f.unit === u }, tr(l)))) : null)));
       if (f.type === "gold") kids.push(h("div", { class: "field" }, h("span", { class: "label" }, "Purity"),
         h("div", { class: "seg-row" }, [24, 22, 21, 18, 14].map(k => h("button", { type: "button", class: "chip-btn" + (f.karat === k ? " on" : ""), on: { click: () => { f.karat = k; draw(); } } }, `${k}K`)))),
-        h("label", { class: "field" }, h("span", null, "Name (optional)"), h("input", { id: "h-gname", class: "input", value: f.name, placeholder: "Gold lira, bracelet, bar…", maxlength: "40", on: { input: e => { f.name = e.target.value; } } })));
+        h("label", { class: "field" }, h("span", null, "Name (optional)"), h("input", { id: "h-gname", class: "input", value: f.name, placeholder: "Gold coin, bracelet, bar…", maxlength: "40", on: { input: e => { f.name = e.target.value; } } })));
       if (f.type !== "other") kids.push(h("div", { class: "field" }, h("span", { class: "label" }, "What you paid in total (optional)"),
         h("div", { class: "row-inputs" }, h("input", { id: "h-cost", class: "input num", inputmode: "decimal", value: f.cost, placeholder: "0", on: { input: e => { f.cost = e.target.value; } } }), curSelect("h-costcur", f.costCur, k => { f.costCur = k; }))));
       kids.push(preview, err);
@@ -2858,9 +2864,9 @@
   }
 
   function onboardSheet() {
-    const f = { step: 1, cur: mainCur(), income: "", bal: {}, picks: null };
+    const f = { step: 1, cur: storedSettings().main ? mainCur() : guessCur(), income: "", bal: {}, picks: null };
     const STEPS = 4;
-    const lebanese = () => f.cur === "USD" || f.cur === "LBP";
+    const lebanese = () => f.cur === "LBP";
     const templates = () => {
       const c = f.cur, leb = lebanese(), base = leb ? "USD" : c;
       return [
@@ -2868,7 +2874,7 @@
         leb ? { k: "cash-lbp", name: "Cash (lira)", currency: "LBP", kind: "cash", hint: "Lebanese pounds", on: true } : null,
         { k: "bank", name: "Bank account", currency: base, kind: "bank", hint: "Current or salary account", on: true },
         { k: "card", name: "Credit card", currency: base, kind: "card", hint: "What you spend on credit", on: false },
-        { k: "whish", name: leb ? "Whish" : "E-wallet", currency: base, kind: "wallet", hint: leb ? "Whish Money wallet" : "PayPal, Revolut, Apple Cash…", on: leb },
+        { k: "whish", name: "E-wallet", currency: base, kind: "wallet", hint: "Money in a payment app", on: false },
         { k: "savings", name: "Savings", currency: base, kind: "savings", hint: "Money you put aside", on: true }
       ].filter(Boolean);
     };
@@ -2908,7 +2914,7 @@
       const head = h("div", { class: "onboard-head" }, h("small", null, `Step ${f.step} of ${STEPS}`), h("div", { class: "bar" }, h("span", { style: { width: (f.step / STEPS * 100) + "%" } })));
       let kids;
       if (f.step === 1) kids = [h("h3", null, "Which currency do you think in?"), h("p", { class: "hint" }, "Totals and budgets are shown in it. You can still hold accounts in other currencies."),
-        h("div", { class: "chips wrap" }, ["USD", "LBP", "EUR", "AED", "SAR", "GBP"].map(c => h("button", { type: "button", class: "chip", "aria-pressed": String(f.cur === c), on: { click: () => { f.cur = c; draw(); } } }, `${c} · ${curInfo(c).name}`))),
+        h("div", { class: "chips wrap" }, [...new Set([guessCur(), "USD", "EUR", "GBP", "AED", "SAR"])].map(c => h("button", { type: "button", class: "chip", "aria-pressed": String(f.cur === c), on: { click: () => { f.cur = c; draw(); } } }, `${c} · ${curInfo(c).name}`))),
         curSelect("ob-cur", f.cur, c => { f.cur = c; draw(); })];
       else if (f.step === 2) {
         if (!f.picks || f.picks.cur !== f.cur) f.picks = Object.fromEntries([["cur", f.cur], ...templates().map(t => [t.k, t.on])]);
@@ -3067,6 +3073,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.81.0", items: [
+      ["", "Worldwide defaults", "New users start in the currency of their device region (USD if unknown) with Cash, Bank account and Savings; lira cash and generator bills only appear when LBP is picked as the main currency. No brand names in the app or store listing: the Whish default and the old auto-added Whish account are gone, the e-wallet hint is generic, Generator & electricity is now Electricity & water for new users, and phone hints use an international example. Existing users keep their accounts and categories. Public pages, manifest and store texts and images say any currency."]
+    ] },
     { v: "3.80.0", items: [
       ["", "Store readiness", "Public pages privacy.html, terms.html, delete-account.html and support.html (own legal.css and CSP), linked from the sign-in screen and the Privacy sheet. Privacy sheet now mentions usage events and Gio instead of saying there is no tracking. The service worker no longer caches other .html pages as the app shell. Manifest gets id, lang, dir, theme color, finance categories, five screenshots and an Ask Gio shortcut (#gio opens Gio). store/ has the listing texts in EN, FR and AR, Play data safety and form answers, PWABuilder steps for Android, Apple notes, icons, feature graphic and framed screenshots for Play (1080x1920) and the App Store (1290x2796)."]
     ] },
@@ -3226,7 +3235,7 @@
       ["", "Add a bill from the + button", "Hold the + button and pick Bill. Useful after closing the Never miss a bill card."]
     ] },
     { v: "3.45.1", items: [
-      ["", "Clear who pays whom", "Each member sees “Your part” at the top (You pay Roudy $40 / Charbel pays you $130) with an I paid button. The list reads in plain words and has a Share button to send it to the group chat."]
+      ["", "Clear who pays whom", "Each member sees “Your part” at the top (You pay Alex $40 / Sam pays you $130) with an I paid button. The list reads in plain words and has a Share button to send it to the group chat."]
     ] },
     { v: "3.45.0", items: [
       ["", "Group totals", "Each group now shows a Totals card: what each person paid, their share, and whether they get money back or owe, plus the total spent together."]
@@ -3384,7 +3393,7 @@
       ["plus", "One simple screen to add", "Tap +, type the amount, tap what it was for, save. Spent or Received at the top, and More for transfers, loans and splitting a bill."]
     ] },
     { v: "3.29.0", items: [
-      ["bell", "Bill reminders", "Add your generator, internet, rent or school fees. You get a notification before each one is due, and a Pay button on Home."],
+      ["bell", "Bill reminders", "Add your rent, internet, phone or school fees. You get a notification before each one is due, and a Pay button on Home."],
       ["mail", "Monthly report by email", "On the 1st of each month, open the app and you get a summary of last month by email: what came in, what went out and where it went."],
       ["cam", "Scan a receipt", "When adding an expense, tap Scan a receipt. The total, date and shop are filled in for you. It's optional and works on your phone."],
       ["chart", "Today's spending in a Shortcut", "See what you spent today and what's left from a Home Screen Shortcut. Turn it on in Settings → Add from the Lock Screen."]
@@ -3399,7 +3408,7 @@
     ] },
     { v: "3.26.0", items: [
       ["card", "New look for your accounts", "Each account is now a card with its own icon and color, so cash, bank, card, e-wallet and savings are easy to tell apart."],
-      ["phone", "Whish account added", "You now have a Whish e-wallet account. Set its balance or hide it from Settings → Accounts if you don't use it."]
+      ["phone", "E-wallet account added", "You now have an e-wallet account. Set its balance or hide it from Settings → Accounts if you don't use it."]
     ] },
     { v: "3.25.0", items: [
       ["bell", "Invites show up in the app", "When someone invites you to a group, you get a notification and a message in your inbox. No need to find the email: open Split and tap Accept."],
@@ -3410,7 +3419,7 @@
     ] },
     { v: "3.23.0", items: [
       ["coin", "Change a starting balance in one tap", "Open an account from Home and tap Starting balance at the bottom. Just the amount, no note or category."],
-      ["globe", "Family support & remittances", "A new income category for money family or friends send you, from Lebanon or abroad."],
+      ["globe", "Family support & remittances", "A new income category for money family or friends send you, from home or abroad."],
       ["users", "See who you invited", "Groups now show the email you sent each invite to."]
     ] },
     { v: "3.22.0", items: [
@@ -4151,7 +4160,7 @@
             a.currency !== mainCur() ? h("span", { class: "acard-alt num" }, "≈ " + money(toMain(v, a.currency), { whole: true })) : h("span", { class: "acard-alt" }, "\u00a0"),
             h("span", { class: "acard-foot" }, h("span", { class: "acard-name" }, a.name), h("span", { class: "acard-cur" }, curTag(a.currency))));
         }),
-        h("button", { type: "button", class: "acard add", on: { click: () => accountSheet(null) } }, h("span", { class: "acard-ico" }, icon("plus", "ico sm")), h("strong", null, "Add account"), h("small", null, "Cash, bank, card, Whish…"))));
+        h("button", { type: "button", class: "acard add", on: { click: () => accountSheet(null) } }, h("span", { class: "acard-ico" }, icon("plus", "ico sm")), h("strong", null, "Add account"), h("small", null, "Cash, bank, card, e-wallet…"))));
     out.append(accCard);
 
     if (txns.length) {
@@ -4644,7 +4653,7 @@
       h("button", { type: "button", class: "row-btn", on: { click: () => billSheet(null) } }, "Add a bill with a reminder"),
       h("button", { type: "button", class: "row-btn", on: { click: salarySheet } }, salaryOn() ? "Change my salary" : "Add my salary every month")));
 
-    const nameIn = h("input", { id: "s-name", class: "input", maxlength: "40", autocomplete: "name", placeholder: "e.g. Georgio", value: st.name, "aria-label": "Your name",
+    const nameIn = h("input", { id: "s-name", class: "input", maxlength: "40", autocomplete: "name", placeholder: "e.g. Alex", value: st.name, "aria-label": "Your name",
       on: { change: e => { const v = e.target.value.trim().replace(/\s+/g, " ").slice(0, 40); saveSettings({ name: v }); toast("Name saved."); } } });
     if (ADMIN.allowed === null) checkAdmin();
     if (ADMIN.allowed) out.append(group("Admin", h("button", { type: "button", class: "row", on: { click: () => go("admin") } },
@@ -5468,7 +5477,7 @@
         h("span", { class: "split-badge" }, icon("people", "ico sm")),
         h("div", null, h("h2", null, big ? "Split bills. Track loans." : "Split or lend"), big ? h("p", null, "Share costs with friends, family or roommates, and never forget who owes what.") : null)),
       big ? h("div", { class: "split-steps" },
-        step("1", "Create a group", "Like “Trip to Faraya” or “House”."),
+        step("1", "Create a group", "Like “Ski trip” or “House”."),
         step("2", "Add what was paid", "Pick who paid and who shares it."),
         step("3", "See who owes whom", "Settle up with one payment each.")) : null,
       h("div", { class: "split-ctas" },
@@ -5512,7 +5521,7 @@
     const f = { name: "", currency: mainCur(), me: settings().name || "" };
     const err = h("p", { class: "form-err", role: "alert" });
     const body = h("form", { class: "form", id: "group-form", novalidate: true },
-      h("label", { class: "field" }, h("span", null, "Group name"), h("input", { id: "g-gname", class: "input", maxlength: "40", autocomplete: "off", placeholder: "e.g. Trip to Faraya, House, Loan to Roudy", on: { input: e => { f.name = e.target.value; } } })),
+      h("label", { class: "field" }, h("span", null, "Group name"), h("input", { id: "g-gname", class: "input", maxlength: "40", autocomplete: "off", placeholder: "e.g. Ski trip, House, Loan to Alex", on: { input: e => { f.name = e.target.value; } } })),
       h("div", { class: "field" }, h("span", { class: "label" }, "Currency"), curSelect("g-gcur", f.currency, k => { f.currency = k; })),
       h("label", { class: "field" }, h("span", null, "Your name in the group"), h("input", { id: "g-gme", class: "input", maxlength: "40", autocomplete: "off", value: f.me, on: { input: e => { f.me = e.target.value; } } })),
       err);
@@ -6373,7 +6382,7 @@
           const name = f.name.trim().replace(/\s+/g, " ");
           if (!name || name.length > 40) return toast("Enter a name.");
           const phone = f.phone.trim() ? cleanPhone(f.phone) : null;
-          if (phone && !PHONE_RE.test(phone)) return toast("Enter a number like 70 123 456, or +33 6 12 34 56 78 outside Lebanon.");
+          if (phone && !PHONE_RE.test(phone)) return toast("Enter the number with its country code, like +44 7700 900123.");
           put("people", { ...p, name, phone });
           const due = { ...settings().loanDue };
           if (DATE_RE.test(f.due)) due[p.id] = f.due; else delete due[p.id];
@@ -6419,7 +6428,7 @@
       const start = f.amount.trim() ? parseAmt(f.amount) : 0;
       if (start === null) { fail(err, "Enter the amount as a number, like 2000."); return; }
       const phone = f.phone.trim() ? cleanPhone(f.phone) : null;
-      if (phone && !PHONE_RE.test(phone)) { fail(err, "Enter a number like 70 123 456, or +33 6 12 34 56 78 outside Lebanon."); return; }
+      if (phone && !PHONE_RE.test(phone)) { fail(err, "Enter the number with its country code, like +44 7700 900123."); return; }
       const email = f.email.trim().toLowerCase();
       if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { fail(err, "Enter a valid email, or leave it empty."); return; }
       const person = { id: newId(), name, direction: f.direction, currency: f.currency, phone, share_token: null, sort: Math.max(-1, ...rows("people").map(r => r.sort || 0)) + 1 };
@@ -7153,7 +7162,7 @@
         menuItem("swap", "Moved between my accounts", "Like cash to the bank, or to savings", () => setKind("transfer"), accounts.length < 2),
         menuItem("coin", "Money with a person", "You gave someone money, or they gave you", () => setKind("loan")),
         menuItem("people", "Split a bill with friends", "Dinner, rent, a trip…", () => { closeSheet(); go("people"); setTimeout(newGroupSheet, 350); }),
-        menuItem("bell", "A bill to pay every month", "Generator, internet, rent… with a reminder", () => { closeSheet(); setTimeout(() => billSheet(null), 350); }),
+        menuItem("bell", "A bill to pay every month", "Rent, internet, phone… with a reminder", () => { closeSheet(); setTimeout(() => billSheet(null), 350); }),
         menuItem("coin", "Gold, crypto or stocks", "Track what they're worth with live prices", () => { closeSheet(); setTimeout(() => holdingSheet(null), 350); })) : null;
 
       const chip = (k, lead, text) => h("button", { type: "button", class: "tx-chip" + (panel === k ? " on" : ""), "aria-expanded": String(panel === k), on: { click: () => open(k) } }, lead, h("span", null, text), icon("down", "ico sm"));

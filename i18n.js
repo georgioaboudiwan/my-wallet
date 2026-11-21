@@ -199,6 +199,7 @@ window.WALLET_I18N = {
     "Rent & home": ["Loyer et maison", "الإيجار والمنزل"],
     "Bills & internet": ["Factures et internet", "الفواتير والإنترنت"],
     "Generator & electricity": ["Générateur et électricité", "المولّد والكهرباء"],
+    "Electricity & water": ["Électricité et eau", "الكهرباء والمياه"],
     "Fuel & transport": ["Carburant et transport", "الوقود والمواصلات"],
     "Health": ["Santé", "الصحة"],
     "Eating out & coffee": ["Restaurants et café", "المطاعم والقهوة"],
@@ -321,7 +322,7 @@ Object.assign(window.WALLET_I18N.words, {
   "Rates stay as you set them": ["Les taux restent tels que vous les avez définis", "تبقى الأسعار كما حدّدتها"],
   "Your name": ["Votre nom", "اسمك"],
   "Shown on the private pages you share": ["Affiché sur les pages privées que vous partagez", "يظهر في الصفحات الخاصة التي تشاركها"],
-  "e.g. Georgio": ["ex. Georgio", "مثال: جورجيو"],
+  "e.g. Alex": ["ex. Alex", "مثال: سامي"],
   "Add account": ["Ajouter un compte", "إضافة حساب"],
   "Add category": ["Ajouter une catégorie", "إضافة فئة"],
   "Every month": ["Chaque mois", "كل شهر"],
@@ -972,7 +973,7 @@ Object.assign(window.WALLET_I18N.words, {
   "What the account had when you added it. Tap to change": ["Ce que le compte avait à l'ajout. Touchez pour modifier", "ما كان في الحساب عند إضافته. اضغط للتعديل"],
   "Change a starting balance in one tap": ["Modifiez un solde de départ en un geste", "عدّل الرصيد الافتتاحي بلمسة"],
   "Open an account from Home and tap Starting balance at the bottom. Just the amount, no note or category.": ["Ouvrez un compte depuis l'Accueil et touchez Solde de départ en bas. Juste le montant, sans note ni catégorie.", "افتح حسابًا من الرئيسية واضغط «الرصيد الافتتاحي» في الأسفل. المبلغ فقط، بلا ملاحظة أو فئة."],
-  "A new income category for money family or friends send you, from Lebanon or abroad.": ["Une nouvelle catégorie de revenu pour l'argent envoyé par la famille ou des amis, du Liban ou de l'étranger.", "فئة دخل جديدة للأموال التي يرسلها لك الأهل أو الأصدقاء من لبنان أو من الخارج."],
+  "A new income category for money family or friends send you, from home or abroad.": ["Une nouvelle catégorie de revenu pour l'argent envoyé par la famille ou des amis, d'ici ou de l'étranger.", "فئة دخل جديدة للمال الذي ترسله لك العائلة أو الأصدقاء، من الداخل أو الخارج."],
   "See who you invited": ["Voyez qui vous avez invité", "اعرف من دعوت"],
   "Groups now show the email you sent each invite to.": ["Les groupes affichent maintenant l'e-mail de chaque invitation.", "تعرض المجموعات الآن البريد الذي أُرسلت إليه كل دعوة."],
   "Has the app · hasn't answered yet": ["A l'app · n'a pas encore répondu", "لديه التطبيق · لم يرد بعد"],
@@ -1007,11 +1008,10 @@ window.WALLET_I18N.patterns.push(["^(.+) invited you to a shared group$", "$1 vo
 Object.assign(window.WALLET_I18N.words, {
   "E-wallet": ["Portefeuille mobile", "محفظة إلكترونية"],
   "Add account": ["Ajouter un compte", "إضافة حساب"],
-  "Cash, bank, card, Whish…": ["Espèces, banque, carte, Whish…", "نقد، بنك، بطاقة، Whish…"],
+  "Cash, bank, card, e-wallet…": ["Espèces, banque, carte, portefeuille mobile…", "نقد، بنك، بطاقة، محفظة إلكترونية…"],
   "New look for your accounts": ["Nouveau look pour vos comptes", "شكل جديد لحساباتك"],
   "Each account is now a card with its own icon and color, so cash, bank, card, e-wallet and savings are easy to tell apart.": ["Chaque compte est une carte avec son icône et sa couleur : espèces, banque, carte, portefeuille mobile et épargne se distinguent facilement.", "كل حساب أصبح بطاقة بأيقونة ولون خاصين، فتميّز بسهولة بين النقد والبنك والبطاقة والمحفظة الإلكترونية والادخار."],
-  "Whish account added": ["Compte Whish ajouté", "أُضيف حساب Whish"],
-  "You now have a Whish e-wallet account. Set its balance or hide it from Settings → Accounts if you don't use it.": ["Vous avez maintenant un compte Whish. Réglez son solde ou masquez-le dans Réglages → Comptes si vous ne l'utilisez pas.", "لديك الآن حساب محفظة Whish. حدّد رصيده أو أخفه من الإعدادات ← الحسابات إن لم تستخدمه."]
+  "E-wallet account added": ["Compte portefeuille mobile ajouté", "أُضيف حساب محفظة إلكترونية"],
 });
 window.WALLET_I18N.patterns.push(["^Your accounts \\((\\d+)\\)$", "Vos comptes ($1)", "حساباتك ($1)"]);
 Object.assign(window.WALLET_I18N.words, {
@@ -1051,9 +1051,8 @@ Object.assign(window.WALLET_I18N.words, {
   "Current or salary account": ["Compte courant ou salaire", "حساب جارٍ أو حساب الراتب"],
   "What you spend on credit": ["Ce que vous dépensez à crédit", "ما تصرفه بالبطاقة الائتمانية"],
   "Credit card": ["Carte de crédit", "بطاقة ائتمان"],
-  "Whish Money wallet": ["Portefeuille Whish Money", "محفظة Whish Money"],
+  "Money in a payment app": ["L'argent dans une app de paiement", "المال في تطبيق دفع"],
   "E-wallet": ["Portefeuille mobile", "محفظة إلكترونية"],
-  "PayPal, Revolut, Apple Cash…": ["PayPal, Revolut, Apple Cash…", "PayPal وRevolut وApple Cash…"],
   "Money you put aside": ["L'argent mis de côté", "المال الذي تدّخره"],
   "Cash": ["Espèces", "نقد"],
   "Split a bill or a trip": ["Partager une note ou un voyage", "قسّم فاتورة أو رحلة"],
@@ -1065,7 +1064,7 @@ Object.assign(window.WALLET_I18N.words, {
   "Split or lend": ["Partager ou prêter", "قسّم أو أقرض"],
   "Share costs with friends, family or roommates, and never forget who owes what.": ["Partagez les frais avec amis, famille ou colocataires, sans jamais oublier qui doit quoi.", "تقاسم المصاريف مع الأصدقاء أو العائلة أو شركاء السكن، ولا تنسَ أبدًا من يدين بماذا."],
   "Create a group": ["Créez un groupe", "أنشئ مجموعة"],
-  "Like “Trip to Faraya” or “House”.": ["Comme « Voyage à Faraya » ou « Maison ».", "مثل «رحلة إلى فاريا» أو «البيت»."],
+  "Like “Ski trip” or “House”.": ["Comme « Voyage au ski » ou « Maison ».", "مثل «رحلة تزلّج» أو «البيت»."],
   "Add what was paid": ["Ajoutez ce qui a été payé", "أضف ما دُفع"],
   "Pick who paid and who shares it.": ["Choisissez qui a payé et qui partage.", "اختر من دفع ومن يتقاسم."],
   "See who owes whom": ["Voyez qui doit à qui", "اعرف من يدين لمن"],
@@ -1094,7 +1093,7 @@ Object.assign(window.WALLET_I18N.words, {
 Object.assign(window.WALLET_I18N.words, { "Split bills": ["Partage", "تقسيم الفواتير"] });
 Object.assign(window.WALLET_I18N.words, {
   "Bill reminders": ["Rappels de factures", "تذكير الفواتير"],
-  "Add your generator, internet, rent or school fees. You get a notification before each one is due, and a Pay button on Home.": ["Ajoutez générateur, internet, loyer ou frais scolaires. Vous êtes prévenu avant chaque échéance, avec un bouton Payer sur l'Accueil.", "أضف الاشتراك بالمولد أو الإنترنت أو الإيجار أو الأقساط المدرسية. يصلك إشعار قبل كل موعد وزر «ادفع» في الرئيسية."],
+  "Add your rent, internet, phone or school fees. You get a notification before each one is due, and a Pay button on Home.": ["Ajoutez loyer, internet, téléphone ou frais scolaires. Vous êtes prévenu avant chaque échéance, avec un bouton Payer sur l'accueil.", "أضف الإيجار أو الإنترنت أو الهاتف أو الأقساط المدرسية. يصلك إشعار قبل كل موعد، وزر دفع في الرئيسية."],
   "Monthly report by email": ["Rapport mensuel par e-mail", "تقرير شهري بالبريد"],
   "On the 1st of each month, open the app and you get a summary of last month by email: what came in, what went out and where it went.": ["Le 1er du mois, ouvrez l'app et recevez par e-mail le résumé du mois passé : entrées, sorties et où l'argent est allé.", "في أول كل شهر، افتح التطبيق فيصلك بالبريد ملخص الشهر الماضي: ما دخل وما خرج وأين ذهب."],
   "Scan a receipt": ["Scanner un reçu", "امسح إيصالًا"],
@@ -1476,7 +1475,7 @@ Object.assign(window.WALLET_I18N.words, {
   "I paid": ["J'ai payé", "دفعت"],
   "Everyone in the group sees this list in their app. Tap Share to send it to people who don't use BudgetSplit.": ["Tout le groupe voit cette liste dans l'app. Touchez Partager pour l'envoyer à ceux qui n'utilisent pas BudgetSplit.", "يرى كل أعضاء المجموعة هذه القائمة في التطبيق. اضغط «شارك» لإرسالها لمن لا يستخدم BudgetSplit."],
   "A bill to pay every month": ["Une facture à payer chaque mois", "فاتورة تُدفع كل شهر"],
-  "Generator, internet, rent… with a reminder": ["Générateur, internet, loyer… avec un rappel", "مولّد، إنترنت، إيجار… مع تذكير"],
+  "Rent, internet, phone… with a reminder": ["Loyer, internet, téléphone… avec un rappel", "إيجار، إنترنت، هاتف… مع تذكير"],
   "Bill": ["Facture", "فاتورة"],
   "No note needed for these. Tap to change:": ["Pas de note pour celles-ci. Touchez pour changer :", "لا حاجة لملاحظة لهذه الفئات. اضغط للتغيير:"],
   "Fewer notes to write": ["Moins de notes à écrire", "ملاحظات أقل"],
@@ -1514,7 +1513,7 @@ Object.assign(window.WALLET_I18N.words, {
   "kilos": ["kilos", "كيلو"],
   "Purity": ["Pureté", "العيار"],
   "Name (optional)": ["Nom (facultatif)", "الاسم (اختياري)"],
-  "Gold lira, bracelet, bar…": ["Livre en or, bracelet, lingot…", "ليرة ذهب، سوار، سبيكة…"],
+  "Gold coin, bracelet, bar…": ["Pièce d'or, bracelet, lingot…", "قطعة ذهب، سوار، سبيكة…"],
   "What you paid in total (optional)": ["Total payé (facultatif)", "المبلغ المدفوع إجمالاً (اختياري)"],
   "Removed.": ["Retiré.", "تمت الإزالة."],
   "Enter the ticker, like AAPL.": ["Entrez le symbole, comme AAPL.", "أدخل الرمز، مثل AAPL."],
@@ -1741,6 +1740,10 @@ Object.assign(window.WALLET_I18N.words, {
   "Privacy Policy": ["Politique de confidentialité", "سياسة الخصوصية"],
   "Terms of Use": ["Conditions d'utilisation", "شروط الاستخدام"],
   "Support": ["Assistance", "الدعم"],
+  "e.g. Internet": ["ex. Internet", "مثلًا: إنترنت"],
+  "Enter the number with its country code, like +44 7700 900123.": ["Entrez le numéro avec l'indicatif du pays, par ex. +44 7700 900123.", "أدخل الرقم مع رمز البلد، مثل ‎+44 7700 900123."],
+  "You now have an e-wallet account. Set its balance or hide it from Settings → Accounts if you don't use it.": ["Vous avez maintenant un compte portefeuille mobile. Indiquez son solde ou masquez-le dans Réglages → Comptes si vous ne l'utilisez pas.", "أصبح لديك حساب محفظة إلكترونية. حدّد رصيده أو أخفه من الإعدادات ← الحسابات إن لم تستخدمه."],
+  "e.g. Ski trip, House, Loan to Alex": ["ex. Voyage au ski, Maison, Prêt à Alex", "مثلًا: رحلة تزلّج، البيت، قرض لسامي"],
   "Ask AI, for free": ["Demandez à l'IA, gratuitement", "اسأل الذكاء الاصطناعي مجانًا"],
   "Tap the gold star at the top to ask anything about your money: how much you spent, where you can save, who owes you, or how the app works. 30 free questions a day.": ["Touchez l'étoile dorée en haut pour poser n'importe quelle question sur votre argent : combien vous avez dépensé, où économiser, qui vous doit, ou comment marche l'app. 30 questions gratuites par jour.", "اضغط النجمة الذهبية في الأعلى لتسأل أي شيء عن أموالك: كم صرفت، أين توفّر، من يدين لك، أو كيف يعمل التطبيق. 30 سؤالًا مجانيًا يوميًا."]
 });
