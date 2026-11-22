@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.93.2";
+  const VERSION = "3.93.3";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3235,6 +3235,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.93.3", items: [
+      ["", "Status bar follows the phone's Light or Dark", "On iPhone the Home Screen app reads the status bar color only when the page loads, so changing Light or Dark in the phone's settings left the old color above the header. When Appearance is Automatic and the phone's mode no longer matches the one the app loaded with, the app now reloads once as it comes back on screen (or right away if it is open), keeping the current tab. It waits while a sheet is open or a field is in use."]
+    ] },
     { v: "3.93.2", items: [
       ["", "Status bar color and Get started progress", "The status bar color (theme-color) is now written by theme.js before any other tag, with the user's choice already applied, instead of static light and dark tags that were replaced later; iPhone reads the first value it sees, so the strip above the header kept the old color after switching Light or Dark. Header buttons no longer fade their background. Get started now shows each step as done (green check, Done) or to do, the next step marked Next, a 3-part progress bar and a count (1/3). It shows until all three are done or it is hidden, for up to 30 entries, instead of only when there are no entries. Steps: an account has an opening balance, an expense exists, the month has a plan."]
     ] },
@@ -9213,6 +9216,9 @@
     let reopen = null;
     try { reopen = sessionStorage.getItem("wallet:reopen"); sessionStorage.removeItem("wallet:reopen"); } catch { }
     if (S.session && reopen === "appearance") { go("settings"); settingsOpen("appearance"); }
+    let view = null;
+    try { view = sessionStorage.getItem("wallet:view"); sessionStorage.removeItem("wallet:view"); } catch { }
+    if (S.session && view && view !== "home" && !reopen && /^(activity|insights|people|settings|plan|admin)$/.test(view)) go(view);
   }
 
   window.addEventListener("online", () => { if (S.offline || !S.session) recover(); else sync(); renderStatus(); });
@@ -9253,7 +9259,20 @@
 
   const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
   applyTheme();
-  if (darkQuery.addEventListener) darkQuery.addEventListener("change", applyTheme);
+  const IOS_APP = navigator.standalone === true && /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const LOADED_DARK = themeIsDark(themePref());
+  let schemeT = 0;
+  const schemeCheck = () => {
+    clearTimeout(schemeT);
+    if (!IOS_APP || document.visibilityState !== "visible" || themeIsDark(themePref()) === LOADED_DARK) return;
+    if (document.querySelector(".overlay, .viewer") || (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))) { schemeT = setTimeout(schemeCheck, 1500); return; }
+    try { sessionStorage.setItem("wallet:view", S.view || "home"); } catch { }
+    clearTimeout(persistTimer);
+    try { persist(); } catch { }
+    location.reload();
+  };
+  if (darkQuery.addEventListener) darkQuery.addEventListener("change", () => { applyTheme(); schemeCheck(); });
+  document.addEventListener("visibilitychange", schemeCheck);
   window.addEventListener("hashchange", () => { if (location.hash !== "#add" && location.hash !== "#split" && location.hash !== "") location.reload(); });
   if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", e => {
     if (!e.data || !S.session) return;
