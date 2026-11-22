@@ -222,6 +222,7 @@ Update this list with every app change, so the listing, screenshots and privacy 
 | 3.91.1 | Accounts moved higher on Home | No listing change |
 | 3.91.2 | Note suggestions can be swiped without picking one | No listing change |
 | 3.91.3 | Sideways swipes inside sheets no longer start closing the sheet | No listing change |
+| 3.92.0 | Several logins on one phone (profiles), switch without signing out | Add "switch between logins" to the description; in the native app keep sessions in the secure keychain/keystore instead of web storage |
 
 ## Save for the native app
 

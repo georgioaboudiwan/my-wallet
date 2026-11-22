@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.91.3";
+  const VERSION = "3.92.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -1182,7 +1182,12 @@
     const bell = h("button", { type: "button", class: "key bell-btn", "aria-label": "Notifications", on: { click: inboxSheet } }, icon("bell"), h("span", { class: "bell-badge" }));
     const eye = h("button", { type: "button", class: "key eye-btn", role: "switch", on: { click: () => { S.hidden = !S.hidden; store.set("hidden", S.hidden); render(); } } }, h("span", { class: "priv-knob" }));
     const help = h("button", { type: "button", class: "help-btn ask-pill", "aria-label": "Ask Gio", on: { click: assistantSheet } }, gioMark("gio ask-gio"), h("span", { class: "ask-tx" }, "Ask Gio"));
-    const gear = h("button", { type: "button", class: "key gear-btn me-btn", "aria-label": "Settings", on: { click: () => go("settings") } }, h("span", { class: "me-init" }));
+    let pressT = 0, pressed = false;
+    const gear = h("button", { type: "button", class: "key gear-btn me-btn", "aria-label": "Settings", on: {
+      pointerdown: () => { pressed = false; clearTimeout(pressT); pressT = setTimeout(() => { pressed = true; if (navigator.vibrate) navigator.vibrate(10); profilesSheet(); }, 450); },
+      pointerup: () => clearTimeout(pressT), pointerleave: () => clearTimeout(pressT), pointercancel: () => clearTimeout(pressT),
+      contextmenu: e => e.preventDefault(),
+      click: e => { if (pressed) { pressed = false; e.preventDefault(); return; } go("settings"); } } }, h("span", { class: "me-init" }));
     const main = h("main", { class: "view" });
     const tab = (view, label, ic) => h("button", { type: "button", class: "tab", "data-view": view, on: { click: () => go(view) } }, icon(ic), h("span", null, label));
     const tabs = [tab("home", "Home", "home"), tab("activity", "Activity", "list"), tab("insights", "Insights", "chart"), tab("people", "Split", "people")];
@@ -1361,6 +1366,104 @@
   const isOAuth = () => { try { return localStorage.getItem("wallet:oauth") === "1"; } catch { return false; } };
   const setOAuth = on => { try { if (on) localStorage.setItem("wallet:oauth", "1"); else localStorage.removeItem("wallet:oauth"); } catch { } };
 
+  const PROF_MAX = 5;
+  const profiles = () => { try { const v = JSON.parse(localStorage.getItem("wallet:profiles") || "[]"); return Array.isArray(v) ? v.filter(p => p && typeof p.uid === "string" && ID_RE.test(p.uid)).slice(0, PROF_MAX) : []; } catch { return []; } };
+  const saveProfiles = list => { try { localStorage.setItem("wallet:profiles", JSON.stringify(list.slice(0, PROF_MAX))); } catch { } };
+  const parked = uid => { try { return localStorage.getItem("wallet:sess:" + uid); } catch { return null; } };
+  function rememberProfile() {
+    if (!S.uid || !S.session) return;
+    const list = profiles().filter(p => p.uid !== S.uid);
+    let name = "";
+    try { name = String(settings().name || "").slice(0, 40); } catch { }
+    list.unshift({ uid: S.uid, email: String(S.email || "").slice(0, 120), name, oauth: isOAuth() });
+    saveProfiles(list);
+  }
+  function parkSession() {
+    if (!S.uid) return;
+    try { const raw = localStorage.getItem("wallet-auth"); if (raw) localStorage.setItem("wallet:sess:" + S.uid, raw); } catch { }
+  }
+  const leave = () => { try { persist(); } catch { } try { flushTrack(); } catch { } try { sb.auth.stopAutoRefresh(); } catch { } };
+  function switchProfile(uid) {
+    const p = profiles().find(x => x.uid === uid), raw = parked(uid);
+    if (!p || uid === S.uid) return;
+    if (!raw) { saveProfiles(profiles().filter(x => x.uid !== uid)); toast("That profile was signed out. Add it again.", "error"); return render(); }
+    rememberProfile(); parkSession(); leave();
+    try {
+      localStorage.setItem("wallet-auth", raw);
+      localStorage.setItem("wallet:lastUser", uid);
+      localStorage.removeItem("wallet:adding");
+    } catch { }
+    setOAuth(!!p.oauth);
+    location.reload();
+  }
+  function addProfile() {
+    if (!navigator.onLine) return toast("Connect to the internet to add a profile.", "error");
+    if (profiles().length >= PROF_MAX) return toast("You can add up to 5 profiles.", "error");
+    rememberProfile(); parkSession(); leave();
+    try {
+      localStorage.setItem("wallet:adding", S.uid || "");
+      localStorage.removeItem("wallet-auth");
+      localStorage.removeItem("wallet:lastUser");
+    } catch { }
+    setOAuth(false);
+    location.reload();
+  }
+  async function revokeParked(raw) {
+    try {
+      const j = JSON.parse(raw), sess = j && (j.currentSession || j);
+      if (!sess || !sess.refresh_token) return;
+      const tmp = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: "wallet-tmp" } });
+      const r = await tmp.auth.setSession({ access_token: sess.access_token, refresh_token: sess.refresh_token });
+      if (!r.error) await tmp.auth.signOut({ scope: "local" });
+    } catch { }
+  }
+  function wipeLocal(uid) {
+    try {
+      const prefix = `wallet:v1:${uid}:`;
+      Object.keys(localStorage).filter(k => k.startsWith(prefix)).forEach(k => localStorage.removeItem(k));
+      localStorage.removeItem("wallet:sess:" + uid);
+      if (localStorage.getItem("wallet:deviceOwner") === uid) localStorage.removeItem("wallet:deviceOwner");
+    } catch { }
+  }
+  async function removeProfile(uid) {
+    if (uid === S.uid) return;
+    const raw = parked(uid);
+    saveProfiles(profiles().filter(x => x.uid !== uid));
+    wipeLocal(uid);
+    if (raw && navigator.onLine) revokeParked(raw);
+    toast("Profile removed from this phone.");
+    profilesSheet();
+  }
+  const profAva = (p, i) => h("span", { class: "prof-ava", style: { "--c": COLORS[i % COLORS.length] } }, String(p.name || p.email || "?").trim().charAt(0).toUpperCase());
+  function profilesSheet() {
+    rememberProfile();
+    const list = profiles();
+    let armed = null;
+    const body = h("div", { class: "prof-list" });
+    const draw = () => body.replaceChildren(...list.map((p, i) => {
+      const me = p.uid === S.uid;
+      return h("div", { class: "prof-row" + (me ? " me" : "") },
+        h("button", { type: "button", class: "prof-hit", disabled: me, "aria-label": `${tr("Switch to")} ${p.email}`, on: { click: () => switchProfile(p.uid) } },
+          profAva(p, i),
+          h("span", { class: "prof-who" }, h("strong", null, p.name || p.email.split("@")[0]), h("small", null, p.email)),
+          me ? h("span", { class: "prof-now" }, icon("check", "ico sm"), tr("Open")) : icon("fwd", "ico sm")),
+        me ? null : h("button", { type: "button", class: "prof-x" + (armed === p.uid ? " armed" : ""), "aria-label": tr("Remove from this phone"), on: { click: () => { if (armed === p.uid) removeProfile(p.uid); else { armed = p.uid; draw(); } } } }, armed === p.uid ? tr("Remove") : icon("close", "ico sm")));
+    }));
+    draw();
+    openSheet("Profiles", h("div", { class: "form" },
+      h("p", { class: "hint" }, "Each profile is a separate login with its own data. Switch without signing out."),
+      body),
+      h("button", { type: "button", class: "btn", disabled: list.length >= PROF_MAX, on: { click: () => { closeSheet(); addProfile(); } } }, icon("plus", "ico sm"), list.length >= PROF_MAX ? "Up to 5 profiles" : "Add a profile"));
+  }
+  function profileBack() {
+    let from = null;
+    try { from = localStorage.getItem("wallet:adding"); } catch { }
+    if (!from || !parked(from)) return null;
+    const p = profiles().find(x => x.uid === from);
+    if (!p) return null;
+    return h("button", { type: "button", class: "link-btn login-link center prof-back", on: { click: () => switchProfile(from) } }, icon("back", "ico sm"), `${tr("Back to")} ${p.name || p.email}`);
+  }
+
   const knownDevice = () => {
     try {
       if (localStorage.getItem("wallet:known") === "1") return true;
@@ -1414,6 +1517,7 @@
         ...(!forgot ? PROVIDERS.list.map(([id, name]) => h("button", { type: "button", class: "btn alt login-provider", disabled: busy, on: { click: () => oauthSignIn(id) } }, `Continue with ${name}`)) : []),
         forgot ? null : h("p", { class: "login-switch" }, create ? "Already have an account?" : "New to BudgetSplit?", " ", h("button", { type: "button", class: "link-btn", on: { click: () => { mode = create ? "signin" : "create"; err.textContent = ""; draw(); } } }, create ? "Sign in" : "Create an account")),
         h("p", { class: "login-note" }, icon("shield", "ico sm"), h("span", null, "Your data is private and encrypted in transit.")),
+        profileBack(),
         h("div", { class: "login-langs" }, Object.entries(LANGS).map(([k, name]) => h("button", { type: "button", class: "link-btn", "aria-pressed": String(k === LANG), on: { click: () => setLang(k) } }, name)))].filter(Boolean));
       meter();
     };
@@ -3132,6 +3236,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.92.0", items: [
+      ["", "Profiles: several logins on one phone", "Up to 5 logins per device (wallet:profiles: uid, email, name, oauth flag). Switching parks the current Supabase session (the wallet-auth value) under wallet:sess:<uid>, stops auto refresh, writes the target's session back, sets lastUser and reloads, so there is no sign-out or password. Each profile keeps its own cache, encryption key and app lock (all under wallet:v1:<uid>:), so a locked profile still asks for its lock. Add a profile parks the current one and opens sign-in with a Back to button (works through Google and Microsoft redirects too). Removing a profile from the phone wipes its local data and revokes its session through a temporary non-persistent client. Signing out removes that profile and opens the next one. The push device id is now per profile (the first profile keeps the old id). Entry points: a Switch profile card under the Settings profile card, and a long press on the avatar."]
+    ] },
     { v: "3.91.3", items: [
       ["", "Sideways swipes inside sheets", "The drag-down-to-close gesture on sheets grabbed any touch that drifted down a little and called preventDefault, which blocked horizontal scrolling of the note suggestions (and any sideways row in a sheet). It now locks direction first: it starts only after 8px of mostly vertical movement, and gives up when the move is mostly sideways. Touches on note suggestions never start it."]
     ] },
@@ -3382,6 +3489,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.92.0", items: [
+      ["user", "Switch between logins", "Add a second login and switch between them without signing out. Find it under your profile in Settings, or press and hold your avatar."]
+    ] },
     { v: "3.91.0", items: [
       ["card", "Your accounts as a hand of cards", "Swipe through your accounts like cards fanned in your hand. The front card shows how much of your money it holds."]
     ] },
@@ -5268,7 +5378,13 @@
     const search = h("label", { class: "set-search" }, icon("search", "ico sm"),
       h("input", { id: "set-q", type: "search", class: "set-q", placeholder: tr("Search settings"), autocomplete: "off", value: S.setQuery || "", "aria-label": "Search settings", on: { input: e => { S.setQuery = e.target.value; render(); } } }),
       q ? h("button", { type: "button", class: "set-q-x", "aria-label": "Clear", on: { click: () => { S.setQuery = ""; render(); } } }, icon("close", "ico sm")) : null);
-    const kids = [profile, search];
+    const profs = profiles();
+    const others = profs.filter(p => p.uid !== S.uid);
+    const switcher = h("button", { type: "button", class: "set-profs", on: { click: profilesSheet } },
+      h("span", { class: "set-profs-avas", "aria-hidden": "true" }, profs.length > 1 ? profs.map((p, i) => profAva(p, i)).slice(0, 5) : h("span", { class: "prof-ava add" }, icon("plus", "ico sm"))),
+      h("span", { class: "set-profs-txt" }, h("strong", null, others.length ? "Switch profile" : "Add another profile"), h("small", null, others.length ? `${profs.length} ${tr("profiles on this phone")}` : "Use a second login without signing out")),
+      icon("fwd", "ico sm"));
+    const kids = [profile, switcher, search];
     if (q) {
       const hits = [];
       const seen = new Set();
@@ -8302,9 +8418,13 @@
   const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
   const b64uToBytes = v => Uint8Array.from(atob(v.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((v.length + 3) % 4)), c => c.charCodeAt(0));
   const deviceId = () => {
-    let id = null;
-    try { id = localStorage.getItem("wallet:device"); } catch { id = null; }
-    if (!id || !ID_RE.test(id)) { id = "dev-" + newId(); try { localStorage.setItem("wallet:device", id); } catch { } }
+    let id = store.get("device", null);
+    if (typeof id === "string" && ID_RE.test(id)) return id;
+    let g = null, owner = null;
+    try { g = localStorage.getItem("wallet:device"); owner = localStorage.getItem("wallet:deviceOwner"); } catch { }
+    if (g && ID_RE.test(g) && (!owner || owner === S.uid)) { id = g; try { localStorage.setItem("wallet:deviceOwner", S.uid); } catch { } }
+    else id = "dev-" + newId();
+    store.set("device", id);
     return id;
   };
   const PUSH = { state: null, time: null, extra: [], busy: false, loading: false };
@@ -8947,12 +9067,19 @@
     S.armed = null;
     stopLive();
     try { await sb.auth.signOut({ scope: "local" }); } catch { }
+    const gone = S.uid;
+    if (gone) { saveProfiles(profiles().filter(x => x.uid !== gone)); wipeLocal(gone); }
     try {
-      const prefix = `wallet:v1:${S.uid}:`;
-      Object.keys(localStorage).filter(k => k.startsWith(prefix)).forEach(k => localStorage.removeItem(k));
       localStorage.removeItem("wallet:lastUser");
       localStorage.removeItem("wallet:oauth");
     } catch { }
+    const next = profiles().find(x => parked(x.uid));
+    if (next) {
+      try { localStorage.setItem("wallet-auth", parked(next.uid)); localStorage.setItem("wallet:lastUser", next.uid); } catch { }
+      setOAuth(!!next.oauth);
+      location.reload();
+      return;
+    }
     S.session = null; S.uid = null; S.offline = false; S.outbox = []; S.last = {};
     VAULT.key = null; VAULT.raw = null; S.unlockNeed = null; S.recoveryCode = null;
     ADMIN.allowed = null; ADMIN.data = null;
@@ -8965,7 +9092,7 @@
   function setSession(session) {
     const changed = S.uid !== session.user.id;
     S.session = session;
-    try { localStorage.setItem("wallet:known", "1"); } catch { }
+    try { localStorage.setItem("wallet:known", "1"); localStorage.removeItem("wallet:sess:" + session.user.id); localStorage.removeItem("wallet:adding"); } catch { }
     S.email = session.user.email || "";
     S.offline = false;
     if (changed) {
@@ -8974,6 +9101,7 @@
       loadCache();
       shell = null;
     }
+    rememberProfile();
   }
 
   async function recover() {
