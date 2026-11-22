@@ -220,6 +220,7 @@ Update this list with every app change, so the listing, screenshots and privacy 
 | 3.90.0 | Home ordered by importance (balance and today, then what needs you, then the month, then details) | Home screenshot is unchanged at the top; no listing change |
 | 3.91.0 | Account cards fanned like a hand of cards on Home | Consider a screenshot of the accounts fan |
 | 3.91.1 | Accounts moved higher on Home | No listing change |
+| 3.91.2 | Note suggestions can be swiped without picking one | No listing change |
 
 ## Save for the native app
 

@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.91.1";
+  const VERSION = "3.91.2";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3132,6 +3132,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.91.2", items: [
+      ["", "Swiping note suggestions", "Quick-note chips filled the note on pointerdown, so starting a sideways swipe on a chip picked it. A chip now applies on pointerup only when the finger moved under 8px and the row did not scroll; pointercancel (the browser taking over to scroll) cancels it. Keyboard focus is still kept, and Enter or Space on a focused chip still works."]
+    ] },
     { v: "3.91.1", items: [
       ["", "Accounts higher on Home", "The accounts fan now comes right after the today tiles and any action cards, above the plan, bills and quick add. Recent and accounts are full width on wide screens instead of side by side."]
     ] },
@@ -7965,7 +7968,12 @@
         }
         const list = [...cnt.values()].sort((p, q) => q.c - p.c).slice(0, 8);
         if (!list.length) return null;
-        return h("div", { class: "tx-sugs" }, list.map(o => h("button", { type: "button", class: "tx-sug", on: { pointerdown: e => { e.preventDefault(); const inp = document.getElementById("f-note"); f.note = o.n; if (inp) { inp.value = o.n; inp.parentNode.classList.remove("need"); } err.textContent = ""; }, mousedown: e => e.preventDefault(), click: e => { e.preventDefault(); const inp = document.getElementById("f-note"); f.note = o.n; if (inp) inp.value = o.n; } } }, o.n)));
+        return h("div", { class: "tx-sugs" }, list.map(o => { const pick = () => { const inp = document.getElementById("f-note"); f.note = o.n; if (inp) { inp.value = o.n; inp.parentNode.classList.remove("need"); } err.textContent = ""; }; return h("button", { type: "button", class: "tx-sug", on: {
+          pointerdown: e => { e.preventDefault(); e.currentTarget.__p = { x: e.clientX, y: e.clientY, sl: e.currentTarget.parentNode.scrollLeft }; },
+          pointercancel: e => { e.currentTarget.__p = null; },
+          pointerup: e => { const p = e.currentTarget.__p; e.currentTarget.__p = null; if (!p || Math.abs(e.clientX - p.x) > 8 || Math.abs(e.clientY - p.y) > 8 || Math.abs(e.currentTarget.parentNode.scrollLeft - p.sl) > 2) return; pick(); },
+          mousedown: e => e.preventDefault(),
+          click: e => { e.preventDefault(); if (e.detail === 0) pick(); } } }, o.n); }));
       })();
       const repeatChip = !x && !adj && (f.kind === "expense" || f.kind === "income")
         ? h("button", { type: "button", class: "tx-mini" + (f.repeat ? " on" : ""), "aria-pressed": String(f.repeat), on: { click: () => { f.repeat = !f.repeat; f.repeatTouched = true; draw(); } } }, icon("repeat", "ico sm"), "Every month")
