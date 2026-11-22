@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.91.0";
+  const VERSION = "3.91.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3132,6 +3132,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.91.1", items: [
+      ["", "Accounts higher on Home", "The accounts fan now comes right after the today tiles and any action cards, above the plan, bills and quick add. Recent and accounts are full width on wide screens instead of side by side."]
+    ] },
     { v: "3.91.0", items: [
       ["", "Account cards as a fan", "Home accounts are now a fanned hand of cards around a pivot below the deck (rotate 7deg and shift 34% per step, depth scale, dimming and z-order). Horizontal drag with direction lock (vertical still scrolls), inertia and snap, arrow keys, a short vibration on snap. Tapping a side card brings it forward; tapping the front card opens its entries. The distribution bar dims every account except the front one, and the caption shows its share of your money with View entries. Focus is kept across renders (S.accFocus); the fan has its own stacking context so it never covers sheets. See all still switches to the grid."]
     ] },
@@ -4417,7 +4420,7 @@
     const accTotal = accounts.reduce((t, a) => t + toMain(bal.get(a.id) || 0, a.currency), 0);
     const accPos = accounts.map(a => Math.max(0, toMain(bal.get(a.id) || 0, a.currency)));
     const accPosTot = accPos.reduce((p, q) => p + q, 0);
-    const accCard = h("section", { class: "card col-b accs-card" },
+    const accCard = h("section", { class: "card accs-card" },
       h("div", { class: "accs-head" },
         h("div", null, h("h2", null, "Your accounts"), h("small", null, `${accounts.length} ${tr(accounts.length === 1 ? "account" : "accounts")}`)),
         h("div", { class: "accs-right" },
@@ -4437,7 +4440,7 @@
       S.accGrid ? null : h("div", { class: "fan-cap" }, h("span", { class: "fan-share num" }), h("button", { type: "button", class: "link-btn fan-go", on: { click: e => e.currentTarget.closest(".accs-card")?.querySelector(".acc-fan .acard.front")?.click() } }, "View entries", icon("fwd", "ico sm")), h("span", { class: "fan-dots", "aria-hidden": "true" }, [...accounts, null].map(() => h("i")))));
     let recent = null;
     if (txns.length) {
-      recent = h("section", { class: "card flush col-a" }, h("div", { class: "card-head" }, h("h2", null, "Recent"), h("button", { type: "button", class: "link-btn", on: { click: () => { S.filter = { q: "", kind: "all", account: null }; go("activity"); } } }, "See all")));
+      recent = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Recent"), h("button", { type: "button", class: "link-btn", on: { click: () => { S.filter = { q: "", kind: "all", account: null }; go("activity"); } } }, "See all")));
       txns.slice(0, 5).forEach(x => recent.append(txnRow(x)));
     }
 
@@ -4446,7 +4449,7 @@
     out.append(...[
       wallet, start, tiles,
       budgets, pay, mEnd, needsCat, news, recap,
-      tank, bills, quick, recent, accCard,
+      accCard, tank, bills, quick, recent,
       loans, goals, inv,
       remind, sug, billTeaser, splitTeaser, tapTeaser
     ].filter(Boolean));
