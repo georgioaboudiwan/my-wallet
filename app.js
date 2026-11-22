@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.92.0";
+  const VERSION = "3.93.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2339,7 +2339,7 @@
       for (const c of document.querySelectorAll("canvas.tank")) if (!c.__tank) tankInit(c); else c.__tank.read();
       for (const c of document.querySelectorAll("canvas.orbit")) if (!c.__orb) orbitFx(c); else c.__orb.sync();
       for (const r of document.querySelectorAll(".rcpt-card")) if (!r.__seen) { r.__seen = true; if (RM.matches || !("IntersectionObserver" in window)) { r.__done = true; r.classList.add("printing", "printed"); } else { const io = new IntersectionObserver(es => { if (es.some(en => en.isIntersecting)) { io.disconnect(); r.__done = true; r.classList.add("printing"); setTimeout(() => r.classList.add("printed"), 1700); } }, { threshold: 0.2 }); io.observe(r); } } else if (r.__done) r.classList.add("printing", "printed");
-      for (const el of document.querySelectorAll(".wallet > .hero, .pf-card:not(.pf-empty), .pf-hero, .login-card")) if (!el.__tilt) tiltInit(el);
+      for (const el of document.querySelectorAll(".wallet > .hero, .pf-card:not(.pf-empty), .pf-hero, .login-card, .set-card")) if (!el.__tilt) tiltInit(el);
       const a = document.querySelector(".wallet > .hero .hero-total"); if (a) countUp(a, "home");
       const b = document.querySelector(".pf-card .pf-total"); if (b) countUp(b, "pf");
       const c = document.querySelector(".pf-hero .pf-total"); if (c) countUp(c, "pfs");
@@ -3236,6 +3236,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.93.0", items: [
+      ["", "Settings and admin redesign", "Settings: the profile card is now a tilting member card with a holographic sheen that follows the finger, and a Profiles strip at its foot (tap an avatar to switch, + to add). The separate switch card is gone. Quick toggles are four equal tiles. Every section is one panel of equal rows (tinted icon, title, value pill, chevron) under a small-caps title with a gold rule; the uneven gradient tile grids are gone. The Admin section is a dark gold panel and Account shows in red. Admin: Mission control hero with a gauge ring (active today over all users, with a faint arc for this week, and tick marks), three side stats (active today, this week, new this week), the 14-day opens chart in its own glass panel, a faint gold grid behind, and the status lights. Tabs have a sliding highlight. KPI tiles are equal height with tinted icons."]
+    ] },
     { v: "3.92.0", items: [
       ["", "Profiles: several logins on one phone", "Up to 5 logins per device (wallet:profiles: uid, email, name, oauth flag). Switching parks the current Supabase session (the wallet-auth value) under wallet:sess:<uid>, stops auto refresh, writes the target's session back, sets lastUser and reloads, so there is no sign-out or password. Each profile keeps its own cache, encryption key and app lock (all under wallet:v1:<uid>:), so a locked profile still asks for its lock. Add a profile parks the current one and opens sign-in with a Back to button (works through Google and Microsoft redirects too). Removing a profile from the phone wipes its local data and revokes its session through a temporary non-persistent client. Signing out removes that profile and opens the next one. The push device id is now per profile (the first profile keeps the old id). Entry points: a Switch profile card under the Settings profile card, and a long press on the avatar."]
     ] },
@@ -3489,6 +3492,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.93.0", items: [
+      ["gear", "A new Settings page", "Settings is cleaner and easier to scan, with your profiles right on your card."]
+    ] },
     { v: "3.92.0", items: [
       ["user", "Switch between logins", "Add a second login and switch between them without signing out. Find it under your profile in Settings, or press and hold your avatar."]
     ] },
@@ -5365,26 +5371,27 @@
     const syncTxt = !navigator.onLine ? tr("Offline") : S.syncError ? tr("Couldn't sync") : S.outbox.length ? `${S.outbox.length} ${tr("waiting")}` : tr("Up to date");
     const txs = rows("transactions");
     const since = [...txs.map(x => x.occurred_on), ...rows("accounts").map(a => String(a.created_at || "").slice(0, 10))].filter(d => DATE_RE.test(d)).sort()[0];
-    const profile = h("button", { type: "button", class: "set-card", on: { click: () => settingsOpen("profile") } },
-      h("span", { class: "set-card-top" },
-        h("span", { class: "set-avatar" }, (name || S.email || "?").trim().charAt(0).toUpperCase()),
-        h("span", { class: "set-who" }, h("strong", null, name || tr("Add your name")), h("small", null, S.email || ""),
-          h("span", { class: "set-sync" + (S.syncError || !navigator.onLine ? " bad" : S.outbox.length ? " wait" : "") }, h("i"), syncTxt)),
-        icon("fwd", "ico sm")),
-      h("span", { class: "set-card-stats" },
-        h("span", null, h("b", { class: "num" }, String(txs.length)), h("small", null, "Entries")),
-        h("span", null, h("b", { class: "num" }, String(rows("accounts").filter(a => !a.archived).length)), h("small", null, "Accounts")),
-        h("span", null, h("b", { class: "sm" }, since ? dfmt({ month: "short", year: "numeric" }).format(new Date(since + "T12:00:00")) : "—"), h("small", null, "Member since"))));
+    const profs = profiles();
+    const profile = h("section", { class: "set-card" },
+      h("span", { class: "set-holo", "aria-hidden": "true" }),
+      h("button", { type: "button", class: "set-card-main", on: { click: () => settingsOpen("profile") } },
+        h("span", { class: "set-card-top" },
+          h("span", { class: "set-avatar" }, (name || S.email || "?").trim().charAt(0).toUpperCase()),
+          h("span", { class: "set-who" }, h("strong", null, name || tr("Add your name")), h("small", null, S.email || ""),
+            h("span", { class: "set-sync" + (S.syncError || !navigator.onLine ? " bad" : S.outbox.length ? " wait" : "") }, h("i"), syncTxt)),
+          icon("fwd", "ico sm")),
+        h("span", { class: "set-card-stats" },
+          h("span", null, h("b", { class: "num" }, String(txs.length)), h("small", null, "Entries")),
+          h("span", null, h("b", { class: "num" }, String(rows("accounts").filter(a => !a.archived).length)), h("small", null, "Accounts")),
+          h("span", null, h("b", { class: "sm" }, since ? dfmt({ month: "short", year: "numeric" }).format(new Date(since + "T12:00:00")) : "—"), h("small", null, "Member since")))),
+      h("div", { class: "set-card-profs" },
+        h("small", null, profs.length > 1 ? "Profiles" : "One login"),
+        h("span", { class: "set-card-avas" }, profs.map((p, i) => h("button", { type: "button", class: "set-pava" + (p.uid === S.uid ? " me" : ""), "aria-label": p.uid === S.uid ? p.email : `${tr("Switch to")} ${p.email}`, on: { click: () => p.uid === S.uid ? profilesSheet() : switchProfile(p.uid) } }, profAva(p, i))),
+          profs.length < PROF_MAX ? h("button", { type: "button", class: "set-pava add", "aria-label": tr("Add a profile"), on: { click: profilesSheet } }, h("span", { class: "prof-ava add" }, icon("plus", "ico sm"))) : null)));
     const search = h("label", { class: "set-search" }, icon("search", "ico sm"),
       h("input", { id: "set-q", type: "search", class: "set-q", placeholder: tr("Search settings"), autocomplete: "off", value: S.setQuery || "", "aria-label": "Search settings", on: { input: e => { S.setQuery = e.target.value; render(); } } }),
       q ? h("button", { type: "button", class: "set-q-x", "aria-label": "Clear", on: { click: () => { S.setQuery = ""; render(); } } }, icon("close", "ico sm")) : null);
-    const profs = profiles();
-    const others = profs.filter(p => p.uid !== S.uid);
-    const switcher = h("button", { type: "button", class: "set-profs", on: { click: profilesSheet } },
-      h("span", { class: "set-profs-avas", "aria-hidden": "true" }, profs.length > 1 ? profs.map((p, i) => profAva(p, i)).slice(0, 5) : h("span", { class: "prof-ava add" }, icon("plus", "ico sm"))),
-      h("span", { class: "set-profs-txt" }, h("strong", null, others.length ? "Switch profile" : "Add another profile"), h("small", null, others.length ? `${profs.length} ${tr("profiles on this phone")}` : "Use a second login without signing out")),
-      icon("fwd", "ico sm"));
-    const kids = [profile, switcher, search];
+    const kids = [profile, search];
     if (q) {
       const hits = [];
       const seen = new Set();
@@ -5415,12 +5422,10 @@
     for (const sec of ["Money", "App", "Privacy and data", "Help", "Admin", "Account"]) {
       const list = PAGES.filter(p => p.sec === sec);
       if (!list.length) continue;
-      const grid = sec === "Money" || sec === "App";
-      kids.push(h("section", { class: "group" }, h("h2", { class: "group-title" }, sec),
-        grid ? h("div", { class: "set-grid" }, list.map(p => h("button", { type: "button", class: "set-gtile", style: { "--c": p.c }, on: { click: () => openPage(p) } },
-            h("span", { class: "set-ico big" }, icon(p.ic, "ico sm")), h("span", { class: "set-gname" }, p.t), h("span", { class: "set-gval" }, p.v || "\u00a0"))))
-          : h("div", { class: "card flush set-list" }, list.map(p => h("button", { type: "button", class: "row", on: { click: () => openPage(p) } },
-            ico(p), h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.t)), p.v ? h("span", { class: "set-val" }, p.v) : null, icon("fwd"))))));
+      kids.push(h("section", { class: "set-sec" + (sec === "Admin" ? " admin" : sec === "Account" ? " acct" : "") },
+        h("h2", { class: "set-sec-title" }, h("span", null, sec), h("i", { "aria-hidden": "true" })),
+        h("div", { class: "set-panel" }, list.map(p => h("button", { type: "button", class: "set-row", style: { "--c": p.c }, on: { click: () => openPage(p) } },
+          h("span", { class: "set-glyph" }, icon(p.ic, "ico sm")), h("span", { class: "set-row-t" }, p.t), p.v ? h("span", { class: "set-pill" }, p.v) : null, icon("fwd", "ico sm"))))));
     }
     kids.push(h("div", { class: "set-foot" }, h("img", { src: "icons/icon-192-b.png", alt: "" }), h("strong", null, ...brandMark()), h("small", null, `${tr("Version")} ${VERSION}`), legalLinks("set-legal")));
     out.replaceChildren(...kids);
@@ -7592,21 +7597,40 @@
     const cron = d.cron, calls = d.reminder_calls || {};
     const cronOk = cron && cron.status === "succeeded" && (Date.now() - new Date(cron.at).getTime()) < 15 * 60000;
     const led = (ok, label, sub) => h("span", { class: "adm-led" + (ok ? " ok" : " bad"), title: sub }, h("i"), label);
+    const users = t.users ?? d.users.length, today = act.today ?? 0, week = act.week ?? 0;
+    const ring = (() => {
+      const NS = "http://www.w3.org/2000/svg", R = 52, C = 2 * Math.PI * R, k = users ? Math.min(1, today / users) : 0, kw = users ? Math.min(1, week / users) : 0;
+      const mk = (tag, at) => { const e = document.createElementNS(NS, tag); for (const x in at) e.setAttribute(x, at[x]); return e; };
+      const svg = mk("svg", { viewBox: "0 0 128 128", class: "adm-ring", "aria-hidden": "true" });
+      const g = mk("linearGradient", { id: "admRg", x1: "0", y1: "0", x2: "1", y2: "1" });
+      g.append(mk("stop", { offset: "0", "stop-color": "#3ee8a5" }), mk("stop", { offset: "1", "stop-color": "#f5c451" }));
+      const defs = mk("defs", {}); defs.append(g);
+      svg.append(defs,
+        mk("circle", { cx: 64, cy: 64, r: R, fill: "none", stroke: "rgba(255,255,255,.08)", "stroke-width": 10 }),
+        mk("circle", { cx: 64, cy: 64, r: R, fill: "none", stroke: "rgba(62,232,165,.28)", "stroke-width": 10, "stroke-linecap": "round", "stroke-dasharray": `${(C * kw).toFixed(1)} ${C.toFixed(1)}`, transform: "rotate(-90 64 64)" }),
+        mk("circle", { cx: 64, cy: 64, r: R, fill: "none", stroke: "url(#admRg)", "stroke-width": 10, "stroke-linecap": "round", "stroke-dasharray": `${(C * k).toFixed(1)} ${C.toFixed(1)}`, transform: "rotate(-90 64 64)", class: "adm-ring-arc" }));
+      for (let i = 0; i < 48; i++) { const an = i / 48 * Math.PI * 2, r1 = 62, r2 = i % 4 ? 60 : 58; svg.append(mk("line", { x1: (64 + Math.cos(an) * r1).toFixed(1), y1: (64 + Math.sin(an) * r1).toFixed(1), x2: (64 + Math.cos(an) * r2).toFixed(1), y2: (64 + Math.sin(an) * r2).toFixed(1), stroke: "rgba(243,210,138,.35)", "stroke-width": 1 })); }
+      return svg;
+    })();
+    const stat = (v, label, cls) => h("div", { class: "adm-stat " + (cls || "") }, h("b", { class: "num" }, v), h("small", null, label));
     out.append(h("section", { class: "adm-hero" },
-      h("div", { class: "adm-hero-top" },
-        h("div", null, h("span", { class: "hero-label" }, "Command center"),
-          h("strong", { class: "adm-big num" }, String(t.users ?? d.users.length)),
-          h("small", null, `${tr("users")} · ${fresh ? `+${fresh} ${tr("this week")}` : tr("no new users this week")}`)),
+      h("span", { class: "adm-grid-bg", "aria-hidden": "true" }),
+      h("div", { class: "adm-hero-head" },
+        h("span", { class: "hero-label" }, h("span", { class: "adm-pulse" }), "Mission control"),
         h("button", { type: "button", class: "adm-refresh" + (ADMIN.loading ? " spin" : ""), "aria-label": "Refresh", disabled: ADMIN.loading, on: { click: loadAdmin } }, icon("sync", "ico sm"))),
-      h("div", { class: "adm-live" }, h("span", { class: "adm-pulse" }), h("b", { class: "num" }, String(act.today ?? 0)), h("span", null, "active today"), h("span", { class: "adm-sep" }), h("b", { class: "num" }, String(act.week ?? 0)), h("span", null, "this week")),
-      spark(opens),
-      h("small", { class: "adm-cap" }, `${tr("App opens, last 14 days")} · ${opens.reduce((a, b) => a + b, 0)}`),
+      h("div", { class: "adm-core" },
+        h("div", { class: "adm-ring-wrap" }, ring, h("div", { class: "adm-ring-mid" }, h("strong", { class: "num" }, String(users)), h("small", null, "users"))),
+        h("div", { class: "adm-stats" },
+          stat(String(today), "Active today", "live"),
+          stat(String(week), "Active this week"),
+          stat(fresh ? `+${fresh}` : "0", "New this week", fresh ? "up" : ""))),
+      h("div", { class: "adm-chart" }, spark(opens), h("div", { class: "adm-chart-cap" }, h("span", null, "App opens, last 14 days"), h("b", { class: "num" }, String(opens.reduce((x, y) => x + y, 0))))),
       h("div", { class: "adm-leds" }, led(cronOk, "Reminder timer", cron ? `${whenText(cron.at)} · ${cron.status}` : "never"), led(!calls.failed, "Push server", `${calls.ok ?? 0} OK · ${calls.failed ?? 0} failed`), led(!(INSIGHTS.data?.errors || []).length, "App errors", `${(INSIGHTS.data?.errors || []).length}`))));
     const TABS = [["overview", "Overview"], ["people", "People"], ["growth", "Growth"], ["messages", "Messages"]];
     const tab = TABS.some(x => x[0] === S.adminTab) ? S.adminTab : "overview";
-    out.append(h("div", { class: "adm-tabs", role: "tablist" }, TABS.map(([k, label]) => h("button", { type: "button", role: "tab", class: "adm-tab" + (tab === k ? " on" : ""), "aria-selected": String(tab === k), on: { click: () => { S.adminTab = k; render(); } } }, label))));
+    out.append(h("div", { class: "adm-tabs at-" + TABS.findIndex(x => x[0] === tab), role: "tablist" }, TABS.map(([k, label]) => h("button", { type: "button", role: "tab", class: "adm-tab" + (tab === k ? " on" : ""), "aria-selected": String(tab === k), on: { click: () => { S.adminTab = k; render(); } } }, label))));
     if (tab === "overview") {
-      const kpi = (ic, c, label, v) => h("div", { class: "adm-kpi", style: { "--c": c } }, h("span", { class: "set-ico big" }, icon(ic, "ico sm")), h("strong", { class: "num" }, String(v ?? 0)), h("small", null, label));
+      const kpi = (ic, c, label, v) => h("div", { class: "adm-kpi", style: { "--c": c } }, h("span", { class: "set-glyph" }, icon(ic, "ico sm")), h("strong", { class: "num" }, String(v ?? 0)), h("small", null, label));
       out.append(h("div", { class: "adm-kpis" },
         kpi("users", "#3b74d0", "Users", t.users), kpi("list", "#12916f", "Entries", t.transactions), kpi("bell", "#e0534a", "Reminders on", t.reminders_on),
         kpi("people", "#7a5cd6", "Loan contacts", t.people), kpi("up", "#c99a1c", "Loan entries", t.loan_entries), kpi("link", "#1f9bb0", "Shared pages", t.shared_links)));
