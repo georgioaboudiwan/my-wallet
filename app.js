@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.90.0";
+  const VERSION = "3.91.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -2231,6 +2231,7 @@
       fxQ = 0;
       for (const c of document.querySelectorAll("canvas.orb")) if (!c.__orb) orbInit(c); else orbMix(c.__orb);
       for (const r of document.querySelectorAll(".acc-rail")) if (!r.__rail) railInit(r); else r.__rail();
+      for (const f of document.querySelectorAll(".acc-fan")) if (!f.__fan) fanFx(f); else f.__fan();
       for (const c of document.querySelectorAll("canvas.tank")) if (!c.__tank) tankInit(c); else c.__tank.read();
       for (const c of document.querySelectorAll("canvas.orbit")) if (!c.__orb) orbitFx(c); else c.__orb.sync();
       for (const r of document.querySelectorAll(".rcpt-card")) if (!r.__seen) { r.__seen = true; if (RM.matches || !("IntersectionObserver" in window)) { r.__done = true; r.classList.add("printing", "printed"); } else { const io = new IntersectionObserver(es => { if (es.some(en => en.isIntersecting)) { io.disconnect(); r.__done = true; r.classList.add("printing"); setTimeout(() => r.classList.add("printed"), 1700); } }, { threshold: 0.2 }); io.observe(r); } } else if (r.__done) r.classList.add("printing", "printed");
@@ -3131,6 +3132,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.91.0", items: [
+      ["", "Account cards as a fan", "Home accounts are now a fanned hand of cards around a pivot below the deck (rotate 7deg and shift 34% per step, depth scale, dimming and z-order). Horizontal drag with direction lock (vertical still scrolls), inertia and snap, arrow keys, a short vibration on snap. Tapping a side card brings it forward; tapping the front card opens its entries. The distribution bar dims every account except the front one, and the caption shows its share of your money with View entries. Focus is kept across renders (S.accFocus); the fan has its own stacking context so it never covers sheets. See all still switches to the grid."]
+    ] },
     { v: "3.90.0", items: [
       ["", "Home ordered by importance", "Home is now built from named blocks appended in one priority list: balance card, get started (no entries yet), today tiles; then things that need action (budget alerts, payday, month-end or cash check, entries without a category, inbox, last month's summary); then the month (plan, coming up, quick add); then details (recent and accounts side by side on wide screens, money with others, goals, portfolio); setup prompts and teasers last. The duplicate Split & loans card at the bottom was removed, since Money with others shows the same people with Remind buttons."]
     ] },
@@ -3369,6 +3373,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.91.0", items: [
+      ["card", "Your accounts as a hand of cards", "Swipe through your accounts like cards fanned in your hand. The front card shows how much of your money it holds."]
+    ] },
     { v: "3.90.0", items: [
       ["home", "A clearer home page", "Home now goes from what matters most to what matters least: your balance and today first, then anything that needs you, then your month, then the details."]
     ] },
@@ -4120,6 +4127,66 @@
     kick();
     return kick;
   }
+  function fanFx(f) {
+    let pos = Math.min(S.accFocus || 0, f.children.length - 1), vel = 0, raf = 0, drag = null, last = 0, moved = false;
+    const cards = () => [...f.children];
+    const target = () => Math.max(0, Math.min(cards().length - 1, Math.round(pos)));
+    const paint = () => {
+      const cs = cards(), n = cs.length, fi = target(), share = (() => { try { return JSON.parse(f.dataset.share || "[]"); } catch { return []; } })();
+      cs.forEach((el, i) => {
+        const d = i - pos, ad = Math.abs(d);
+        el.style.transform = `translateX(${(d * 34).toFixed(1)}%) rotate(${(d * 7).toFixed(2)}deg) translateY(${(Math.pow(ad, 1.4) * 9).toFixed(1)}px) scale(${(1 - Math.min(.3, ad * .1)).toFixed(3)})`;
+        el.style.zIndex = String(100 - Math.round(ad * 10));
+        el.style.opacity = ad > 2.6 ? "0" : (1 - Math.min(.55, ad * .22)).toFixed(3);
+        el.style.filter = ad > .5 ? `brightness(${(1 - Math.min(.35, ad * .14)).toFixed(3)})` : "";
+        el.tabIndex = i === fi ? 0 : -1;
+        el.classList.toggle("front", i === fi);
+      });
+      const card = f.closest(".accs-card");
+      const cap = card?.querySelector(".fan-cap");
+      if (cap) {
+        const el = cs[fi], isAdd = el?.classList.contains("add");
+        cap.querySelector(".fan-share").textContent = isAdd ? "" : share[fi] == null ? "" : `${el?.dataset.name || ""} · ${share[fi]}% ${tr("of your money")}`;
+        cap.querySelector(".fan-go").hidden = !!isAdd;
+        [...cap.querySelectorAll(".fan-dots i")].forEach((d, i) => d.classList.toggle("on", i === fi));
+      }
+      card?.querySelectorAll(".acc-dist span").forEach(sp => sp.classList.toggle("dim", Number(sp.dataset.i) !== fi && fi < n - 1));
+    };
+    const tick = now => {
+      raf = 0;
+      const dt = Math.min(.05, (now - (last || now)) / 1000); last = now;
+      if (!drag) {
+        if (Math.abs(vel) > .4) { pos += vel * dt; vel *= Math.pow(.02, dt); pos = Math.max(-.4, Math.min(cards().length - .6, pos)); }
+        else { vel = 0; const t = target(); pos += (t - pos) * Math.min(1, dt * 12); if (Math.abs(t - pos) < .002) pos = t; }
+      }
+      paint();
+      if (drag || vel || pos !== target()) raf = requestAnimationFrame(tick);
+      else if (S.accFocus !== target()) { S.accFocus = target(); if (navigator.vibrate) navigator.vibrate(5); }
+    };
+    const run = () => { if (!raf) { last = 0; raf = requestAnimationFrame(tick); } };
+    const go2 = i => { pos = RM.matches ? i : pos; vel = 0; S.accFocus = i; if (RM.matches) { paint(); return; } const from = pos; pos = from; drag = null; f.__to = i; const t0 = performance.now(); const ease = now => { const k = Math.min(1, (now - t0) / 320), e = 1 - Math.pow(1 - k, 3); pos = from + (i - from) * e; paint(); if (k < 1) requestAnimationFrame(ease); }; requestAnimationFrame(ease); };
+    f.addEventListener("pointerdown", e => { drag = { x: e.clientX, y: e.clientY, t: performance.now(), lock: 0 }; moved = false; vel = 0; });
+    f.addEventListener("pointermove", e => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.lock) { if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return; drag.lock = Math.abs(dx) > Math.abs(dy) ? 1 : -1; if (drag.lock > 0) { moved = true; try { f.setPointerCapture(e.pointerId); } catch { } } }
+      if (drag.lock < 0) return;
+      const now = performance.now(), w = (f.firstElementChild?.offsetWidth || 260) * .5, dp = -dx / w;
+      pos = Math.max(-.5, Math.min(cards().length - .5, pos + dp)); vel = vel * .4 + dp / Math.max(.008, (now - drag.t) / 1000) * .6;
+      drag.x = e.clientX; drag.y = e.clientY; drag.t = now; run();
+    });
+    const end = () => { if (!drag) return; drag = null; vel = Math.max(-14, Math.min(14, vel)); if (Math.abs(vel) < 2) vel = 0; run(); };
+    f.addEventListener("pointerup", end); f.addEventListener("pointercancel", end);
+    f.addEventListener("click", e => {
+      const el = e.target.closest(".acard"); if (!el) return;
+      const i = cards().indexOf(el);
+      if (moved || i !== target()) { e.preventDefault(); e.stopImmediatePropagation(); if (!moved) go2(i); moved = false; }
+    }, true);
+    f.addEventListener("keydown", e => { if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); const i = Math.max(0, Math.min(cards().length - 1, target() + (e.key === "ArrowRight" ? 1 : -1))); go2(i); cards()[i]?.focus({ preventScroll: true }); } });
+    f.__fan = () => { pos = Math.min(S.accFocus || 0, cards().length - 1); paint(); };
+    paint();
+  }
+
   function railInit(r) {
     let raf = 0;
     const upd = () => {
@@ -4356,17 +4423,18 @@
         h("div", { class: "accs-right" },
           h("strong", { class: "accs-total num" + (accTotal < 0 ? " neg" : "") }, money(accTotal, { whole: true })),
           h("button", { type: "button", class: "link-btn accs-toggle", on: { click: () => { S.accGrid = !S.accGrid; render(); } } }, icon(S.accGrid ? "card" : "plan", "ico sm"), S.accGrid ? "Show as cards" : "See all"))),
-      accPosTot > 0 ? h("div", { class: "acc-dist", "aria-hidden": "true" }, accounts.map((a, i) => accPos[i] > 0 ? h("span", { class: "k-" + (KIND_ICON[a.kind] ? a.kind : "cash"), style: { flex: String(accPos[i] / accPosTot) } }) : null)) : null,
-      h("div", { class: "acc-rail" + (S.accGrid ? " grid" : "") },
+      accPosTot > 0 ? h("div", { class: "acc-dist", "aria-hidden": "true" }, accounts.map((a, i) => accPos[i] > 0 ? h("span", { class: "k-" + (KIND_ICON[a.kind] ? a.kind : "cash"), "data-i": String(i), style: { flex: String(accPos[i] / accPosTot) } }) : null)) : null,
+      h("div", { class: (S.accGrid ? "acc-rail grid" : "acc-fan"), tabindex: S.accGrid ? null : "0", "aria-label": S.accGrid ? null : tr("Your accounts"), "data-share": S.accGrid ? null : JSON.stringify(accPos.map(v => accPosTot > 0 ? Math.round(v / accPosTot * 100) : 0)) },
         accounts.map(a => {
           const v = bal.get(a.id) || 0, k = KIND_ICON[a.kind] ? a.kind : "cash";
-          return h("button", { type: "button", class: "acard k-" + k, "aria-label": `${a.name}, ${KIND_LABEL[a.kind] || ""}, ${fmt(v, a.currency)}`, on: { click: () => { S.filter = { q: "", kind: "all", account: a.id }; go("activity"); } } },
+          return h("button", { type: "button", class: "acard k-" + k, "data-name": a.name, "aria-label": `${a.name}, ${KIND_LABEL[a.kind] || ""}, ${fmt(v, a.currency)}`, on: { click: () => { S.filter = { q: "", kind: "all", account: a.id }; go("activity"); } } },
             h("span", { class: "acard-top" }, h("span", { class: "acard-ico" }, icon(KIND_ICON[a.kind] || "cash", "ico sm")), h("span", { class: "acard-kind" }, KIND_LABEL[a.kind] || ""), k === "bank" || k === "card" ? h("i", { class: "acard-chip" }) : null),
             h("span", { class: "acard-bal num" + (v < 0 ? " neg" : "") }, fmt(v, a.currency)),
             a.currency !== mainCur() ? h("span", { class: "acard-alt num" }, "≈ " + money(toMain(v, a.currency), { whole: true })) : h("span", { class: "acard-alt" }, "\u00a0"),
             h("span", { class: "acard-foot" }, h("span", { class: "acard-name" }, a.name), h("span", { class: "acard-cur" }, curTag(a.currency))));
         }),
-        h("button", { type: "button", class: "acard add", on: { click: () => accountSheet(null) } }, h("span", { class: "acard-ico" }, icon("plus", "ico sm")), h("strong", null, "Add account"), h("small", null, "Cash, bank, card, e-wallet…"))));
+        h("button", { type: "button", class: "acard add", "data-name": "", on: { click: () => accountSheet(null) } }, h("span", { class: "acard-ico" }, icon("plus", "ico sm")), h("strong", null, "Add account"), h("small", null, "Cash, bank, card, e-wallet…"))),
+      S.accGrid ? null : h("div", { class: "fan-cap" }, h("span", { class: "fan-share num" }), h("button", { type: "button", class: "link-btn fan-go", on: { click: e => e.currentTarget.closest(".accs-card")?.querySelector(".acc-fan .acard.front")?.click() } }, "View entries", icon("fwd", "ico sm")), h("span", { class: "fan-dots", "aria-hidden": "true" }, [...accounts, null].map(() => h("i")))));
     let recent = null;
     if (txns.length) {
       recent = h("section", { class: "card flush col-a" }, h("div", { class: "card-head" }, h("h2", null, "Recent"), h("button", { type: "button", class: "link-btn", on: { click: () => { S.filter = { q: "", kind: "all", account: null }; go("activity"); } } }, "See all")));

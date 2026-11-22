@@ -1881,6 +1881,10 @@ Object.assign(window.WALLET_I18N.words, {
   "Owes you": ["Vous doit", "يدين لك"],
   "A clearer home page": ["Un accueil plus clair", "صفحة رئيسية أوضح"],
   "Home now goes from what matters most to what matters least: your balance and today first, then anything that needs you, then your month, then the details.": ["L'accueil va maintenant du plus important au moins important : votre solde et aujourd'hui d'abord, puis ce qui demande votre attention, puis votre mois, puis les détails.", "الصفحة الرئيسية مرتّبة الآن من الأهم إلى الأقل أهمية: رصيدك واليوم أولًا، ثم ما يحتاج انتباهك، ثم شهرك، ثم التفاصيل."],
+  "of your money": ["de votre argent", "من أموالك"],
+  "View entries": ["Voir les opérations", "عرض العمليات"],
+  "Your accounts as a hand of cards": ["Vos comptes comme un jeu de cartes", "حساباتك كأوراق في يدك"],
+  "Swipe through your accounts like cards fanned in your hand. The front card shows how much of your money it holds.": ["Faites défiler vos comptes comme des cartes en éventail dans votre main. La carte de devant montre la part de votre argent qu'elle contient.", "مرّر بين حساباتك كأنها أوراق مفرودة في يدك. البطاقة الأمامية تُظهر نسبة أموالك فيها."],
   "Ask AI, for free": ["Demandez à l'IA, gratuitement", "اسأل الذكاء الاصطناعي مجانًا"],
   "Tap the gold star at the top to ask anything about your money: how much you spent, where you can save, who owes you, or how the app works. 30 free questions a day.": ["Touchez l'étoile dorée en haut pour poser n'importe quelle question sur votre argent : combien vous avez dépensé, où économiser, qui vous doit, ou comment marche l'app. 30 questions gratuites par jour.", "اضغط النجمة الذهبية في الأعلى لتسأل أي شيء عن أموالك: كم صرفت، أين توفّر، من يدين لك، أو كيف يعمل التطبيق. 30 سؤالًا مجانيًا يوميًا."]
 });
