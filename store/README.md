@@ -221,11 +221,13 @@ Update this list with every app change, so the listing, screenshots and privacy 
 | 3.91.0 | Account cards fanned like a hand of cards on Home | Consider a screenshot of the accounts fan |
 | 3.91.1 | Accounts moved higher on Home | No listing change |
 | 3.91.2 | Note suggestions can be swiped without picking one | No listing change |
+| 3.91.3 | Sideways swipes inside sheets no longer start closing the sheet | No listing change |
 
 ## Save for the native app
 
 These need the store version, so they wait until we package the app:
 
+- Sign up and sign in with Google and Microsoft in the mobile app (native sign-in flows, set up the redirect URLs for the app package). On iPhone this also requires Sign in with Apple.
 - Home screen widget: today's spending and a quick add button.
 - Quick add from the lock screen or the share sheet.
 - Budget alerts and reminders when the app is closed: local notifications scheduled on the phone (today they show only while the app is open, or through web push for the daily reminder).

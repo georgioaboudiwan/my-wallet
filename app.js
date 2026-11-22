@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.91.2";
+  const VERSION = "3.91.3";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3132,6 +3132,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.91.3", items: [
+      ["", "Sideways swipes inside sheets", "The drag-down-to-close gesture on sheets grabbed any touch that drifted down a little and called preventDefault, which blocked horizontal scrolling of the note suggestions (and any sideways row in a sheet). It now locks direction first: it starts only after 8px of mostly vertical movement, and gives up when the move is mostly sideways. Touches on note suggestions never start it."]
+    ] },
     { v: "3.91.2", items: [
       ["", "Swiping note suggestions", "Quick-note chips filled the note on pointerdown, so starting a sideways swipe on a chip picked it. A chip now applies on pointerup only when the finger moved under 8px and the row did not scroll; pointercancel (the browser taking over to scroll) cancels it. Keyboard focus is still kept, and Enter or Space on a focused chip still works."]
     ] },
@@ -7595,17 +7598,18 @@
   }
   function dragToClose(sheet) {
     const body = sheet.querySelector(".sheet-body");
-    let y0 = null, dy = 0, t0 = 0, fromBody = false;
+    let y0 = null, x0 = 0, dy = 0, t0 = 0, fromBody = false, live = false;
     sheet.addEventListener("touchstart", e => {
       y0 = null;
       if (e.touches.length !== 1) return;
       const inBody = body.contains(e.target);
-      if (inBody && (body.scrollTop > 0 || e.target.closest("input, textarea, .keypad, .chips, .cat-grid"))) return;
-      y0 = e.touches[0].clientY; dy = 0; t0 = Date.now(); fromBody = inBody;
+      if (inBody && (body.scrollTop > 0 || e.target.closest("input, textarea, .keypad, .chips, .cat-grid, .tx-sugs, .acc-fan"))) return;
+      y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; t0 = Date.now(); fromBody = inBody; live = false;
     }, { passive: true });
     sheet.addEventListener("touchmove", e => {
       if (y0 == null) return;
       dy = e.touches[0].clientY - y0;
+      if (!live) { const dx = Math.abs(e.touches[0].clientX - x0); if (dx < 8 && Math.abs(dy) < 8) return; if (dx >= Math.abs(dy)) { y0 = null; return; } live = true; }
       if (dy <= 0) { if (fromBody) y0 = null; sheet.style.transform = ""; return; }
       if (fromBody && body.scrollTop > 0) { y0 = null; return; }
       e.preventDefault();
