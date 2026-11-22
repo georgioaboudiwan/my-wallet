@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.93.1";
+  const VERSION = "3.93.2";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3235,6 +3235,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.93.2", items: [
+      ["", "Status bar color and Get started progress", "The status bar color (theme-color) is now written by theme.js before any other tag, with the user's choice already applied, instead of static light and dark tags that were replaced later; iPhone reads the first value it sees, so the strip above the header kept the old color after switching Light or Dark. Header buttons no longer fade their background. Get started now shows each step as done (green check, Done) or to do, the next step marked Next, a 3-part progress bar and a count (1/3). It shows until all three are done or it is hidden, for up to 30 entries, instead of only when there are no entries. Steps: an account has an opening balance, an expense exists, the month has a plan."]
+    ] },
     { v: "3.93.1", items: [
       ["", "Quieter updates", "A new version used to reload the app as soon as the new service worker took over, which happened every time the app came back to the screen after a release, so on a day with many releases it refreshed often. Now the update applies right away only in the first 6 seconds after opening, before any tap. Otherwise it waits until the app was away for 10 minutes or more, or is opened again later. Update checks run only after the app was away for a minute. The Gio logo now uses stable gradient ids, so re-renders no longer rebuild it and restart its twinkle."]
     ] },
@@ -4528,17 +4531,23 @@
     }
 
     let start = null;
-    if (!txns.length) {
-      start = (h("section", { class: "card flush" },
-        h("div", { class: "card-head" }, h("h2", null, "Get started")),
-        ...[
-          ["Set your opening balances", "Enter what each account holds today.", () => go("settings")],
-          ["Record your first expense", "It takes a few seconds.", () => txnSheet(null, { kind: "expense" })],
-          ["Set up your monthly plan", "Decide how your income is divided.", () => { S.month = m; go("plan"); }]
-        ].map(([t, d, fn], i) => h("button", { type: "button", class: "row step", on: { click: fn } },
-          h("span", { class: "dot neutral" }, String(i + 1)),
-          h("span", { class: "row-main" }, h("span", { class: "row-title" }, t), h("span", { class: "row-sub" }, d)),
-          icon("fwd")))));
+    const steps = [
+      ["Set your opening balances", "Enter what each account holds today.", () => go("settings"), rows("accounts").some(a => Math.abs(Number(a.opening_balance) || 0) > 0.004)],
+      ["Record your first expense", "It takes a few seconds.", () => txnSheet(null, { kind: "expense" }), txns.some(t => t.kind === "expense")],
+      ["Set up your monthly plan", "Decide how your income is divided.", () => { S.month = m; go("plan"); }, planFor(m).base > 0]
+    ];
+    const doneN = steps.filter(x => x[3]).length;
+    if (doneN < steps.length && txns.length < 30 && !store.get("startOff", false)) {
+      start = h("section", { class: "card flush start-card" },
+        h("div", { class: "card-head" }, h("h2", null, "Get started"),
+          h("span", { class: "start-count num" }, `${doneN}/${steps.length}`),
+          h("button", { type: "button", class: "split-teaser-x start-x", "aria-label": "Hide", on: { click: () => { store.set("startOff", true); render(); } } }, icon("close", "ico sm"))),
+        h("div", { class: "start-bar", "aria-hidden": "true" }, steps.map(x => h("i", { class: x[3] ? "on" : "" }))),
+        ...steps.map(([t, d, fn, done], i) => h("button", { type: "button", class: "row step" + (done ? " done" : ""), on: { click: fn } },
+          h("span", { class: "dot " + (done ? "pos-dot" : "neutral") }, done ? icon("check", "ico sm") : String(i + 1)),
+          h("span", { class: "row-main" }, h("span", { class: "row-title" }, t), h("span", { class: "row-sub" }, done ? tr("Done") : d)),
+          done ? null : steps.findIndex(x => !x[3]) === i ? h("span", { class: "start-next nx" }, tr("Next")) : h("span", { class: "start-next" }, tr("To do")),
+          icon("fwd"))));
     }
 
     const accTotal = accounts.reduce((t, a) => t + toMain(bal.get(a.id) || 0, a.currency), 0);

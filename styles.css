@@ -2322,7 +2322,7 @@ html.kb .sheet-foot { padding-bottom: 10px; }
 html[lang="ar"] .top:has(.tool.keys) h1 { font-size: 23px; }
 
 .top .tool.keys { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 0; margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
-.top .key { position: relative; flex: none; width: 42px; height: 42px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--card); color: var(--ink); cursor: pointer; transition: transform .15s var(--ease), background .15s; -webkit-tap-highlight-color: transparent; }
+.top .key { position: relative; flex: none; width: 42px; height: 42px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--card); color: var(--ink); cursor: pointer; transition: transform .15s var(--ease); -webkit-tap-highlight-color: transparent; }
 .top .key:active, .ask-pill:active { transform: scale(.94); }
 .top .key .ico, .priv-knob .ico { width: 20px; height: 20px; }
 .priv-knob { display: grid; place-items: center; }
@@ -2832,3 +2832,15 @@ html[lang="ar"] .top:has(.tool.keys) h1 { font-size: 22px; }
 .adm-kpi { height: 112px; align-content: space-between; padding: 12px; border-radius: 20px; }
 .adm-kpi .set-glyph { width: 32px; height: 32px; border-radius: 10px; }
 @media (prefers-reduced-motion: reduce) { .adm-ring-arc { animation: none; } .adm-tabs::before { transition: none; } .set-card { transform: none; } }
+.start-card .card-head { gap: 10px; }
+.start-card .card-head h2 { flex: 1; }
+.start-count { font: 800 13px var(--nums); color: var(--accent); padding: 3px 10px; border-radius: 99px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.start-x { position: static; }
+.start-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 0 16px 6px; }
+.start-bar i { height: 5px; border-radius: 99px; background: var(--sunk); }
+.start-bar i.on { background: var(--neon-grad, var(--accent)); }
+.row.step .dot.pos-dot { background: color-mix(in srgb, var(--pos, #12916f) 16%, transparent); color: var(--pos, #12916f); }
+.row.step.done .row-title { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 50%, transparent); }
+.row.step.done .row-sub { color: var(--pos, #12916f); font-weight: 650; }
+.start-next { flex: none; font: 700 11.5px var(--ui); padding: 4px 10px; border-radius: 99px; color: var(--muted); background: var(--sunk); }
+.start-next.nx { color: #03140e; background: var(--neon-grad, var(--accent)); }

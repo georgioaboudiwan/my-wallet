@@ -1909,6 +1909,7 @@ Object.assign(window.WALLET_I18N.words, {
   "Active today": ["Actifs aujourd'hui", "نشطون اليوم"],
   "Active this week": ["Actifs cette semaine", "نشطون هذا الأسبوع"],
   "New this week": ["Nouveaux cette semaine", "جدد هذا الأسبوع"],
+  "To do": ["À faire", "للقيام به"],
   "Ask AI, for free": ["Demandez à l'IA, gratuitement", "اسأل الذكاء الاصطناعي مجانًا"],
   "Tap the gold star at the top to ask anything about your money: how much you spent, where you can save, who owes you, or how the app works. 30 free questions a day.": ["Touchez l'étoile dorée en haut pour poser n'importe quelle question sur votre argent : combien vous avez dépensé, où économiser, qui vous doit, ou comment marche l'app. 30 questions gratuites par jour.", "اضغط النجمة الذهبية في الأعلى لتسأل أي شيء عن أموالك: كم صرفت، أين توفّر، من يدين لك، أو كيف يعمل التطبيق. 30 سؤالًا مجانيًا يوميًا."]
 });

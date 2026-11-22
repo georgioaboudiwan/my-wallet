@@ -225,6 +225,7 @@ Update this list with every app change, so the listing, screenshots and privacy 
 | 3.92.0 | Several logins on one phone (profiles), switch without signing out | Add "switch between logins" to the description; in the native app keep sessions in the secure keychain/keystore instead of web storage |
 | 3.93.0 | Settings and admin redesigned | No listing change |
 | 3.93.1 | Updates no longer refresh the app while it is in use | Native app updates come from the store, so this only matters for the web version |
+| 3.93.2 | Status bar matches Light or Dark right away; Get started shows done and to-do steps | In the native app, set the status bar style from the theme with the native API |
 
 ## Save for the native app
 
