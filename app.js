@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.93.0";
+  const VERSION = "3.93.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -256,9 +256,8 @@
     return svg;
   };
 
-  let GIO_N = 0;
   const gioMark = (cls = "gio") => {
-    const id = "gio" + (++GIO_N);
+    const id = "gio-" + cls.replace(/[^a-z-]+/gi, "-");
     const el = (tag, at, ...kids) => { const n = document.createElementNS(SVGNS, tag); for (const [k, v] of Object.entries(at)) n.setAttribute(k, v); n.append(...kids); return n; };
     const stop = (o, c) => el("stop", { offset: o, "stop-color": c });
     return el("svg", { viewBox: "0 0 32 32", class: cls, "aria-hidden": "true" },
@@ -3236,6 +3235,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.93.1", items: [
+      ["", "Quieter updates", "A new version used to reload the app as soon as the new service worker took over, which happened every time the app came back to the screen after a release, so on a day with many releases it refreshed often. Now the update applies right away only in the first 6 seconds after opening, before any tap. Otherwise it waits until the app was away for 10 minutes or more, or is opened again later. Update checks run only after the app was away for a minute. The Gio logo now uses stable gradient ids, so re-renders no longer rebuild it and restart its twinkle."]
+    ] },
     { v: "3.93.0", items: [
       ["", "Settings and admin redesign", "Settings: the profile card is now a tilting member card with a holographic sheen that follows the finger, and a Profiles strip at its foot (tap an avatar to switch, + to add). The separate switch card is gone. Quick toggles are four equal tiles. Every section is one panel of equal rows (tinted icon, title, value pill, chevron) under a small-caps title with a gold rule; the uneven gradient tile grids are gone. The Admin section is a dark gold panel and Account shows in red. Admin: Mission control hero with a gauge ring (active today over all users, with a faint arc for this week, and tick marks), three side stats (active today, this week, new this week), the 14-day opens chart in its own glass panel, a faint gold grid behind, and the status lights. Tabs have a sliding highlight. KPI tiles are equal height with tinted icons."]
     ] },
@@ -9218,15 +9220,25 @@
     const hadController = !!navigator.serviceWorker.controller;
     let reloaded = false, wantsReload = false;
     const busy = () => !!document.querySelector(".overlay, .viewer") || (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
+    const bootAt = Date.now();
+    let touched = false, awayAt = 0;
+    for (const ev of ["pointerdown", "keydown"]) addEventListener(ev, () => { touched = true; }, { capture: true, passive: true, once: true });
     const applyUpdate = () => {
-      if (reloaded || !wantsReload) return;
-      if (busy()) return void setTimeout(applyUpdate, 4000);
+      if (reloaded || !wantsReload || busy()) return;
       reloaded = true;
       location.reload();
     };
-    navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController) { wantsReload = true; applyUpdate(); } });
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!hadController) return;
+      wantsReload = true;
+      if (!touched && Date.now() - bootAt < 6000) applyUpdate();
+    });
     navigator.serviceWorker.register("sw.js").then(reg => {
-      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reg.update().catch(() => { }); });
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") { awayAt = Date.now(); return; }
+        if (wantsReload && awayAt && Date.now() - awayAt > 10 * 60000) return applyUpdate();
+        if (!awayAt || Date.now() - awayAt > 60000) reg.update().catch(() => { });
+      });
     }).catch(() => { });
   }
 
