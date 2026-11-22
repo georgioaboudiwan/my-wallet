@@ -217,6 +217,7 @@ Update this list with every app change, so the listing, screenshots and privacy 
 | 3.87.0 | Split by item redesigned | Consider a split-by-item screenshot |
 | 3.88.0 | Aurora balance card on Split (replaces the scale) | Split screenshot regenerated |
 | 3.89.0 | Orbit balance card on Split (people circle around you, tap one to see the balance) | Split screenshot regenerated; in the native app, use the haptics API for the tap vibration (iPhone Safari has no web vibration) |
+| 3.90.0 | Home ordered by importance (balance and today, then what needs you, then the month, then details) | Home screenshot is unchanged at the top; no listing change |
 
 ## Save for the native app
 

@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.89.0";
+  const VERSION = "3.90.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3131,6 +3131,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.90.0", items: [
+      ["", "Home ordered by importance", "Home is now built from named blocks appended in one priority list: balance card, get started (no entries yet), today tiles; then things that need action (budget alerts, payday, month-end or cash check, entries without a category, inbox, last month's summary); then the month (plan, coming up, quick add); then details (recent and accounts side by side on wide screens, money with others, goals, portfolio); setup prompts and teasers last. The duplicate Split & loans card at the bottom was removed, since Money with others shows the same people with Remind buttons."]
+    ] },
     { v: "3.89.0", items: [
       ["", "Orbit card on Split", "The aurora card is replaced by a dark emerald card with gold hairlines. A canvas orbit puts you at the center (a gold diamond) and up to 9 people on three perspective rings, emerald for owed to you and rose for you owe, bead size by amount, depth sorting and light trails. It turns slowly; a horizontal drag spins it with inertia; tapping a bead shows the name and amount at the center with a dotted gold line. Pauses off screen and when the tab is hidden; reduced motion keeps it still. The rainbow mesh, the owed bar and the card tilt are gone."]
     ] },
@@ -3366,6 +3369,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.90.0", items: [
+      ["home", "A clearer home page", "Home now goes from what matters most to what matters least: your balance and today first, then anything that needs you, then your month, then the details."]
+    ] },
     { v: "3.89.0", items: [
       ["people", "Your people in orbit", "The Split card now shows everyone you share money with circling around you. Spin it with your finger and tap a person to see their balance."]
     ] },
@@ -4228,18 +4234,18 @@
         (() => { const t = owedTotals(); return [t.owed > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: () => go("people") } }, `+${money(t.owed, { whole: true })} ${tr("owed to you")}`) : null, t.owe > 0.5 ? h("button", { type: "button", class: "num hero-owed hero-owe", on: { click: () => go("people") } }, `−${money(t.owe, { whole: true })} ${tr("you owe")}`) : null]; })(),
       ),
       trend.moved ? trendView(trend) : null));
-    out.append(h("div", { class: "wallet" + (hasPf ? " stacked" : "") }, hasPf ? (CARD.front === "pf" ? [walletPeek("bal", total, tDelta), portfolioCard()] : [walletPeek("pf"), balCard]) : balCard));
+    const wallet = h("div", { class: "wallet" + (hasPf ? " stacked" : "") }, hasPf ? (CARD.front === "pf" ? [walletPeek("bal", total, tDelta), portfolioCard()] : [walletPeek("pf"), balCard]) : balCard);
 
     const pay = paydayCard();
-    if (pay) out.append(pay);
     const mEnd = pay ? null : monthEndCard() || cashCheckCard();
-    if (mEnd) out.append(mEnd);
     const coming = upcomingCard();
-    if (coming && !coming.classList.contains("bill-teaser")) out.append(coming);
-    else { const sug = salarySuggest(); if (sug) out.append(sug); }
-    if (!hasPf) { const inv = portfolioCard(); if (inv) out.append(inv); }
+    const billTeaser = coming && coming.classList.contains("bill-teaser") ? coming : null;
+    const bills = billTeaser ? null : coming;
+    const sug = bills ? null : salarySuggest();
+    const inv = hasPf ? null : portfolioCard();
+    let splitTeaser = null;
     if (!rows("people").length && !GROUPS.list.size && !store.get("splitTeaserOff", false)) {
-      out.append(h("section", { class: "split-teaser" },
+      splitTeaser = (h("section", { class: "split-teaser" },
         h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("splitTeaserOff", true); render(); } } }, icon("close", "ico sm")),
         h("span", { class: "split-badge" }, icon("people", "ico sm")),
         h("div", null, h("strong", null, "Share costs with friends"), h("small", null, "Split a dinner, the rent or a trip, or track money you lent. Everyone sees who owes whom.")),
@@ -4247,7 +4253,7 @@
     }
 
     const spentToday = s.days.get(today()) || 0;
-    out.append(h("div", { class: "tiles" },
+    const tiles = (h("div", { class: "tiles" },
       h("button", { type: "button", class: "tile", on: { click: () => { S.filter = { q: "", kind: "all", account: null }; go("activity"); } } }, h("small", null, "Spent today"), h("strong", null, money(spentToday, { whole: true }))),
       h("button", { type: "button", class: "tile", on: { click: () => { S.month = m; go("insights"); } } }, h("small", null, `Spent in ${monthShort(m)}`), h("strong", null, money(s.spent, { whole: true }))),
       safe
@@ -4255,11 +4261,12 @@
         : h("button", { type: "button", class: "tile", on: { click: () => go("plan") } }, h("small", null, "Safe to spend"), h("strong", null, "—"), h("span", null, "Set a plan"))));
 
     const plan = planFor(m);
+    let tank = null;
     if (plan.base > 0) {
       const left = plan.base - s.spent;
       const pct = Math.min(100, Math.round(s.spent / plan.base * 100));
       const tone = left < 0 ? "#ff6b6b" : pct >= 80 ? "#f5a524" : "#2fd39a";
-      out.append(h("section", { class: "card month-card tank-card", role: "button", tabindex: "0", on: { click: () => { if (performance.now() - ANIM_DRAG.at < 500) return; S.month = m; go("plan"); } } },
+      tank = (h("section", { class: "card month-card tank-card", role: "button", tabindex: "0", on: { click: () => { if (performance.now() - ANIM_DRAG.at < 500) return; S.month = m; go("plan"); } } },
         h("canvas", { class: "tank", "data-pct": String(Math.min(1, s.spent / plan.base)), "data-c": tone, "aria-hidden": "true" }),
         h("span", { class: "tank-text" },
           h("span", { class: "tank-kicker" }, `${monthName(m)} plan`),
@@ -4273,26 +4280,25 @@
     }
 
     const loans = loansCard();
-    if (loans) out.append(loans);
 
     const usage = new Map();
     const cutoff = ymd(new Date(Date.now() - 90 * 864e5));
     for (const t of txns) if (t.kind === "expense" && t.category_id && t.occurred_on >= cutoff) usage.set(t.category_id, (usage.get(t.category_id) || 0) + 1);
     const favs = rows("categories").filter(c => c.kind === "expense").sort((p, q) => (usage.get(q.id) || 0) - (usage.get(p.id) || 0) || bySort(p, q)).slice(0, 6);
+    let quick = null;
     if (favs.length && accounts.length) {
-      out.append(h("section", { class: "quick" },
+      quick = (h("section", { class: "quick" },
         h("h2", null, "Quick add"),
         h("div", { class: "chips" }, favs.map(c => h("button", { type: "button", class: "chip fav", on: { click: () => txnSheet(null, { kind: "expense", category: c.id }) } },
           h("span", { class: "fav-dot", style: { background: c.color } }, catGlyph(c, "ico sm")), c.name)))));
     }
 
     const news = inboxCard();
-    if (news) out.append(news);
-    const remind = reminderCard();
-    out.append(remind || reminderPill());
+    const remind = reminderCard() || reminderPill();
     const loose = txns.filter(t => (t.kind === "expense" || t.kind === "income") && !t.category_id && t.occurred_on >= ymd(new Date(Date.now() - 45 * 864e5))).sort(byRecent);
+    let needsCat = null;
     if (loose.length) {
-      const card = h("section", { class: "card flush needs-cat" }, h("div", { class: "card-head" }, h("h2", null, "Needs a category"), h("span", { class: "hint num" }, String(loose.length))));
+      const card = needsCat = h("section", { class: "card flush needs-cat" }, h("div", { class: "card-head" }, h("h2", null, "Needs a category"), h("span", { class: "hint num" }, String(loose.length))));
       for (const t of loose.slice(0, 3)) {
         const a = acc(t.account_id);
         card.append(h("button", { type: "button", class: "row", on: { click: () => txnSheet(t) } },
@@ -4301,13 +4307,11 @@
           h("span", { class: "row-end " + (t.kind === "income" ? "pos" : "neg") }, (t.kind === "income" ? "+" : "−") + fmt(Number(t.amount), t.currency))));
       }
       if (loose.length > 3) card.append(h("button", { type: "button", class: "row-btn", on: { click: () => go("activity") } }, `See all ${loose.length}`));
-      out.append(card);
     }
     const recap = recapCard();
-    if (recap) out.append(recap);
-    if (coming && coming.classList.contains("bill-teaser")) out.append(coming);
+    let tapTeaser = null;
     if (/iPhone/.test(navigator.userAgent) && store.get("qwiz", 0) < 3 && !store.get("tapTeaserOff", false)) {
-      out.append(h("section", { class: "bill-teaser tap-teaser" },
+      tapTeaser = (h("section", { class: "bill-teaser tap-teaser" },
         h("button", { type: "button", class: "split-teaser-x", "aria-label": "Hide", on: { click: () => { store.set("tapTeaserOff", true); render(); } } }, icon("close", "ico sm")),
         h("span", { class: "bill-badge" }, icon("phone", "ico sm")),
         h("div", null, h("strong", null, "Add without opening the app"), h("small", null, "Tap the back of your iPhone or say “Hey Siri, Add expense”. Takes about a minute to set up.")),
@@ -4318,18 +4322,20 @@
       .map(c => ({ c, spent: s.byCat.get(c.id) || 0, budget: Number(c.budget) }))
       .filter(a => a.spent >= a.budget * 0.8)
       .sort((a, b) => b.spent / b.budget - a.spent / a.budget);
+    let budgets = null;
     if (alerts.length) {
       const nOver = alerts.filter(a => a.spent > a.budget).length;
       const nNear = alerts.length - nOver;
-      out.append(h("button", { type: "button", class: "remind-pill budget-pill", on: { click: () => budgetSheet(alerts) } },
+      budgets = (h("button", { type: "button", class: "remind-pill budget-pill", on: { click: () => budgetSheet(alerts) } },
         h("span", { class: "dot neutral bud-dot" }, icon("chart", "ico sm"), h("span", { class: "bud-count" }, String(alerts.length))),
         h("span", { class: "row-main" }, h("span", { class: "row-title" }, "Budgets to check"),
           h("span", { class: "row-sub" }, [nOver ? `${nOver} over budget` : null, nNear ? `${nNear} almost used` : null].filter(Boolean).join(" · "))),
         icon("fwd")));
     }
 
+    let start = null;
     if (!txns.length) {
-      out.append(h("section", { class: "card flush" },
+      start = (h("section", { class: "card flush" },
         h("div", { class: "card-head" }, h("h2", null, "Get started")),
         ...[
           ["Set your opening balances", "Enter what each account holds today.", () => go("settings")],
@@ -4344,7 +4350,7 @@
     const accTotal = accounts.reduce((t, a) => t + toMain(bal.get(a.id) || 0, a.currency), 0);
     const accPos = accounts.map(a => Math.max(0, toMain(bal.get(a.id) || 0, a.currency)));
     const accPosTot = accPos.reduce((p, q) => p + q, 0);
-    const accCard = h("section", { class: "card col-a accs-card" },
+    const accCard = h("section", { class: "card col-b accs-card" },
       h("div", { class: "accs-head" },
         h("div", null, h("h2", null, "Your accounts"), h("small", null, `${accounts.length} ${tr(accounts.length === 1 ? "account" : "accounts")}`)),
         h("div", { class: "accs-right" },
@@ -4361,33 +4367,21 @@
             h("span", { class: "acard-foot" }, h("span", { class: "acard-name" }, a.name), h("span", { class: "acard-cur" }, curTag(a.currency))));
         }),
         h("button", { type: "button", class: "acard add", on: { click: () => accountSheet(null) } }, h("span", { class: "acard-ico" }, icon("plus", "ico sm")), h("strong", null, "Add account"), h("small", null, "Cash, bank, card, e-wallet…"))));
-    out.append(accCard);
-
+    let recent = null;
     if (txns.length) {
-      const recent = h("section", { class: "card flush col-b" }, h("div", { class: "card-head" }, h("h2", null, "Recent"), h("button", { type: "button", class: "link-btn", on: { click: () => { S.filter = { q: "", kind: "all", account: null }; go("activity"); } } }, "See all")));
+      recent = h("section", { class: "card flush col-a" }, h("div", { class: "card-head" }, h("h2", null, "Recent"), h("button", { type: "button", class: "link-btn", on: { click: () => { S.filter = { q: "", kind: "all", account: null }; go("activity"); } } }, "See all")));
       txns.slice(0, 5).forEach(x => recent.append(txnRow(x)));
-      out.append(recent);
     }
 
     const goals = goalsCard(false);
-    if (goals) out.append(goals);
 
-    const lb = loanBalances();
-    const people = rows("people");
-    if (people.length || GROUPS.list.size) {
-      let { owed, owe } = groupTotals();
-      for (const p of people) { const v = netMine(p, toMain(lb.get(p.id) || 0, p.currency)); if (v > 0) owed += v; else owe -= v; }
-      const card = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, "Split & loans"), h("button", { type: "button", class: "link-btn", on: { click: () => go("people") } }, "See all")));
-      card.append(h("p", { class: "row-note" }, [owed ? `Owed to you ${money(owed, { whole: true })}` : null, owe ? `You owe ${money(owe, { whole: true })}` : null].filter(Boolean).join(" · ") || "All settled"));
-      for (const p of people.slice().sort((x, y) => toMain(lb.get(y.id) || 0, y.currency) - toMain(lb.get(x.id) || 0, x.currency)).slice(0, 3)) {
-        const v = lb.get(p.id) || 0;
-        card.append(h("button", { type: "button", class: "row", on: { click: () => personSheet(p) } },
-          h("span", { class: "dot", style: { background: COLORS[(p.sort || 0) % COLORS.length] } }, p.name.charAt(0).toUpperCase()),
-          h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name), h("span", { class: "row-sub" + (theyOwe(p, v) && dueInfo(p) && dueInfo(p).late ? " late" : "") }, [statusText(p, v), theyOwe(p, v) && dueInfo(p) ? dueInfo(p).text : null].filter(Boolean).join(" · "))),
-          h("span", { class: "row-end" + (netMine(p, v) > 0.004 ? " pos" : netMine(p, v) < -0.004 ? " neg" : "") }, fmt(Math.abs(v), p.currency))));
-      }
-      out.append(card);
-    }
+    out.append(...[
+      wallet, start, tiles,
+      budgets, pay, mEnd, needsCat, news, recap,
+      tank, bills, quick, recent, accCard,
+      loans, goals, inv,
+      remind, sug, billTeaser, splitTeaser, tapTeaser
+    ].filter(Boolean));
     return out;
   }
 
