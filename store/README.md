@@ -56,6 +56,7 @@ SEE WHERE IT GOES
 SPLIT BILLS AND TRACK LOANS
 • Split a dinner, the rent or a trip
 • Track money you lent and borrowed, person by person
+• Mark each loan as paid back, with part payments
 • Split a receipt by item: everyone pays for what they had
 • Share a read-only page so they always see the same history
 
@@ -227,6 +228,7 @@ Update this list with every app change, so the listing, screenshots and privacy 
 | 3.93.1 | Updates no longer refresh the app while it is in use | Native app updates come from the store, so this only matters for the web version |
 | 3.93.2 | Status bar matches Light or Dark right away; Get started shows done and to-do steps | In the native app, set the status bar style from the theme with the native API |
 | 3.93.3 | Status bar follows the phone's Light or Dark (one quick reload on iPhone) | Native app: switch the status bar style live instead of reloading |
+| 3.94.0 | Mark each loan as paid back; clearer Split (to collect, to repay); amount fits on the add screen | Add "mark loans as paid back" to the description; Split screenshot regenerated |
 
 ## Save for the native app
 

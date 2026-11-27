@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.93.3";
+  const VERSION = "3.94.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3235,6 +3235,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.94.0", items: [
+      ["", "Paid back per loan, clearer Split wording, amount fit", "Loan entries carry an encrypted pays field (the id of the loan a repayment settles; no database change, also sent on shared links). A ledger matches repayments to loans: linked repayments first, then the rest to the oldest open loans, so older data is matched too. The person screen now lists Open loans (each with a Paid me back or I paid it back button, a progress bar for part payments and its payments with Undo) and a folded Paid back list, right under the actions. Paying back uses the amount screen with the open amount filled in, can move money into or out of an account, and supports part payments. Settle everything appears when more than one loan is open. Actions read Lend to NAME and Borrow from NAME; the edit screen says Money to and Money from. Wording: to collect and to repay replace owed to you and you owe on Home, Split, people tiles and the orbit; the Split card leads with To collect and To repay, says money to collect is not in your balance, and shows the net position below. The person hero explains the same. Add screen: the amount shrinks to fit the card and is capped at 10 digits (13 for LBP)."]
+    ] },
     { v: "3.93.3", items: [
       ["", "Status bar follows the phone's Light or Dark", "On iPhone the Home Screen app reads the status bar color only when the page loads, so changing Light or Dark in the phone's settings left the old color above the header. When Appearance is Automatic and the phone's mode no longer matches the one the app loaded with, the app now reloads once as it comes back on screen (or right away if it is open), keeping the current tab. It waits while a sheet is open or a field is in use."]
     ] },
@@ -3500,6 +3503,10 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.94.0", items: [
+      ["check", "Mark loans as paid back", "Each loan now has its own Paid back button. Paid loans move to their own list, and part payments show how much is left."],
+      ["people", "Clearer Split", "Split now shows what you have to collect and what you have to repay, and that money to collect isn't in your balance yet."]
+    ] },
     { v: "3.93.0", items: [
       ["gear", "A new Settings page", "Settings is cleaner and easier to scan, with your profiles right on your card."]
     ] },
@@ -4431,7 +4438,7 @@
       trend.moved && !S.hidden ? h("p", { class: "hero-delta num " + (tDelta >= 0 ? "up" : "down") }, `${tDelta >= 0 ? "▲" : "▼"} ${money(Math.abs(tDelta), { whole: true })}`, h("small", null, tr("last 30 days"))) : null,
       h("div", { class: "hero-hold" },
         [...holds].sort((p, q) => (q[0] === mainCur()) - (p[0] === mainCur()) || toMain(q[1], q[0]) - toMain(p[1], p[0])).map(([c, v]) => h("span", { class: "num", title: curInfo(c).name }, fmt(v, c, { compact: true }))),
-        (() => { const t = owedTotals(); return [t.owed > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: () => go("people") } }, `+${money(t.owed, { whole: true })} ${tr("owed to you")}`) : null, t.owe > 0.5 ? h("button", { type: "button", class: "num hero-owed hero-owe", on: { click: () => go("people") } }, `−${money(t.owe, { whole: true })} ${tr("you owe")}`) : null]; })(),
+        (() => { const t = owedTotals(); return [t.owed > 0.5 ? h("button", { type: "button", class: "num hero-owed", on: { click: () => go("people") } }, `${money(t.owed, { whole: true })} ${tr("to collect")}`) : null, t.owe > 0.5 ? h("button", { type: "button", class: "num hero-owed hero-owe", on: { click: () => go("people") } }, `${money(t.owe, { whole: true })} ${tr("to repay")}`) : null]; })(),
       ),
       trend.moved ? trendView(trend) : null));
     const wallet = h("div", { class: "wallet" + (hasPf ? " stacked" : "") }, hasPf ? (CARD.front === "pf" ? [walletPeek("bal", total, tDelta), portfolioCard()] : [walletPeek("pf"), balCard]) : balCard);
@@ -5583,7 +5590,7 @@
     for (const e of [...(l.pending || []), ...sharedOut().filter(q => q.person_id === p.id)]) {
       if (have.has(e.id)) continue;
       have.add(e.id);
-      list.push({ id: e.id, person_id: p.id, amount: e.amount, note: e.note, occurred_on: e.date || e.occurred_on, created_at: e.created_at, remote: "pending" });
+      list.push({ id: e.id, person_id: p.id, amount: e.amount, note: e.note, pays: e.pays || null, occurred_on: e.date || e.occurred_on, created_at: e.created_at, remote: "pending" });
     }
     return list;
   }
@@ -5675,7 +5682,7 @@
             const e = await openWith(key, sealed);
             const amount = Number(e.amount);
             if (!isFinite(amount) || !amount) continue;
-            entries.push({ id: typeof e.id === "string" && e.id.length <= 120 ? e.id : "x-" + await shortHash(sealed), person_id: p.id, amount, note: typeof e.note === "string" ? e.note.slice(0, 200) : null, occurred_on: DATE_RE.test(String(e.date)) ? e.date : today(), created_at: typeof e.at === "string" ? e.at.slice(0, 40) : "", remote: true });
+            entries.push({ id: typeof e.id === "string" && e.id.length <= 120 ? e.id : "x-" + await shortHash(sealed), person_id: p.id, amount, note: typeof e.note === "string" ? e.note.slice(0, 200) : null, pays: typeof e.pays === "string" && e.pays.length <= 120 ? e.pays : null, occurred_on: DATE_RE.test(String(e.date)) ? e.date : today(), created_at: typeof e.at === "string" ? e.at.slice(0, 40) : "", remote: true });
           } catch { }
         }
         const pending = [];
@@ -5723,7 +5730,7 @@
           const e = await openWith(await shareKey(p.skey), r.senc);
           const amount = roundCur(Number(e.amount), p.currency);
           if (!isFinite(amount) || !amount || Math.abs(amount) > 1e12) continue;
-          items.push({ t: "loan_entries", r: { id: r.id, person_id: p.id, amount, note: typeof e.note === "string" ? e.note.trim().slice(0, 200) || null : null, occurred_on: DATE_RE.test(String(e.date)) ? e.date : today(), created_at: new Date().toISOString() } });
+          items.push({ t: "loan_entries", r: { id: r.id, person_id: p.id, amount, note: typeof e.note === "string" ? e.note.trim().slice(0, 200) || null : null, pays: typeof e.pays === "string" && e.pays.length <= 120 ? e.pays : null, occurred_on: DATE_RE.test(String(e.date)) ? e.date : today(), created_at: new Date().toISOString() } });
           who.set(p.name, (who.get(p.name) || 0) + 1);
         } catch { }
       }
@@ -5784,7 +5791,7 @@
   const owesMe = p => p.direction === "owes_me";
   const netMine = (p, v) => owesMe(p) ? v : -v;
   const theyOwe = (p, v) => netMine(p, v) > 0;
-  const statusText = (p, v) => Math.abs(v) < 0.005 ? "Settled" : theyOwe(p, v) ? "Owes you" : "You owe";
+  const statusText = (p, v) => Math.abs(v) < 0.005 ? "Settled" : theyOwe(p, v) ? "To collect" : "To repay";
 
   const loanMessage = (p, delta, balance, note) => {
     const m = v => fmt(v, p.currency, { show: true });
@@ -6033,7 +6040,7 @@
           h("button", { type: "button", class: "loan-hit", "aria-label": p.name, on: { click: () => personSheet(p) } }),
           h("span", { class: "dot", style: { background: COLORS[(p.sort || 0) % COLORS.length] } }, p.name.charAt(0).toUpperCase()),
           h("span", { class: "row-main" }, h("span", { class: "row-title" }, p.name),
-            h("span", { class: "row-sub" + (due && due.late ? " late" : "") }, document.createTextNode([tr(mine ? "Owes you" : "You owe"), due ? tr(due.text) : since ? `${tr("since")} ${LANG === "en" ? dayLabel(since).toLowerCase() : dayLabel(since)}` : null].filter(Boolean).join(" · ")))),
+            h("span", { class: "row-sub" + (due && due.late ? " late" : "") }, document.createTextNode([tr(mine ? "To collect" : "To repay"), due ? tr(due.text) : since ? `${tr("since")} ${LANG === "en" ? dayLabel(since).toLowerCase() : dayLabel(since)}` : null].filter(Boolean).join(" · ")))),
           h("span", { class: "row-end " + (mine ? "pos" : "neg") }, fmt(Math.abs(v), p.currency, { whole: true })),
           mine ? h("a", { class: "chip remind-chip", href: p.phone ? waUrl(p.phone, remindText(p, v)) : `https://wa.me/?text=${encodeURIComponent(remindText(p, v))}`, target: "_blank", rel: "noopener noreferrer", on: { click: () => track("whatsapp", "remind") } }, "Remind") : null);
       })() })),
@@ -6044,10 +6051,10 @@
         h("span", { class: "row-end " + (v > 0 ? "pos" : "neg") }, fmt(Math.abs(v), g.meta.currency, { whole: true }))) }))
     ].sort((a, b) => b.w - a.w).slice(0, 4);
     return h("section", { class: "card flush loans-card" },
-      h("div", { class: "card-head" }, h("h2", null, "Money with others"), h("button", { type: "button", class: "link-btn", on: { click: () => go("people") } }, "See all")),
+      h("div", { class: "card-head" }, h("h2", null, "Loans with people"), h("button", { type: "button", class: "link-btn", on: { click: () => go("people") } }, "See all")),
       h("div", { class: "loans-sum" },
-        h("div", { class: "pos" }, h("small", null, "Owed to you"), h("strong", { class: "num" }, money(t.owed, { whole: true }))),
-        h("div", { class: t.owe > 0.5 ? "neg" : "" }, h("small", null, "You owe"), h("strong", { class: "num" }, money(t.owe, { whole: true })))),
+        h("div", { class: "pos" }, h("small", null, "To collect"), h("strong", { class: "num" }, money(t.owed, { whole: true }))),
+        h("div", { class: t.owe > 0.5 ? "neg" : "" }, h("small", null, "To repay"), h("strong", { class: "num" }, money(t.owe, { whole: true })))),
       ...items.map(x => x.el));
   }
 
@@ -6201,7 +6208,7 @@
       h("span", { class: "split-opt-ico" }, icon(ic)), h("span", { class: "row-main" }, h("span", { class: "row-title" }, title), h("span", { class: "row-sub wrap" }, sub)), icon("chev", "ico sm"));
     openSheet("Split", h("div", { class: "form" },
       opt("people", "Split a bill or a trip", "Rent, dinner, a trip… Add everyone, then each expense is split and the app tells who owes whom.", () => { go("people"); newGroupSheet(); }),
-      opt("up", "Money with a person", "Money you gave someone or got from someone. See who owes who at a glance.", () => { go("people"); personSheet(null); }),
+      opt("up", "Loan with a person", "Money you lent someone or borrowed from someone. Mark each one as paid back when it is.", () => { go("people"); personSheet(null); }),
       opt("note", "Split a receipt by item", "Each person pays for what they had. Tax and tip are shared fairly.", itemSplitSheet),
       h("button", { type: "button", class: "btn alt", on: { click: () => { closeSheet(); go("people"); } } }, "Open Split")));
   }
@@ -6218,7 +6225,7 @@
         step("3", "See who owes whom", "Settle up with one payment each.")) : null,
       h("div", { class: "split-ctas" },
         h("button", { type: "button", class: "btn", on: { click: newGroupSheet } }, icon("people", "ico sm"), "Split a bill"),
-        h("button", { type: "button", class: "btn alt", on: { click: () => personSheet(null) } }, icon("up", "ico sm"), "Money with a person")),
+        h("button", { type: "button", class: "btn alt", on: { click: () => personSheet(null) } }, icon("up", "ico sm"), "Loan with a person")),
       h("button", { type: "button", class: "link-btn split-items", on: { click: itemSplitSheet } }, icon("note", "ico sm"), "Split a receipt by item"));
   }
 
@@ -6940,7 +6947,7 @@
       if (!read) return;
       if (i < 0) { read.hidden = true; return; }
       const o = list[i]; read.hidden = false;
-      read.replaceChildren(h("span", null, o.n), h("b", { class: "num " + (o.v > 0 ? "in" : "out") }, o.m), h("small", null, tr(o.v > 0 ? "Owes you" : "You owe")));
+      read.replaceChildren(h("span", null, o.n), h("b", { class: "num " + (o.v > 0 ? "in" : "out") }, o.m), h("small", null, tr(o.v > 0 ? "To collect" : "To repay")));
     };
     const pt = e => { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
     c.addEventListener("pointerdown", e => { const p = pt(e); drag = { x: p.x, sx: p.x, t: performance.now(), moved: 0 }; vel = 0; });
@@ -6972,16 +6979,15 @@
     const goPeople = () => document.getElementById("sp-people")?.scrollIntoView({ behavior: RM.matches ? "auto" : "smooth" });
     return h("div", { class: "aura-wrap" },
       h("section", { class: "sp-aura" },
-        h("div", { class: "aura-top" }, h("span", { class: "aura-label" }, "Balance with people"), h("span", { class: "aura-count num" }, orb.length ? `${orb.length} ${tr(orb.length === 1 ? "person" : "people")}` : "")),
-        h("div", { class: "aura-mid" },
-          h("strong", { class: "aura-net num" }, Math.abs(total) < 0.5 ? tr("All settled") : (total > 0 ? "+" : "−") + money(Math.abs(total), { whole: true })),
-          h("span", { class: "aura-sub" }, Math.abs(total) < 0.5 ? tr("Nobody owes anything") : total > 0 ? tr("More is owed to you than you owe") : tr("You owe more than you're owed"))),
+        h("div", { class: "aura-top" }, h("span", { class: "aura-label" }, "Loans with people"), h("span", { class: "aura-count num" }, orb.length ? `${orb.length} ${tr(orb.length === 1 ? "person" : "people")}` : "")),
+        h("div", { class: "aura-pair" },
+          h("button", { type: "button", class: "aura-big in", on: { click: goPeople } }, h("small", null, h("i", { class: "dot-in" }), tr("To collect")), h("strong", { class: "num" }, money(owed, { whole: true })), h("span", null, tr("Others owe you"))),
+          h("button", { type: "button", class: "aura-big out", on: { click: goPeople } }, h("small", null, h("i", { class: "dot-out" }), tr("To repay")), h("strong", { class: "num" }, money(owe, { whole: true })), h("span", null, tr("You owe others")))),
+        h("p", { class: "aura-note" }, icon("help", "ico sm"), tr("Money to collect is not in your balance until it's paid back.")),
         orb.length ? h("div", { class: "orb-box" },
           h("canvas", { class: "orbit", "data-orbit": JSON.stringify(orb), "aria-hidden": "true" }),
           h("div", { class: "orb-read", hidden: true, "aria-live": "polite" })) : null,
-        h("div", { class: "aura-sides" },
-          h("button", { type: "button", class: "aura-side", on: { click: goPeople } }, h("small", null, h("i", { class: "dot-in" }), tr("Owed to you")), h("b", { class: "num" }, money(owed, { whole: true }))),
-          h("button", { type: "button", class: "aura-side", on: { click: goPeople } }, h("small", null, h("i", { class: "dot-out" }), tr("You owe")), h("b", { class: "num" }, money(owe, { whole: true }))))),
+        h("div", { class: "aura-net-row" }, h("span", null, tr("Net position")), h("b", { class: "num" }, Math.abs(total) < 0.5 ? tr("All settled") : (total > 0 ? "+" : "−") + money(Math.abs(total), { whole: true })))),
       h("div", { class: "sp-acts aura-acts" },
         act("people", "Split a bill", newGroupSheet, "main"),
         act("up", "Lend or borrow", () => personSheet(null)),
@@ -7032,8 +7038,8 @@
     let armed = false;
     const draw = () => body.replaceChildren(
       h("div", { class: "tx-type" },
-        h("button", { type: "button", class: "tx-tab" + (f.gave ? " on" : ""), on: { click: () => { f.gave = true; draw(); } } }, `${tr("I gave")} ${p.name}`),
-        h("button", { type: "button", class: "tx-tab" + (!f.gave ? " on" : ""), on: { click: () => { f.gave = false; draw(); } } }, `${p.name} ${tr("gave me")}`)),
+        h("button", { type: "button", class: "tx-tab" + (f.gave ? " on" : ""), on: { click: () => { f.gave = true; draw(); } } }, `${tr("Money to")} ${p.name}`),
+        h("button", { type: "button", class: "tx-tab" + (!f.gave ? " on" : ""), on: { click: () => { f.gave = false; draw(); } } }, `${tr("Money from")} ${p.name}`)),
       h("label", { class: "field" }, h("span", null, `${tr("Amount")} (${curSymbol(cur)})`), h("input", { id: "le-amt", class: "input num", inputmode: "decimal", autocomplete: "off", value: f.amount, on: { input: ev => { f.amount = ev.target.value; } } })),
       h("label", { class: "field" }, h("span", null, "Note"), h("input", { id: "le-note", class: "input", maxlength: "200", autocomplete: "off", value: f.note, on: { input: ev => { f.note = ev.target.value; } } })),
       h("label", { class: "field" }, h("span", null, "Date"), h("input", { id: "le-date", class: "input", type: "date", value: f.date, on: { change: ev => { f.date = ev.target.value; } } })),
@@ -7066,6 +7072,55 @@
     openSheet("Edit entry", body, h("button", { type: "submit", class: "btn", form: "le-form" }, "Save changes"), { stack: true });
   }
 
+  function loanLedger(list) {
+    const es = list.slice().sort((a, b) => a.occurred_on.localeCompare(b.occurred_on) || String(a.created_at || "").localeCompare(String(b.created_at || "")));
+    const info = new Map(es.map(e => [e.id, { e, amt: Math.abs(Number(e.amount)), sign: Math.sign(Number(e.amount)), base: 0, open: 0, by: [], pays: [], last: null }]));
+    const queue = [];
+    for (const e of es) {
+      const x = info.get(e.id);
+      let left = x.amt;
+      const apply = d => {
+        const take = Math.min(left, d.open);
+        if (take <= 0.004) return;
+        d.open -= take; d.by.push({ e, v: take }); d.last = e.occurred_on;
+        x.pays.push({ e: d.e, v: take }); left -= take;
+      };
+      const tgt = e.pays && info.get(e.pays);
+      if (tgt && tgt !== x && tgt.sign === -x.sign) apply(tgt);
+      for (const d of queue) { if (left <= 0.004) break; if (d.sign === -x.sign && d.open > 0.004) apply(d); }
+      if (left > 0.004) { x.base = left; x.open = left; queue.push(x); }
+    }
+    return info;
+  }
+  function payBackSheet(p, d) {
+    const cur = p.currency, inFlow = netMine(p, d.sign) > 0, open = roundCur(d.open, cur);
+    amountSheet({
+      title: inFlow ? `${p.name} ${tr("paid you back")}` : `${tr("You paid back")} ${p.name}`,
+      cur, max: open, initial: open, quick: [],
+      note: d.e.note ? `${tr("Repayment")}: ${d.e.note}`.slice(0, 200) : "",
+      verbFor: v => !v ? "Enter an amount" : v >= open - 0.004 ? `${tr("Mark as paid back")} · ${fmt(v, cur, { show: true })}` : `${tr("Record part payment")} · ${fmt(v, cur, { show: true })}`,
+      accountPick: { label: inFlow ? "Put the money into" : "Take the money from", initial: loanAccount(p) },
+      previewFor: (v, accId) => {
+        const a = accId && acc(accId), rest = open - v;
+        const moved = a ? ` · ${a.name} ${inFlow ? "+" : "−"}${fmt(roundCur(convert(v, cur, a.currency), a.currency), a.currency, { show: true })}` : "";
+        return (rest <= 0.004 ? tr("This entry will be fully paid back.") : `${fmt(rest, cur, { show: true })} ${tr("will still be open on this entry.")}`) + moved;
+      },
+      onSave: (v, note, accId) => {
+        const id = linkOf(p) ? sharedId() : newId(), now = new Date().toISOString();
+        const entry = { id, person_id: p.id, amount: roundCur(v, cur) * -d.sign, note, pays: d.e.id, occurred_on: today(), created_at: now };
+        const items = [], a = accId && acc(accId);
+        if (a) {
+          items.push({ t: "transactions", r: { id: `ln-${id}`, kind: inFlow ? "loan_in" : "loan_out", amount: roundCur(convert(v, cur, a.currency), a.currency), currency: a.currency, rate: rateOf(a.currency), account_id: a.id, to_account_id: null, to_amount: null, category_id: null, note: note || null, occurred_on: today(), rule_id: null, receipt: null, created_at: now } });
+          store.set("loanAcc:" + p.id, a.id);
+        }
+        saveLoan(p, entry, items);
+        if (navigator.vibrate) navigator.vibrate(12);
+        toast(v >= open - 0.004 ? "Marked as paid back." : "Part payment recorded.");
+        personSheet(S.data.people.get(p.id) || p);
+      }
+    });
+  }
+
   function personSheet(p, notice) {
     if (!p) return newPersonSheet();
     const body = h("div", { class: "form" });
@@ -7078,7 +7133,7 @@
       const net = netMine(p, balance);
       const sign = (moneyOut ? 1 : -1) * (owesMe(p) ? 1 : -1);
       amountSheet({
-        title: moneyOut ? `${tr("I gave")} ${p.name}` : `${p.name} ${tr("gave me")}`,
+        title: moneyOut ? `${tr("Lend to")} ${p.name}` : `${tr("Borrow from")} ${p.name}`,
         cur, max: null,
         quick: isBig(cur) ? [1e6, 5e6, 10e6] : [50, 100, 500, 1000],
         verbFor: v => !v ? "Enter an amount" : `Save ${fmt(v, cur, { show: true })}`,
@@ -7116,6 +7171,7 @@
       kids.push(h("div", { class: "hero person-hero" + (settled ? " settled" : net > 0 ? "" : " owe") },
         h("p", { class: "hero-label" }, settled ? "All settled" : net > 0 ? `${p.name} owes you` : `You owe ${p.name}`),
         h("p", { class: "hero-total num" }, fmt(Math.abs(balance), cur, { show: true })),
+        settled ? null : h("p", { class: "hero-sub hero-note" }, net > 0 ? tr("To collect. Not counted in your balance until it's paid back.") : tr("To repay. Your balance already includes this money.")),
         history.length ? h("p", { class: "hero-sub" }, `Last change ${dayLabel(history[0].occurred_on).toLowerCase()}`) : null,
         net > 0 && dueInfo(p) ? h("p", { class: "hero-sub due" + (dueInfo(p).late ? " late" : "") }, dueInfo(p).text) : null));
 
@@ -7128,10 +7184,19 @@
       }
 
       const roOnly = !!(linkOf(p) && (LINKED.get(p.id) || {}).viewOnly);
+      let listAt = 0;
       if (roOnly) kids.push(h("p", { class: "ro-note" }, icon("eye", "ico sm"), `${tr("View only. Only")} ${(LINKED.get(p.id) || {}).from || p.name} ${tr("can add or change entries.")}`));
-      else kids.push(h("div", { class: "actions" },
-        h("button", { type: "button", class: "action", on: { click: () => openAmount("out") } }, h("span", { class: "action-ico out" }, icon("up")), `${tr("I gave")} ${p.name}`),
-        h("button", { type: "button", class: "action", on: { click: () => openAmount("in") } }, h("span", { class: "action-ico" }, icon("down")), `${p.name} ${tr("gave me")}`)));
+      else {
+        kids.push(h("div", { class: "actions" },
+          h("button", { type: "button", class: "action", on: { click: () => openAmount("out") } }, h("span", { class: "action-ico out" }, icon("up")), h("span", { class: "action-tx" }, h("b", null, `${tr("Lend to")} ${p.name}`), h("small", null, `${p.name} ${tr("will owe you")}`))),
+          h("button", { type: "button", class: "action", on: { click: () => openAmount("in") } }, h("span", { class: "action-ico" }, icon("down")), h("span", { class: "action-tx" }, h("b", null, `${tr("Borrow from")} ${p.name}`), h("small", null, `${tr("You will owe")} ${p.name}`)))));
+        if (!settled) {
+          const openAll = [...loanLedger(loanRows().filter(e => e.person_id === p.id)).values()].filter(x => x.open > 0.004);
+          if (openAll.length > 1) kids.push(h("button", { type: "button", class: "btn alt settle-all", on: { click: () => payBackSheet(p, { e: { id: null, note: "" }, sign: openAll[0].sign, open: Math.abs(balance) }) } },
+            icon("check", "ico sm"), net > 0 ? `${p.name} ${tr("paid everything back")}` : tr("I paid everything back")));
+        }
+      }
+      listAt = kids.length;
 
       if (p.phone) kids.push(waButton(p.phone, balanceMessage(p, balance), "Send balance on WhatsApp", "alt wa-alt"));
       if (p.phone && net > 0 && dueInfo(p)) kids.push(waButton(p.phone, `Hi ${p.name}, a friendly reminder that ${fmt(Math.abs(balance), cur, { show: true })} ${dueInfo(p).late ? "was due on" : "is due on"} ${dayLabel(dueOf(p)).toLowerCase()}. Thank you.`, "Send a payment reminder", "alt wa-alt"));
@@ -7197,25 +7262,46 @@
         armed === "togroup" ? h("p", { class: "row-sub", style: { padding: "0 16px 10px", whiteSpace: "normal" } }, `${p.name} becomes a member of a new shared group with the same history. You can then invite them by email or add more people.`) : null);
       kids.push(share);
 
-      const hist = h("section", { class: "card flush" }, h("div", { class: "card-head" }, h("h2", null, `History (${history.length})`)));
-      for (const e of history) {
-        const v = Number(e.amount);
-        const gave = netMine(p, v) > 0;
-        const label0 = gave ? "You gave" : "You got";
-        const linkedTx = S.data.transactions.get(`ln-${e.id}`);
-        const linkedAcc = linkedTx && acc(linkedTx.account_id);
-        const label = linkedAcc ? `${label0} · ${linkedAcc.name}` : label0;
-        const when = e.remote === "pending" ? `${dayLabel(e.occurred_on)} · sending to ${p.name}` : dayLabel(e.occurred_on);
-        const editable = !e.remote && !linkOf(p) && S.data.loan_entries.has(e.id);
-        hist.append(h("div", { class: "row" + (e.remote === "pending" ? " pending" : "") + (editable ? " tap" : "") },
-          editable ? h("button", { type: "button", class: "loan-hit", "aria-label": "Edit entry", on: { click: () => loanEntrySheet(p, e) } }) : null,
-          h("span", { class: "row-main" }, h("span", { class: "row-title" }, e.note || (gave ? `${tr("You gave")} ${p.name}` : `${p.name} ${tr("gave you")}`)), h("span", { class: "row-sub" }, `${label} · ${when}`)),
-          h("span", { class: "row-end" + (gave ? " neg" : " pos") }, (gave ? "↑ " : "↓ ") + fmt(Math.abs(v), cur)),
-          e.remote ? h("span", { class: "row-lock", "aria-hidden": "true" }) : h("button", { type: "button", class: "icon-btn", "aria-label": armed === e.id ? "Confirm delete" : "Delete entry", style: armed === e.id ? { color: "var(--neg)" } : null,
-            on: { click: () => { if (armed !== e.id) { armed = e.id; draw(); return; } armed = null; removeRow("loan_entries", e); const linked = S.data.transactions.get(`ln-${e.id}`); if (linked) removeRow("transactions", linked); toast(linked ? "Entry deleted, and the account was corrected." : "Entry deleted."); draw(); } } }, icon(armed === e.id ? "warn" : "close"))));
+      const L = loanLedger(history);
+      const debts = [...L.values()].filter(x => x.base > 0.004).sort((x, y) => byRecent(x.e, y.e));
+      const openD = debts.filter(x => x.open > 0.004), doneD = debts.filter(x => x.open <= 0.004);
+      const canEdit = e => !e.remote && !linkOf(p) && S.data.loan_entries.has(e.id);
+      const delBtn = e => e.remote ? h("span", { class: "row-lock", "aria-hidden": "true" }) : h("button", { type: "button", class: "icon-btn", "aria-label": armed === e.id ? "Confirm delete" : "Delete entry", style: armed === e.id ? { color: "var(--neg)" } : null,
+        on: { click: () => { if (armed !== e.id) { armed = e.id; draw(); return; } armed = null; removeRow("loan_entries", e); const linked = S.data.transactions.get(`ln-${e.id}`); if (linked) removeRow("transactions", linked); toast(linked ? "Entry deleted, and the account was corrected." : "Entry deleted."); draw(); } } }, icon(armed === e.id ? "warn" : "close"));
+      const debtCard = (x, done) => {
+        const e = x.e, mine = netMine(p, x.sign) > 0, linkedTx = S.data.transactions.get(`ln-${e.id}`), la = linkedTx && acc(linkedTx.account_id);
+        const kind = mine ? `${tr("You lent")} ${p.name}` : `${p.name} ${tr("lent you")}`;
+        const paid = x.base - x.open, pct = Math.max(0, Math.min(100, paid / x.base * 100));
+        return h("div", { class: "loan-item" + (done ? " done" : "") + (mine ? " lent" : " borrowed") },
+          canEdit(e) ? h("button", { type: "button", class: "loan-hit", "aria-label": "Edit entry", on: { click: () => loanEntrySheet(p, e) } }) : null,
+          h("div", { class: "loan-top" },
+            h("span", { class: "loan-kind" }, mine ? icon("up", "ico sm") : icon("down", "ico sm")),
+            h("span", { class: "loan-main" }, h("strong", null, e.note || kind), h("small", null, [kind, dayLabel(e.occurred_on), la ? la.name : null].filter(Boolean).join(" · "))),
+            h("span", { class: "loan-amt num" }, fmt(x.base, cur, { show: true })),
+            delBtn(e)),
+          x.by.length ? h("div", { class: "loan-pays" }, x.by.map(({ e: r, v }) => h("div", { class: "loan-pay-row" },
+            h("span", null, icon("check", "ico sm"), `${fmt(v, cur, { show: true })} · ${dayLabel(r.occurred_on)}`),
+            canEdit(r) ? h("button", { type: "button", class: "loan-undo", "aria-label": armed === r.id ? "Confirm undo" : "Undo this payment", on: { click: () => { if (armed !== r.id) { armed = r.id; draw(); return; } armed = null; removeRow("loan_entries", r); const lt = S.data.transactions.get(`ln-${r.id}`); if (lt) removeRow("transactions", lt); toast("Payment removed."); draw(); } } }, armed === r.id ? tr("Tap to undo") : tr("Undo")) : null))) : null,
+          done ? h("div", { class: "loan-paid" }, icon("check", "ico sm"), `${mine ? tr("Paid back to you") : tr("You paid it back")} · ${dayLabel(x.last).toLowerCase()}`,
+              x.by.length > 1 ? h("small", null, `${x.by.length} ${tr("payments")}`) : null)
+            : h("div", { class: "loan-open" },
+              paid > 0.004 ? h("div", { class: "loan-prog" }, h("i", { style: { width: pct.toFixed(1) + "%" } }), h("small", { class: "num" }, `${fmt(paid, cur, { show: true })} ${tr("of")} ${fmt(x.base, cur, { show: true })} ${tr("paid back")}`)) : null,
+              roOnly ? null : h("button", { type: "button", class: "loan-pay", on: { click: () => payBackSheet(p, x) } }, icon("check", "ico sm"), mine ? `${p.name} ${tr("paid me back")}` : tr("I paid it back"),
+                paid > 0.004 ? h("span", { class: "num" }, fmt(x.open, cur, { show: true })) : null)));
+      };
+      const hist = h("section", { class: "card flush loan-list" },
+        h("div", { class: "card-head" }, h("h2", null, "Open"), h("span", { class: "start-count num" }, String(openD.length))));
+      if (openD.length) openD.forEach(x => hist.append(debtCard(x, false)));
+      else hist.append(h("p", { class: "empty" }, history.length ? tr("Nothing open. Everything is paid back.") : tr("No entries yet.")));
+      const lists = [hist];
+      if (doneD.length) {
+        const showDone = !!S.showPaid;
+        const sec = h("section", { class: "card flush loan-list paid" },
+          h("button", { type: "button", class: "card-head loan-fold", "aria-expanded": String(showDone), on: { click: () => { S.showPaid = !showDone; draw(); } } }, h("h2", null, "Paid back"), h("span", { class: "start-count num" }, String(doneD.length)), icon(showDone ? "up" : "down", "ico sm")));
+        if (showDone) doneD.forEach(x => sec.append(debtCard(x, true)));
+        lists.push(sec);
       }
-      if (!history.length) hist.append(h("p", { class: "empty" }, "No entries yet."));
-      kids.push(hist);
+      kids.splice(listAt, 0, ...lists);
 
       const phoneIn = h("input", { id: "f-pphone", class: "input", type: "tel", autocomplete: "off", placeholder: "70 123 456", value: f.phone, on: { input: e => { f.phone = e.target.value; } } });
       const nameIn = h("input", { id: "f-pname", class: "input", maxlength: "40", autocomplete: "off", value: f.name, on: { input: e => { f.name = e.target.value; } } });
@@ -7830,7 +7916,7 @@
       else {
         const [i, d] = v.split(".");
         if (d !== undefined && d.length >= 2) return;
-        if (d === undefined && (i || "").length >= 13) return;
+        if (d === undefined && (i || "").length >= (isBig(cur) ? 13 : 10)) return;
         v = v === "0" ? k : v + k;
       }
       setV(v);
@@ -7858,12 +7944,17 @@
   function amountDisplay(cur, kind) {
     const val = h("span", { class: "val" });
     const el = h("div", { class: "amount-display " + (kind || ""), "aria-live": "polite" }, h("span", { class: "cur" }, curSymbol(cur)), val);
-    el.set = v => { val.textContent = fmtTyped(v); el.classList.toggle("empty", !v); el.classList.toggle("long", fmtTyped(v).length > 9); };
+    const fit = () => {
+      val.style.fontSize = "";
+      const box = el.parentElement || el, room = box.clientWidth - (el.firstElementChild?.offsetWidth || 0) - 28;
+      if (room > 40 && val.scrollWidth > room) val.style.fontSize = Math.max(22, Math.floor(parseFloat(getComputedStyle(val).fontSize) * room / val.scrollWidth)) + "px";
+    };
+    el.set = v => { val.textContent = fmtTyped(v); el.classList.toggle("empty", !v); el.classList.toggle("long", fmtTyped(v).length > 9); requestAnimationFrame(fit); };
     return el;
   }
 
-  function amountSheet({ title, cur, max, quick, verbFor, previewFor, onSave, accountPick }) {
-    const f = { amount: "", note: "", account: accountPick ? accountPick.initial : null };
+  function amountSheet({ title, cur, max, quick, verbFor, previewFor, onSave, accountPick, initial, note: note0 }) {
+    const f = { amount: initial ? String(initial) : "", note: note0 || "", account: accountPick ? accountPick.initial : null };
     const accRow = accountPick ? h("div", { class: "field acc-pick" }) : null;
     const drawAcc = () => {
       if (!accRow) return;
@@ -7893,7 +7984,7 @@
         quick.map(n => h("button", { type: "button", class: "chip", on: { click: () => setQuick(n) } }, fmt(n, cur, { show: true, compact: true }))),
         max ? h("button", { type: "button", class: "chip", on: { click: () => setQuick(max) } }, "All of it") : null),
       accRow,
-      h("input", { id: "f-anote", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: settings().noteRequired ? "What is it for?" : "Add a note (optional)", "aria-label": "Note", on: { input: e => { f.note = e.target.value; } } }),
+      h("input", { id: "f-anote", class: "input", maxlength: "200", autocomplete: "off", enterkeyhint: "done", placeholder: settings().noteRequired ? "What is it for?" : "Add a note (optional)", "aria-label": "Note", value: f.note, on: { input: e => { f.note = e.target.value; } } }),
       pad);
     body.addEventListener("submit", ev => {
       ev.preventDefault();
@@ -8058,7 +8149,7 @@
       const menuItem = (ic, title, sub, fn, disabled) => h("button", { type: "button", class: "tx-menu-item", disabled: !!disabled, on: { click: fn } }, h("span", { class: "tx-menu-ico" }, icon(ic, "ico sm")), h("span", null, h("strong", null, title), h("small", null, sub)));
       const menu = typeMenu ? h("div", { class: "tx-menu" },
         menuItem("swap", "Moved between my accounts", "Like cash to the bank, or to savings", () => setKind("transfer"), accounts.length < 2),
-        menuItem("coin", "Money with a person", "You gave someone money, or they gave you", () => setKind("loan")),
+        menuItem("coin", "Loan with a person", "You lent money, or borrowed it", () => setKind("loan")),
         menuItem("people", "Split a bill with friends", "Dinner, rent, a trip…", () => { closeSheet(); go("people"); setTimeout(newGroupSheet, 350); }),
         menuItem("bell", "A bill to pay every month", "Rent, internet, phone… with a reminder", () => { closeSheet(); setTimeout(() => billSheet(null), 350); }),
         menuItem("coin", "Gold, crypto or stocks", "Track what they're worth with live prices", () => { closeSheet(); setTimeout(() => holdingSheet(null), 350); })) : null;
@@ -8924,7 +9015,7 @@
     rules: { amount: 1, note: null },
     settings: { data: {} },
     people: { name: "•", phone: null },
-    loan_entries: { amount: 1, note: null }
+    loan_entries: { amount: 1, note: null, pays: null }
   };
   const shareKeys = new Map();
   const shareKey = async skey => {
@@ -8945,7 +9036,7 @@
     }
     if (t === "loan_entries") {
       const p = S.data.people.get(src.person_id);
-      row.senc = !src.deleted_at && p && p.share_token && p.skey ? await sealWith(await shareKey(p.skey), { id: row.id, amount: secret.amount, note: secret.note, date: row.occurred_on, at: src.created_at || null }) : null;
+      row.senc = !src.deleted_at && p && p.share_token && p.skey ? await sealWith(await shareKey(p.skey), { id: row.id, amount: secret.amount, note: secret.note, pays: secret.pays || null, date: row.occurred_on, at: src.created_at || null }) : null;
     }
     if (row.senc === undefined) delete row.senc;
     row.enc = await sealWith(VAULT.key, secret);
