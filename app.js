@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.96.1";
+  const VERSION = "3.96.2";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3144,10 +3144,13 @@
     ]
   };
   const TOUR = { el: null, view: null, steps: [], i: 0, seq: 0 };
-  const tourSeen = v => store.get("tour:" + v, 0) === 1;
+  const tourKey = (v, step) => `${v}:${step[1]}`;
+  const tourDone = () => { const a = storedSettings().tourSeen; return new Set(Array.isArray(a) ? a.filter(x => typeof x === "string") : []); };
+  const tourSeen = v => store.get("tour:" + v, 0) === 1 || (TOURS[v] || []).every(st => tourDone().has(tourKey(v, st)));
+  const markTour = key => { const d = tourDone(); if (d.has(key)) return; d.add(key); saveSettings({ tourSeen: [...d].slice(-200) }); };
 
   function endTour() {
-    if (TOUR.view) store.set("tour:" + TOUR.view, 1);
+    if (TOUR.view && TOUR.steps.length && TOUR.steps.every(st => tourDone().has(tourKey(TOUR.view, st)))) store.set("tour:" + TOUR.view, 1);
     if (TOUR.el) TOUR.el.remove();
     TOUR.el = null; TOUR.view = null;
     window.removeEventListener("resize", placeTour);
@@ -3193,6 +3196,7 @@
     const [sel, title, text] = steps[i];
     const target = tourTarget(sel);
     if (!target) { steps.splice(i, 1); if (!steps.length || i >= steps.length) return endTour(); return showTourStep(); }
+    markTour(tourKey(TOUR.view, steps[i]));
     const token = ++TOUR.seq;
     TOUR.el.classList.add("moving");
     const tip = TOUR.el.querySelector(".tour-tip");
@@ -3222,7 +3226,8 @@
     track("tour", view);
     const list = TOURS[view];
     if (!list || TOUR.el) return;
-    const steps = list.filter(([sel]) => tourTarget(sel));
+    const done = tourDone();
+    const steps = list.filter(st => tourTarget(st[0]) && !done.has(tourKey(view, st)));
     if (!steps.length) return;
     TOUR.view = view; TOUR.steps = steps; TOUR.i = 0; TOUR.seq = 0;
     TOUR.el = h("div", { class: "tour moving", role: "dialog", "aria-modal": "true", "aria-label": "Guide" }, h("div", { class: "tour-spot" }), h("div", { class: "tour-tip" }));
@@ -3235,6 +3240,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.96.2", items: [
+      ["", "Tour remembers each tip", "A tour tip now counts as seen the moment it shows, saved in the synced settings (tourSeen, view and step title, up to 200), so closing the app, a reload or another device or profile never repeats it. Only unseen tips show; a page's tour is done when all its tips were seen. Show the tour again clears it. The old per-device flag still counts."]
+    ] },
     { v: "3.96.1", items: [
       ["", "Sync blocked by the paid back field", "Since 3.94.0, sealing a loan entry put the pays placeholder on the uploaded row, and the table has no pays column, so the server refused it (PGRST204) and, as that error has no 5-character code or status, the whole outbox kept retrying and nothing synced. Secret fields without a column are now kept only inside the encrypted blob, and pays is read from the full local entry (clean() drops it before sealing). Waiting changes upload on the next sync."]
     ] },
@@ -5312,7 +5320,7 @@
           return h("button", { type: "button", class: "note-chip" + (off ? " on" : ""), "aria-pressed": String(off), style: { "--c": c.color }, on: { click: () => { const set = noteSkipSet(); if (off) set.delete(c.id); else set.add(c.id); saveSettings({ noteSkip: [...set] }); } } }, h("i"), c.name, off ? icon("check", "ico sm") : null);
         }))) : null));
     out.append(group("Help",
-      h("button", { type: "button", class: "row-btn", on: { click: () => { for (const v of Object.keys(TOURS)) store.set("tour:" + v, 0); go("home"); setTimeout(() => startTour("home"), 500); } } }, "Show the tour again"),
+      h("button", { type: "button", class: "row-btn", on: { click: () => { for (const v of Object.keys(TOURS)) store.set("tour:" + v, 0); saveSettings({ tourSeen: [] }); go("home"); setTimeout(() => startTour("home"), 500); } } }, "Show the tour again"),
       h("button", { type: "button", class: "row-btn", on: { click: helpSheet } }, "How each screen works"),
       h("button", { type: "button", class: "row-btn", on: { click: () => whatsNewSheet(true) } }, "What's new"),
       h("p", { class: "hint group-note" }, "To improve the app, it counts when you open it and which screens and buttons you use. It never sends your amounts, notes, names or accounts.")));

@@ -235,6 +235,7 @@ Update this list with every app change, so the listing, screenshots and privacy 
 | 3.95.3 | A loan and its repayments shown together in one card | No listing change |
 | 3.96.0 | Coin budget logo replaces the wallet | Use the new store icons and feature graphic |
 | 3.96.1 | Fix: changes stuck waiting to sync after marking loans paid back | No listing change |
+| 3.96.2 | The guided tour shows each tip only once, on every device | No listing change |
 
 ## Save for the native app
 
