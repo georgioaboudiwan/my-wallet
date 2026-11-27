@@ -12,11 +12,11 @@ Deno.serve(async req => {
   if (!serviceKey) return json({ error: "Not available." }, 500);
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { return json({ error: "Send JSON." }, 400); }
-  const token = String(body.token || "");
-  if (!/^[A-Za-z0-9_-]{40,64}$/.test(token)) return json({ error: "Not allowed." }, 401);
+  const token = String(body.token || "").replace(/[\s"'“”‘’]/g, "");
+  if (!/^[A-Za-z0-9_-]{40,64}$/.test(token)) { console.error(`quick-add bad_format len=${token.length}`); return json({ error: "Your key is missing or incomplete. In BudgetSplit, open Settings → Add without opening the app and set it up again." }, 401); }
   if (body.action === "categories" || body.action === "accounts") {
     const { data: who } = await sb.from("quick_tokens").select("user_id").eq("token_hash", await sha256(token)).maybeSingle();
-    if (!who) return json({ error: "Not allowed." }, 401);
+    if (!who) { console.error(`quick-add no_match ${body.action}`); return json({ error: "This key isn't valid anymore. In BudgetSplit, open Settings → Add without opening the app and set it up again." }, 401); }
     const { data: lists } = await sb.from("quick_lists").select("cats, accounts").eq("user_id", who.user_id).maybeSingle();
     const pick = (v: unknown) => Array.isArray(v) ? v.map(x => String(x).slice(0, 60)).filter(Boolean) : [];
     const out = body.action === "categories" ? pick(lists?.cats) : pick(lists?.accounts);
@@ -25,7 +25,7 @@ Deno.serve(async req => {
   }
   if (body.action === "today") {
     const { data: who } = await sb.from("quick_tokens").select("user_id").eq("token_hash", await sha256(token)).maybeSingle();
-    if (!who) return json({ error: "Not allowed." }, 401);
+    if (!who) { console.error(`quick-add no_match ${body.action}`); return json({ error: "This key isn't valid anymore. In BudgetSplit, open Settings → Add without opening the app and set it up again." }, 401); }
     const { data: sum } = await sb.from("quick_summary").select("text, updated_at").eq("user_id", who.user_id).maybeSingle();
     if (!sum) return json({ text: "Turn on “Today's spending” in BudgetSplit → Settings → Add from the Lock Screen." });
     const age = Date.now() - new Date(sum.updated_at).getTime();
@@ -38,7 +38,7 @@ Deno.serve(async req => {
   const account = String(body.account ?? "").trim().slice(0, 60) || null;
 
   const { data: owner } = await sb.from("quick_tokens").select("user_id").eq("token_hash", await sha256(token)).maybeSingle();
-  if (!owner) return json({ error: "Not allowed." }, 401);
+  if (!owner) { console.error("quick-add no_match"); return json({ error: "This key isn't valid anymore. In BudgetSplit, open Settings → Add without opening the app and set it up again." }, 401); }
   const { count } = await sb.from("quick_inbox").select("id", { count: "exact", head: true }).eq("user_id", owner.user_id);
   if ((count ?? 0) >= 200) return json({ error: "Open the app first: too many entries are waiting." }, 429);
   const { error } = await sb.from("quick_inbox").insert({ user_id: owner.user_id, amount, note, category, account });
