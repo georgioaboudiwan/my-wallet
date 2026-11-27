@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.96.0";
+  const VERSION = "3.96.1";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3235,6 +3235,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.96.1", items: [
+      ["", "Sync blocked by the paid back field", "Since 3.94.0, sealing a loan entry put the pays placeholder on the uploaded row, and the table has no pays column, so the server refused it (PGRST204) and, as that error has no 5-character code or status, the whole outbox kept retrying and nothing synced. Secret fields without a column are now kept only inside the encrypted blob, and pays is read from the full local entry (clean() drops it before sealing). Waiting changes upload on the next sync."]
+    ] },
     { v: "3.96.0", items: [
       ["", "Coin budget logo", "New app icon replacing the wallet: a gold coin with an emerald slice lifted out, on the dark emerald background. New file names (-c) so browsers and Android refresh it; the -w files are removed. Store icons and feature graphic regenerated."]
     ] },
@@ -9062,8 +9065,9 @@
   async function sealRow(t, row, src) {
     const secret = {};
     for (const [k, placeholder] of Object.entries(SECRET[t])) {
-      secret[k] = row[k];
-      row[k] = k === "to_amount" && row[k] != null ? 1 : placeholder;
+      secret[k] = row[k] === undefined ? src[k] ?? null : row[k];
+      if (COLS[t].includes(k)) row[k] = k === "to_amount" && row[k] != null ? 1 : placeholder;
+      else delete row[k];
     }
     row.senc = undefined;
     if (t === "people") {
