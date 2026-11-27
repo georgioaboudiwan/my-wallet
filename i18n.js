@@ -1977,6 +1977,8 @@ Object.assign(window.WALLET_I18N.words, {
   "Payment unlinked.": ["Paiement délié.", "تم فك ربط الدفعة."],
   "Not a repayment": ["Ce n'est pas un remboursement", "ليس سدادًا"],
   "left": ["restant", "متبقٍ"],
+  "A refreshed logo": ["Un logo renouvelé", "شعار متجدد"],
+  "BudgetSplit's logo is now a coin with a slice set aside, like your budget. On iPhone, remove the app from your Home Screen and add it again to see it.": ["Le logo de BudgetSplit est maintenant une pièce avec une part mise de côté, comme votre budget. Sur iPhone, retirez l'app de l'écran d'accueil et ajoutez-la à nouveau pour le voir.", "شعار BudgetSplit أصبح عملة مع جزء جانبي، مثل ميزانيتك. على iPhone، احذف التطبيق من الشاشة الرئيسية وأضفه من جديد لتراه."],
   "Ask AI, for free": ["Demandez à l'IA, gratuitement", "اسأل الذكاء الاصطناعي مجانًا"],
   "Tap the gold star at the top to ask anything about your money: how much you spent, where you can save, who owes you, or how the app works. 30 free questions a day.": ["Touchez l'étoile dorée en haut pour poser n'importe quelle question sur votre argent : combien vous avez dépensé, où économiser, qui vous doit, ou comment marche l'app. 30 questions gratuites par jour.", "اضغط النجمة الذهبية في الأعلى لتسأل أي شيء عن أموالك: كم صرفت، أين توفّر، من يدين لك، أو كيف يعمل التطبيق. 30 سؤالًا مجانيًا يوميًا."]
 });

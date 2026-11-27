@@ -233,6 +233,7 @@ Update this list with every app change, so the listing, screenshots and privacy 
 | 3.95.1 | Loan history shows every entry; link an existing repayment when marking paid back | No listing change |
 | 3.95.2 | Move a repayment to another loan | No listing change |
 | 3.95.3 | A loan and its repayments shown together in one card | No listing change |
+| 3.96.0 | Coin budget logo replaces the wallet | Use the new store icons and feature graphic |
 
 ## Save for the native app
 
