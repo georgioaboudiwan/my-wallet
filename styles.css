@@ -2898,3 +2898,5 @@ html[lang="ar"] .top:has(.tool.keys) h1 { font-size: 22px; }
 .aura-note .ico { flex: none; width: 15px; height: 15px; margin-top: 1px; color: #d9b96b; }
 .aura-net-row { display: flex; justify-content: space-between; align-items: baseline; padding-top: 10px; border-top: 1px solid rgb(217 185 107 / .2); font-size: 13px; color: rgb(244 239 226 / .6); }
 .aura-net-row b { font-size: 17px; color: #fbf7ec; }
+.loan-item.repay { --lc: #d9b96b; }
+.loan-paid.repay-of { color: var(--muted); font-weight: 600; }

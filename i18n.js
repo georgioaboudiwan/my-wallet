@@ -1959,6 +1959,16 @@ Object.assign(window.WALLET_I18N.words, {
   "Split now shows what you have to collect and what you have to repay, and that money to collect isn't in your balance yet.": ["Partage montre ce que vous avez à recevoir et à rembourser, et que l'argent à recevoir n'est pas encore dans votre solde.", "يعرض التقسيم الآن ما لك تحصيله وما عليك سداده، وأن المال المستحق لك ليس في رصيدك بعد."],
   "A new logo": ["Un nouveau logo", "شعار جديد"],
   "BudgetSplit has a new wallet logo. On iPhone, remove the app from your Home Screen and add it again to see the new icon.": ["BudgetSplit a un nouveau logo portefeuille. Sur iPhone, retirez l'app de l'écran d'accueil et ajoutez-la à nouveau pour voir la nouvelle icône.", "لدى BudgetSplit شعار محفظة جديد. على iPhone، احذف التطبيق من الشاشة الرئيسية وأضفه من جديد لترى الأيقونة الجديدة."],
+  "Did you already record the money": ["Avez-vous déjà enregistré l'argent que", "هل سجّلت مسبقًا المال الذي أعاده"],
+  "gave you back? Pick it so it isn't counted twice.": ["vous a rendu ? Choisissez-le pour qu'il ne soit pas compté deux fois.", "لك؟ اختره كي لا يُحتسب مرتين."],
+  "Did you already record the money you gave": ["Avez-vous déjà enregistré l'argent rendu à", "هل سجّلت مسبقًا المال الذي أعدته إلى"],
+  "back? Pick it so it isn't counted twice.": ["? Choisissez-le pour qu'il ne soit pas compté deux fois.", "؟ اختره كي لا يُحتسب مرتين."],
+  "Already paid back?": ["Déjà remboursé ?", "تم السداد مسبقًا؟"],
+  "No, record a new payment": ["Non, enregistrer un nouveau paiement", "لا، سجّل دفعة جديدة"],
+  "Part payment linked.": ["Remboursement partiel lié.", "تم ربط السداد الجزئي."],
+  "No note": ["Sans note", "بدون ملاحظة"],
+  "Repayment for": ["Remboursement de", "سداد لـ"],
+  "History": ["Historique", "السجل"],
   "Ask AI, for free": ["Demandez à l'IA, gratuitement", "اسأل الذكاء الاصطناعي مجانًا"],
   "Tap the gold star at the top to ask anything about your money: how much you spent, where you can save, who owes you, or how the app works. 30 free questions a day.": ["Touchez l'étoile dorée en haut pour poser n'importe quelle question sur votre argent : combien vous avez dépensé, où économiser, qui vous doit, ou comment marche l'app. 30 questions gratuites par jour.", "اضغط النجمة الذهبية في الأعلى لتسأل أي شيء عن أموالك: كم صرفت، أين توفّر، من يدين لك، أو كيف يعمل التطبيق. 30 سؤالًا مجانيًا يوميًا."]
 });
