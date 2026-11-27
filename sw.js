@@ -1,4 +1,4 @@
-const CACHE = "wallet-shell-v201";
+const CACHE = "wallet-shell-v202";
 const ASSETS = [
   "./",
   "./index.html",
@@ -9,8 +9,8 @@ const ASSETS = [
   "./config.js",
   "./vendor/supabase.js",
   "./manifest.webmanifest",
-  "./icons/icon-192-b.png",
-  "./icons/apple-touch-icon-b.png"
+  "./icons/icon-192-w.png",
+  "./icons/apple-touch-icon-w.png"
 ];
 
 self.addEventListener("install", event => {
@@ -77,8 +77,8 @@ self.addEventListener("push", event => {
   const open = ["add", "split", "home"].includes(data.open) ? data.open : "add";
   event.waitUntil(self.registration.showNotification(title, {
     body,
-    icon: "icons/icon-192-b.png",
-    badge: "icons/icon-192-b.png",
+    icon: "icons/icon-192-w.png",
+    badge: "icons/icon-192-w.png",
     tag: open === "add" ? "daily-reminder" : "bs-" + open + "-" + Date.now(),
     renotify: open === "add",
     data: { open }

@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.94.0";
+  const VERSION = "3.95.0";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -180,7 +180,7 @@
     shell = null;
     const pick = k => { LANG = k; trCache.clear(); try { localStorage.setItem("wallet:lang", k); } catch { } applyLang(); render(); };
     root.replaceChildren(h("div", { class: "lang-pick" },
-      h("img", { class: "login-logo", src: "icons/icon-192-b.png", alt: "" }),
+      h("img", { class: "login-logo", src: "icons/icon-192-w.png", alt: "" }),
       h("h1", null, "Budget", h("span", { class: "brand-split" }, "Split")),
       h("p", { lang: "en" }, "Choose your language"),
       h("p", { lang: "fr" }, "Choisissez votre langue"),
@@ -1199,7 +1199,7 @@
       click: () => { if (held) { held = false; return; } if (document.querySelector(".add-fan")) return closeFan(); txnSheet(null); }
     } }, h("span", { class: "tab-add-ring" }, icon("plus")));
     const lens = h("span", { class: "lens", "aria-hidden": "true" });
-    const brand = h("div", { class: "side-brand" }, h("img", { src: "icons/icon-192-b.png", alt: "" }), h("span", null, ...brandMark()));
+    const brand = h("div", { class: "side-brand" }, h("img", { src: "icons/icon-192-w.png", alt: "" }), h("span", null, ...brandMark()));
     const sideAdd = h("button", { type: "button", class: "side-add", on: { click: () => txnSheet(null) } }, icon("plus", "ico"), "New entry");
     const sideSettings = h("button", { type: "button", class: "tab side-only", "data-view": "settings", on: { click: () => go("settings") } }, icon("gear"), h("span", null, "Settings"));
     const tabsEl = h("div", { class: "tabs glass" }, lens, tabs[0], tabs[1], add, tabs[2], tabs[3], sideSettings);
@@ -1288,7 +1288,7 @@
     const title = top.lvl >= 100 ? `${tr(top.c.name)}: over budget` : `${tr(top.c.name)}: 80% of budget used`;
     const body = `${money(top.spent, { show: true })} ${tr("of")} ${money(top.b, { show: true })} ${tr("this month")}`;
     toast(`${tr(title)} · ${body}`, top.lvl >= 100 ? "error" : undefined);
-    if (!boot && document.visibilityState !== "visible" && "Notification" in window && Notification.permission === "granted" && navigator.serviceWorker) navigator.serviceWorker.ready.then(r => r.showNotification(tr(title), { body, tag: "budget-" + top.c.id, icon: "icons/icon-192-b.png" })).catch(() => { });
+    if (!boot && document.visibilityState !== "visible" && "Notification" in window && Notification.permission === "granted" && navigator.serviceWorker) navigator.serviceWorker.ready.then(r => r.showNotification(tr(title), { body, tag: "budget-" + top.c.id, icon: "icons/icon-192-w.png" })).catch(() => { });
   }
 
   function render() {
@@ -1339,7 +1339,7 @@
   function renderSetup() {
     shell = null;
     root.replaceChildren(h("div", { class: "auth" }, h("div", { class: "auth-box" },
-      h("img", { class: "auth-mark", src: "icons/icon-192-b.png", alt: "" }),
+      h("img", { class: "auth-mark", src: "icons/icon-192-w.png", alt: "" }),
       h("h1", null, "Almost ready"),
       h("p", null, "Add your Supabase project URL and anon key to ", h("code", null, "config.js"), ", then reload this page.")
     )));
@@ -1571,7 +1571,7 @@
       h("header", { class: "login-hero" },
         orb(380, "login-orb"),
         h("div", { class: "login-brand" },
-          h("img", { class: "login-logo", src: "icons/icon-192-b.png", alt: "" }),
+          h("img", { class: "login-logo", src: "icons/icon-192-w.png", alt: "" }),
           h("h1", null, ...brandMark()),
           h("p", null, "Budget, track spending, split bills and loans.")),
         h("div", { class: "login-card", "aria-hidden": "true" },
@@ -3235,6 +3235,9 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.95.0", items: [
+      ["", "New wallet logo", "New app icon: an emerald wallet with a card peeking out and a gold coin clasp on the dark emerald background. New file names (icon-192-w, icon-512-w, apple-touch-icon-w, icon-maskable-w) so browsers and Android pick it up; the old -b files are removed. Store icons and the feature graphic were regenerated. On iPhone, an app already on the Home Screen keeps its old icon until it is removed and added again."]
+    ] },
     { v: "3.94.0", items: [
       ["", "Paid back per loan, clearer Split wording, amount fit", "Loan entries carry an encrypted pays field (the id of the loan a repayment settles; no database change, also sent on shared links). A ledger matches repayments to loans: linked repayments first, then the rest to the oldest open loans, so older data is matched too. The person screen now lists Open loans (each with a Paid me back or I paid it back button, a progress bar for part payments and its payments with Undo) and a folded Paid back list, right under the actions. Paying back uses the amount screen with the open amount filled in, can move money into or out of an account, and supports part payments. Settle everything appears when more than one loan is open. Actions read Lend to NAME and Borrow from NAME; the edit screen says Money to and Money from. Wording: to collect and to repay replace owed to you and you owe on Home, Split, people tiles and the orbit; the Split card leads with To collect and To repay, says money to collect is not in your balance, and shows the net position below. The person hero explains the same. Add screen: the amount shrinks to fit the card and is capped at 10 digits (13 for LBP)."]
     ] },
@@ -3503,6 +3506,9 @@
     ] }
   ];
   const CHANGES = [
+    { v: "3.95.0", items: [
+      ["cash", "A new logo", "BudgetSplit has a new wallet logo. On iPhone, remove the app from your Home Screen and add it again to see the new icon."]
+    ] },
     { v: "3.94.0", items: [
       ["check", "Mark loans as paid back", "Each loan now has its own Paid back button. Paid loans move to their own list, and part payments show how much is left."],
       ["people", "Clearer Split", "Split now shows what you have to collect and what you have to repay, and that money to collect isn't in your balance yet."]
@@ -5448,7 +5454,7 @@
         h("div", { class: "set-panel" }, list.map(p => h("button", { type: "button", class: "set-row", style: { "--c": p.c }, on: { click: () => openPage(p) } },
           h("span", { class: "set-glyph" }, icon(p.ic, "ico sm")), h("span", { class: "set-row-t" }, p.t), p.v ? h("span", { class: "set-pill" }, p.v) : null, icon("fwd", "ico sm"))))));
     }
-    kids.push(h("div", { class: "set-foot" }, h("img", { src: "icons/icon-192-b.png", alt: "" }), h("strong", null, ...brandMark()), h("small", null, `${tr("Version")} ${VERSION}`), legalLinks("set-legal")));
+    kids.push(h("div", { class: "set-foot" }, h("img", { src: "icons/icon-192-w.png", alt: "" }), h("strong", null, ...brandMark()), h("small", null, `${tr("Version")} ${VERSION}`), legalLinks("set-legal")));
     out.replaceChildren(...kids);
     return out;
   }
@@ -7378,7 +7384,7 @@
     shell = null;
     const box = h("div", { class: "auth-box" }, h("p", { class: "hint" }, "Loading your balance…"));
     root.replaceChildren(h("div", { class: "auth" }, box));
-    const fail = text => box.replaceChildren(h("img", { class: "auth-mark", src: "icons/icon-192-b.png", alt: "" }), h("h1", null, "Can't open this page"), h("p", null, text));
+    const fail = text => box.replaceChildren(h("img", { class: "auth-mark", src: "icons/icon-192-w.png", alt: "" }), h("h1", null, "Can't open this page"), h("p", null, text));
     const [tok, skey] = String(token).split(".");
     token = tok;
     if (!TOKEN_RE.test(token) || !/^[A-Za-z0-9_-]{43}$/.test(skey || "")) return fail("This link is from an older version or isn't complete. Ask for a new one.");
@@ -8823,7 +8829,7 @@
     const input = passField("np-pass", "New password (10+ characters)", "new-password");
     const btn = h("button", { class: "btn login-go", type: "submit" }, "Save new password");
     const panel = h("form", { class: "login-panel solo", novalidate: true },
-      h("div", { class: "login-title" }, h("img", { class: "login-logo", src: "icons/icon-192-b.png", alt: "" }), h("h2", null, "Choose a new password"), h("p", null, S.email)),
+      h("div", { class: "login-title" }, h("img", { class: "login-logo", src: "icons/icon-192-w.png", alt: "" }), h("h2", null, "Choose a new password"), h("p", null, S.email)),
       h("div", { class: "login-fields" }, h("label", { class: "login-field", for: "np-pass" }, icon("lock", "ico"), input)),
       err, btn);
     panel.addEventListener("submit", async ev => {
@@ -8927,7 +8933,7 @@
       LOCK.el.remove(); LOCK.el = null; LOCK.hiddenAt = 0;
     };
     LOCK.el = h("div", { class: "lock", role: "dialog", "aria-modal": "true", "aria-label": "BudgetSplit is locked" },
-      h("img", { class: "login-logo", src: "icons/icon-192-b.png", alt: "" }),
+      h("img", { class: "login-logo", src: "icons/icon-192-w.png", alt: "" }),
       h("h2", null, "BudgetSplit is locked"),
       h("p", null, "Unlock with Face ID, Touch ID or your device passcode."),
       h("button", { type: "button", class: "btn", on: { click: tryUnlock } }, icon("lock", "ico"), "Unlock"),
@@ -9162,7 +9168,7 @@
     const rec = needRecovery ? h("input", { id: "ul-rec", class: "input", autocomplete: "off", autocapitalize: "characters", spellcheck: "false", placeholder: "XXXX-XXXX-XXXX-XXXX-XXXX-XXXX", "aria-label": "Recovery key" }) : null;
     const btn = h("button", { class: "btn login-go", type: "submit" }, "Unlock");
     const panel = h("form", { class: "login-panel solo", novalidate: true },
-      h("div", { class: "login-title" }, h("div", { class: "orb-wrap" }, orb(210, "unlock-orb"), h("img", { class: "login-logo", src: "icons/icon-192-b.png", alt: "" })), h("h2", null, "Unlock your data"),
+      h("div", { class: "login-title" }, h("div", { class: "orb-wrap" }, orb(210, "unlock-orb"), h("img", { class: "login-logo", src: "icons/icon-192-w.png", alt: "" })), h("h2", null, "Unlock your data"),
         h("p", null, oauth ? "Reset by email is turned off for this account, so your recovery key is needed to open your encrypted data on this device." : needRecovery ? "Your password was changed by email, so your recovery key is needed once to open your encrypted data." : "Your data is encrypted with your password. Enter it once on this device.")),
       h("div", { class: "login-fields" }, oauth ? null : h("label", { class: "login-field", for: "ul-pass" }, icon("lock", "ico"), pass), rec ? h("label", { class: "login-field", for: "ul-rec" }, icon("shield", "ico"), rec) : null),
       err, btn,
