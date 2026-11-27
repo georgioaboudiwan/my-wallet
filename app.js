@@ -52,7 +52,7 @@
     ["giftsin", "Gifts received", "income", null, "#c2508f"],
     ["otherin", "Other income", "income", null, "#5b7083"]
   ];
-  const VERSION = "3.95.1";
+  const VERSION = "3.95.3";
   const ICONS = {
     globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3.5 9h17M3.5 15h17M12 3c2.4 2.5 3.6 5.5 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.5-3.6-9s1.2-6.5 3.6-9z",
     home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3235,6 +3235,12 @@
   }
 
   const ADMIN_CHANGES = [
+    { v: "3.95.3", items: [
+      ["", "Loan and its repayments in one card", "Each loan is one card: a status line (To collect or To repay, a percent for part payments, or Paid back with the date), the loan line, then every linked repayment as its own line (tap to edit, Change to move it), a progress bar and the paid back button. Cards are ordered by their latest activity. Repayments not linked to a loan show as their own card."],    ] },
+    { v: "3.95.2", items: [
+
+      ["", "Move a repayment to another loan", "A repayment row has Change: pick the loan it pays back, or Not a repayment to unlink it. An entry recorded in the other direction after an open loan, and not linked yet, offers This is a repayment of an earlier entry to link it, besides its own paid back button."]
+    ] },
     { v: "3.95.1", items: [
       ["", "Loan history shows every entry", "The automatic matching of older repayments to the oldest loans is removed, and nothing is folded away: the person screen lists every entry as its own card in date order (loans, repayments with a Repayment for line, paid back badges, part payment progress). Only repayments the user marks are linked (pays field). Marking a loan as paid back first offers repayments already recorded in the other direction that aren't linked yet, so one can be linked instead of recording a second payment; or a new payment can be recorded. Settle everything is removed."]
     ] },
@@ -7091,6 +7097,19 @@
     for (const x of info.values()) x.open = x.of ? 0 : Math.max(0, x.amt - x.paid);
     return info;
   }
+  function relinkSheet(p, x, L) {
+    const cur = p.currency;
+    const targets = [...L.values()].filter(y => !y.of && y.sign === -x.sign && y.e.id !== x.e.id && (y.open > 0.004 || (x.of && y === x.of))).sort((a, b) => byRecent(a.e, b.e));
+    const body = h("div", { class: "form" },
+      h("p", { class: "hint" }, tr("Pick the entry this payment pays back.")),
+      h("div", { class: "prof-list" }, targets.map(y => h("button", { type: "button", class: "set-row link-cand", style: { "--c": "#d9b96b" }, on: { click: () => {
+        put("loan_entries", { ...x.e, pays: y.e.id }); closeSheet(); toast("Payment linked."); personSheet(S.data.people.get(p.id) || p);
+      } } },
+        h("span", { class: "set-glyph" }, x.of && y === x.of ? icon("check", "ico sm") : icon("link", "ico sm")),
+        h("span", { class: "set-row-t" }, `${y.e.note || tr("No note")} · ${dayLabel(y.e.occurred_on)}`),
+        h("span", { class: "set-pill num" }, `${fmt(y.open || y.amt, cur, { show: true })}`)))));
+    openSheet(tr("Which entry does it pay back?"), body, x.of ? h("button", { type: "button", class: "btn alt", on: { click: () => { put("loan_entries", { ...x.e, pays: null }); closeSheet(); toast("Payment unlinked."); personSheet(S.data.people.get(p.id) || p); } } }, "Not a repayment") : null, { stack: true });
+  }
   function payBackSheet(p, d, fresh) {
     const cur = p.currency, inFlow = netMine(p, d.sign) > 0, open = roundCur(d.open, cur);
     if (!fresh && d.e.id) {
@@ -7278,28 +7297,39 @@
       const canEdit = e => !e.remote && !linkOf(p) && S.data.loan_entries.has(e.id);
       const delBtn = e => e.remote ? h("span", { class: "row-lock", "aria-hidden": "true" }) : h("button", { type: "button", class: "icon-btn", "aria-label": armed === e.id ? "Confirm delete" : "Delete entry", style: armed === e.id ? { color: "var(--neg)" } : null,
         on: { click: () => { if (armed !== e.id) { armed = e.id; draw(); return; } armed = null; removeRow("loan_entries", e); const linked = S.data.transactions.get(`ln-${e.id}`); if (linked) removeRow("transactions", linked); toast(linked ? "Entry deleted, and the account was corrected." : "Entry deleted."); draw(); } } }, icon(armed === e.id ? "warn" : "close"));
-      const entryCard = e => {
-        const x = L.get(e.id), mine = netMine(p, x.sign) > 0, linkedTx = S.data.transactions.get(`ln-${e.id}`), la = linkedTx && acc(linkedTx.account_id);
-        const kind = x.of ? (mine ? tr("You paid back") + " " + p.name : `${p.name} ${tr("paid you back")}`) : mine ? `${tr("You lent")} ${p.name}` : `${p.name} ${tr("lent you")}`;
-        const full = !x.of && x.paid > 0.004 && x.open <= 0.004, part = !x.of && x.paid > 0.004 && x.open > 0.004;
-        const pct = x.amt ? Math.min(100, x.paid / x.amt * 100) : 0;
-        return h("div", { class: "loan-item" + (x.of ? " repay" : mine ? " lent" : " borrowed") + (full ? " done" : "") },
+      const lineOf = (e, x, isRepay) => {
+        const mine = netMine(p, x.sign) > 0, lt = S.data.transactions.get(`ln-${e.id}`), la = lt && acc(lt.account_id);
+        const what = isRepay ? (mine ? `${tr("You paid back")} ${p.name}` : `${p.name} ${tr("paid you back")}`) : mine ? `${tr("You lent")} ${p.name}` : `${p.name} ${tr("lent you")}`;
+        return h("div", { class: "loan-line" + (isRepay ? " repay" : "") },
           canEdit(e) ? h("button", { type: "button", class: "loan-hit", "aria-label": "Edit entry", on: { click: () => loanEntrySheet(p, e) } }) : null,
-          h("div", { class: "loan-top" },
-            h("span", { class: "loan-kind" }, x.of ? icon("check", "ico sm") : mine ? icon("up", "ico sm") : icon("down", "ico sm")),
-            h("span", { class: "loan-main" }, h("strong", null, e.note || kind), h("small", null, [e.note ? kind : null, dayLabel(e.occurred_on), la ? la.name : null].filter(Boolean).join(" · "))),
-            h("span", { class: "loan-amt num" }, (mine ? "↑ " : "↓ ") + fmt(x.amt, cur, { show: true })),
-            delBtn(e)),
-          x.of ? h("div", { class: "loan-paid repay-of" }, `${tr("Repayment for")} ${x.of.e.note || kind} · ${dayLabel(x.of.e.occurred_on)}`) :
-          full ? h("div", { class: "loan-paid" }, icon("check", "ico sm"), `${tr("Paid back")} · ${dayLabel(x.last).toLowerCase()}`) :
-          h("div", { class: "loan-open" },
-            part ? h("div", { class: "loan-prog" }, h("i", { style: { width: pct.toFixed(1) + "%" } }), h("small", { class: "num" }, `${fmt(x.paid, cur, { show: true })} ${tr("of")} ${fmt(x.amt, cur, { show: true })} ${tr("paid back")}`)) : null,
-            roOnly ? null : h("button", { type: "button", class: "loan-pay", on: { click: () => payBackSheet(p, x) } }, icon("check", "ico sm"), mine ? `${p.name} ${tr("paid me back")}` : tr("I paid it back"),
-              part ? h("span", { class: "num" }, fmt(x.open, cur, { show: true })) : null)));
+          h("span", { class: "loan-kind " + (mine ? "k-out" : "k-in") }, mine ? icon("up", "ico sm") : icon("down", "ico sm")),
+          h("span", { class: "loan-main" }, h("strong", null, isRepay ? what : e.note || what), h("small", null, [isRepay ? (e.note && !/^Repayment/i.test(e.note) ? e.note : null) : e.note ? what : null, dayLabel(e.occurred_on), la ? la.name : null].filter(Boolean).join(" · "))),
+          h("span", { class: "loan-amt num" }, fmt(x.amt, cur, { show: true })),
+          isRepay ? (canEdit(e) && !roOnly ? h("button", { type: "button", class: "loan-undo", on: { click: () => relinkSheet(p, x, L) } }, tr("Change")) : null) : delBtn(e));
       };
+      const entryCard = e => {
+        const x = L.get(e.id), mine = netMine(p, x.sign) > 0;
+        const full = x.paid > 0.004 && x.open <= 0.004, part = x.paid > 0.004 && x.open > 0.004;
+        const pct = x.amt ? Math.min(100, x.paid / x.amt * 100) : 0;
+        const pays = x.by.map(b => L.get(b.e.id)).filter(Boolean).sort((u, v) => u.e.occurred_on.localeCompare(v.e.occurred_on));
+        const orphan = !x.paid && canEdit(e) && !roOnly && [...L.values()].some(y => !y.of && y.sign === -x.sign && y.e.id !== e.id && y.open > 0.004) && history.some(y => y.id !== e.id && Number(y.amount) * x.sign < 0 && y.occurred_on <= e.occurred_on);
+        return h("div", { class: "loan-item" + (mine ? " lent" : " borrowed") + (full ? " done" : part ? " part" : "") },
+          h("div", { class: "loan-head" },
+            h("span", { class: "loan-status" }, full ? [icon("check", "ico sm"), tr("Paid back")] : part ? `${Math.round(pct)}% ${tr("paid back")}` : mine ? tr("To collect") : tr("To repay")),
+            full ? h("span", { class: "loan-when" }, dayLabel(x.last)) : x.paid ? h("span", { class: "loan-when num" }, `${fmt(x.open, cur, { show: true })} ${tr("left")}`) : null),
+          lineOf(e, x, false),
+          ...pays.map(y => lineOf(y.e, y, true)),
+          part ? h("div", { class: "loan-prog" }, h("i", { style: { width: pct.toFixed(1) + "%" } })) : null,
+          full || roOnly ? null : h("div", { class: "loan-open" },
+            h("button", { type: "button", class: "loan-pay", on: { click: () => payBackSheet(p, x) } }, icon("check", "ico sm"), mine ? `${p.name} ${tr("paid me back")}` : tr("I paid it back"),
+              part ? h("span", { class: "num" }, fmt(x.open, cur, { show: true })) : null),
+            orphan ? h("button", { type: "button", class: "loan-undo link-this", on: { click: () => relinkSheet(p, x, L) } }, icon("link", "ico sm"), tr("This is a repayment of an earlier entry")) : null));
+      };
+      const lastAct = x => x.by.reduce((m, b) => b.e.occurred_on > m ? b.e.occurred_on : m, x.e.occurred_on);
+      const groups = [...L.values()].filter(x => !x.of).sort((u, v) => lastAct(v).localeCompare(lastAct(u)) || byRecent(u.e, v.e));
       const hist = h("section", { class: "card flush loan-list" },
         h("div", { class: "card-head" }, h("h2", null, "History"), h("span", { class: "start-count num" }, String(history.length))));
-      if (history.length) history.forEach(e => hist.append(entryCard(e)));
+      if (history.length) groups.forEach(x => hist.append(entryCard(x.e)));
       else hist.append(h("p", { class: "empty" }, "No entries yet."));
       const lists = [hist];
       kids.splice(listAt, 0, ...lists);

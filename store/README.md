@@ -231,6 +231,8 @@ Update this list with every app change, so the listing, screenshots and privacy 
 | 3.94.0 | Mark each loan as paid back; clearer Split (to collect, to repay); amount fits on the add screen | Add "mark loans as paid back" to the description; Split screenshot regenerated |
 | 3.95.0 | New wallet logo (new icon files) | Use the new store icons and feature graphic |
 | 3.95.1 | Loan history shows every entry; link an existing repayment when marking paid back | No listing change |
+| 3.95.2 | Move a repayment to another loan | No listing change |
+| 3.95.3 | A loan and its repayments shown together in one card | No listing change |
 
 ## Save for the native app
 

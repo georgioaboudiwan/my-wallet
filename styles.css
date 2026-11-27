@@ -2900,3 +2900,28 @@ html[lang="ar"] .top:has(.tool.keys) h1 { font-size: 22px; }
 .aura-net-row b { font-size: 17px; color: #fbf7ec; }
 .loan-item.repay { --lc: #d9b96b; }
 .loan-paid.repay-of { color: var(--muted); font-weight: 600; }
+.loan-paid.repay-of { pointer-events: auto; justify-content: space-between; }
+.loan-paid.repay-of .loan-undo { margin-left: auto; color: var(--accent); }
+.loan-undo.link-this { display: inline-flex; align-items: center; gap: 6px; justify-self: start; color: var(--accent); }
+.loan-item { gap: 0; padding: 0; overflow: hidden; border-left: 0; border: 1px solid color-mix(in srgb, var(--lc) 28%, var(--line)); background: var(--card); }
+.loan-item.done { opacity: 1; --lc: var(--pos, #12916f); background: color-mix(in srgb, var(--pos, #12916f) 4%, var(--card)); }
+.loan-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 14px; background: color-mix(in srgb, var(--lc) 9%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--lc) 16%, transparent); }
+.loan-status { display: inline-flex; align-items: center; gap: 6px; font: 750 11.5px var(--ui); letter-spacing: .12em; text-transform: uppercase; color: var(--lc); }
+.loan-status .ico { width: 14px; height: 14px; }
+.loan-when { font: 600 12px var(--ui); color: var(--muted); }
+.loan-line { position: relative; display: flex; align-items: center; gap: 10px; padding: 11px 14px; }
+.loan-line + .loan-line { border-top: 1px dashed var(--line); }
+.loan-line > *:not(.loan-hit) { position: relative; z-index: 1; }
+.loan-line .loan-main, .loan-line .loan-amt { pointer-events: none; }
+.loan-line .loan-kind.k-out { --kc: var(--neg, #d9534f); } .loan-line .loan-kind.k-in { --kc: var(--pos, #12916f); }
+.loan-line .loan-kind { color: var(--kc); background: color-mix(in srgb, var(--kc) 13%, transparent); }
+.loan-line.repay .loan-main strong { font-size: 14px; }
+.loan-line.repay .loan-amt { font-size: 15px; }
+.loan-item.done .loan-amt { text-decoration: none; color: var(--ink); }
+.loan-line .icon-btn { width: 32px; height: 32px; margin-right: -6px; }
+.loan-item .loan-prog { padding: 0 14px 10px; }
+.loan-item .loan-open { padding: 0 12px 12px; }
+.loan-item.done .loan-line:not(.repay) .loan-amt { color: var(--muted); }
+.link-cand { width: 100%; min-width: 0; }
+.link-cand .set-row-t { white-space: normal; line-height: 1.25; }
+.link-cand .set-pill { max-width: none; }
